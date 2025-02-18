@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Courses</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
+        details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
+        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .tab-container { margin-top: 10px; }
+        .tabs { display: flex; cursor: pointer; border-bottom: 2px solid #ccc; }
+        .tab { padding: 8px 12px; border: 1px solid #ccc; border-bottom: none; background: #d9d9d9; }
+        .tab.active { background: #fff; font-weight: bold; }
+        .tab-content { display: none; padding: 10px; height: 120px; overflow-y: auto; border: 1px solid #ccc; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <h1>Manage Your Courses</h1>
+
+    <!-- Course Input Form -->
+    <input type="text" id="courseID" placeholder="Enter Course ID" required>
+    <input type="text" id="courseName" placeholder="Enter Course Name" required>
+    <input type="text" id="courseCRN" placeholder="Enter CRN" required>
+    <select id="courseSemester" required>
+        <option value="" disabled selected>Select Semester</option>
+        <option value="Spring 2024">Spring 2024</option>
+        <option value="Summer 2024">Summer 2024</option>
+        <option value="Fall 2024">Fall 2024</option>
+        <option value="Winter 2024">Winter 2024</option>
+    </select>
+    <button onclick="addCourse()">Add Course</button>
+
+    <div id="courseList"></div>
+
+    <script>
+        function addCourse() {
+            const courseID = document.getElementById('courseID').value.trim();
+            const courseName = document.getElementById('courseName').value.trim();
+            const courseCRN = document.getElementById('courseCRN').value.trim();
+            const courseSemester = document.getElementById('courseSemester').value;
+
+            if (!courseID || !courseName || !courseCRN || !courseSemester) {
+                alert("All fields (Course ID, Name, CRN, and Semester) are required.");
+                return;
+            }
+
+            // Create Course Container
+            const courseContainer = document.createElement('div');
+            courseContainer.classList.add('course-container');
+            courseContainer.innerHTML = `
+                <details>
+                    <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+
+                    <!-- Questions Dropdown (with Tabbed Pane for QTI Types) -->
+                    <details>
+                        <summary>Questions</summary>
+                        <div class="tab-container">
+                            <div class="tabs">
+                                <div class="tab active" onclick="switchTab(event, 'mcq-${courseID}')">Multiple Choice</div>
+                                <div class="tab" onclick="switchTab(event, 'essay-${courseID}')">Essay</div>
+                                <div class="tab" onclick="switchTab(event, 'truefalse-${courseID}')">True/False</div>
+                            </div>
+                            <div class="tab-content active" id="mcq-${courseID}">
+                                <p>MCQ questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="essay-${courseID}">
+                                <p>Essay questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="truefalse-${courseID}">
+                                <p>True/False questions go here...</p>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- Tests Dropdown -->
+                    <details>
+                        <summary>Tests</summary>
+                        <p>List of tests for this course...</p>
+                    </details>
+
+                    <!-- Templates Dropdown -->
+                    <details>
+                        <summary>Templates</summary>
+                        <p>List of templates for this course...</p>
+                    </details>
+
+                    <!-- Attachments Dropdown -->
+                    <details>
+                        <summary>Attachments</summary>
+                        <p>Any uploaded files related to this course...</p>
+                    </details>
+
+                    <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
+                </details>
+            `;
+
+            // Append Course
+            document.getElementById('courseList').appendChild(courseContainer);
+
+            // Clear Inputs
+            document.getElementById('courseID').value = "";
+            document.getElementById('courseName').value = "";
+            document.getElementById('courseCRN').value = "";
+            document.getElementById('courseSemester').value = "";
+        }
+
+        function confirmRemoveCourse(button) {
+            const confirmation = confirm("Are you sure you want to delete this course? This action cannot be undone.");
+            if (confirmation) {
+                button.closest('.course-container').remove();
+            }
+        }
+
+        function switchTab(event, tabID) {
+            const parentContainer = event.target.closest('.tab-container');
+            const tabs = parentContainer.querySelectorAll('.tab');
+            const contents = parentContainer.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabID).classList.add('active');
+        }
+    </script>
+
+</body>
+</html>

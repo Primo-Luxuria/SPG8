@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+{% load static %}
+<title>QuizPress</title>
+<link rel="icon" type="image/x-icon" href="{% static 'welcome/quizpress.ico' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'welcome/home.css' %}">
+<meta charset="UTF-8">
+<meta name="keywords" content="HTML, CSS, JavaScript, test, quiz, transfer, teachers, canvas, qti, import, export">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+font-family: Garamond, serif;
+}
+</style>
+</head>
+
+<body style="text-align:center;">
+
+<div>
+	<h1 >Welcome to QuizPress!</h1>
+	<p>QuizPress is a website designed to make test management easy! Transfer your tests from canvas to the classroom with our easy-export technology. Upload your own tests or use test questions uploaded by publishers you trust, either way we make editing and transferring files easy with our template system!</p>
+	<p>If you are an existing user, welcome back! If you are a new user, then sign up below for free!</p>
+	<div>
+		<label for="login">Log In Here!</label><br/>
+		<button id="login" onclick="location.href='{% url 'login' %}'">Log In</button><br/>		
+		
+		<label for="signup">Sign Up Here!</label><br/>
+		<button id="signup" onclick="location.href='{% url 'signup' %}'">Sign Up</button>
+		
+	</div>
+	</div>
+</body>
+</html>
