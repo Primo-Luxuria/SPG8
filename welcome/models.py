@@ -3,8 +3,6 @@ Creating the data base for test automation. We need to allow user (teacher, publ
 There need to be courses, questions, test, test templates, and feedback for the test
 """
 
-
-
 from django.db import models
 from django.contrib.auth.models import User  # this will automatically the user_id, username, email, or passwords
 from django.utils import timezone

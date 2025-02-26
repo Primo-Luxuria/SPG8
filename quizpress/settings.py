@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'welcome',
-    'django_extensions',
+    'django_extensions'
+    '',
     
 ]
 
@@ -77,12 +78,31 @@ WSGI_APPLICATION = 'quizpress.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+"""
+This will need to change once hooked up to AWS
+"""
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
+        'USER': 'root',
+        'PASSWORD': '2319',
+        'HOST': 'localhost',  # Keep as 'localhost' for now
+        'PORT': '3306',
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
+
 
 
 # Password validation
