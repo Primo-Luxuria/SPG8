@@ -67,7 +67,7 @@
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal()">Back</button>
             <h2 id="questionModalTitle">Select Questions</h2>
-            <div id="modalBody"></div>
+            <div id="questionModalBody"></div>
         </div>
     </div>
 	
@@ -80,16 +80,16 @@ var masterTemplateList = {};
 var masterAttachmentList = {};
 
 
-        function addCourse() {
-            const courseID = document.getElementById('courseID').value.trim();
-            const courseName = document.getElementById('courseName').value.trim();
-            const courseCRN = document.getElementById('courseCRN').value.trim();
-            const courseSemester = document.getElementById('courseSemester').value;
-	    const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
-            const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
-            const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
-            const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
-            const textbookLink = document.getElementById('courseTextbookLink').value.trim();
+function addCourse() {
+    const courseID = document.getElementById('courseID').value.trim();
+    const courseName = document.getElementById('courseName').value.trim();
+    const courseCRN = document.getElementById('courseCRN').value.trim();
+    const courseSemester = document.getElementById('courseSemester').value;
+	const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
+    const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
+    const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
+    const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
+    const textbookLink = document.getElementById('courseTextbookLink').value.trim();
             
 
             if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
@@ -460,7 +460,7 @@ function updateTemplateSelection(courseID){
         }
 }
 
-	function addQuestion(courseID) {
+function addQuestion(courseID) {
     const prompt = document.getElementById("questionField").value.trim();
     const solution = document.getElementById("answerField").value.trim();
     const type = document.getElementById("typeField").value;
@@ -504,6 +504,7 @@ function updateTestParts(courseID){
     alert("Parts: " + partCount);
 
     let test = document.getElementById("testParts");
+    test.innerHTML="";
     for(let i=0; i<partCount;i++){
         
         let partContainer = document.createElement("div");
@@ -520,8 +521,10 @@ function updateTestParts(courseID){
             sectionContainer.style.marginBottom = '8px';
             sectionContainer.style.borderBottom = '1px solid #ccc';
             sectionContainer.style.backgroundColor = '#d3d3d3';
+            sectionContainer.id=`part-${i}-section${j}-container`;
             let y=j+1;
-            sectionContainer.innerHTML=`<h3>Section ${y}:<br/> <button>Chooose Questions</button>`;
+            const type = partStructure[i].sections[j].questionType.toLowerCase();
+            sectionContainer.innerHTML=`<h3>Section ${y}: ${type} Questions<br/> <button onclick="openQuestionModal('${courseID}','${i}','${j}','${type}')">Chooose Questions</button>`;
             partContainer.appendChild(sectionContainer);
             alert("Part " + (x) + ", section " + (y) + " added!");
         }
@@ -530,6 +533,79 @@ function updateTestParts(courseID){
     
 }
 
+function openQuestionModal(courseID, partNum, sectionNum, type){
+    const modal = document.getElementById('questionModal');
+    const modalTitle = document.getElementById('questionModalTitle');
+    const modalBody = document.getElementById('questionModalBody');
+    if(!masterQuestionList[courseID][type] || masterQuestionList[courseID][type].length === 0){
+        alert("No questions available of this type!");
+        return;
+    }
+    const questions = masterQuestionList[courseID][type];
+    const questionContainer = document.createElement('div');
+    questionContainer.style.padding = '5px';
+    questionContainer.style.marginBottom = '8px';
+    questionContainer.style.borderBottom = '1px solid #ccc';
+
+    questions.forEach((question, index) => {
+        const element = document.createElement("div");
+        element.style.padding = '8px';
+        element.style.margin = '5px 0';
+        element.style.backgroundColor = '#f0f0f0';
+        element.style.borderRadius = '4px';
+        element.innerHTML = `
+            <input type="checkbox" id="q-${index}" value="${index}">
+            <label for="q-${index}">${question.text} (${question.score} Points)</label>
+        `;   
+        questionContainer.appendChild(element);
+    });
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'add-btn';
+    submitButton.textContent = 'Add Selected Questions';
+    submitButton.onclick = function() {
+        addSelectedQuestions(courseID, partNum, sectionNum, type);
+    };
+    questionContainer.appendChild(submitButton);
+
+    modalTitle.innerText = `Select ${type.toUpperCase()} Questions`;
+    modalBody.innerHTML="";
+    modalBody.appendChild(questionContainer);
+
+    modal.style.display = "flex";
+    setTimeout(() => {
+        modal.style.opacity = "1";
+    }, 10);
+}
+
+function addSelectedQuestions(courseID, partNum, sectionNum, type) {
+    const checkboxes = document.querySelectorAll('#questionModalBody input[type="checkbox"]:checked');
+    const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (selectedIndices.length === 0) {
+        alert("Please select at least one question.");
+        return;
+    }
+    
+    const questions = selectedIndices.map(index => masterQuestionList[courseID][type][index]);
+    
+    const sectionContainer = document.getElementById(`part-${partNum}-section${sectionNum}-container`);
+    const questionCountSpan = document.createElement('span');
+    questionCountSpan.textContent = ` (${selectedIndices.length} questions selected)`;
+    
+    const h3 = sectionContainer.querySelector('h3');
+    
+    const existingCount = h3.querySelector('span');
+    if (existingCount) {
+        h3.removeChild(existingCount);
+    }
+    
+    h3.appendChild(questionCountSpan);
+    
+    alert(`Added ${selectedIndices.length} questions to Part ${parseInt(partNum)+1}, Section ${parseInt(sectionNum)+1}`);
+    
+    closeQuestionModal();
+}
 
 function updateParts() {
     const partCount = parseInt(document.getElementById("partCount").value);
@@ -570,8 +646,6 @@ function updateSections(partNumber) {
     }
 }
 
-
-
 function updateTabs(type, courseID) {
   const tabContent = document.getElementById(`${type}-${courseID}`);
   tabContent.innerHTML = '';
@@ -595,8 +669,7 @@ function updateTabs(type, courseID) {
   });
 }
 
-
-	function updateSemesterOptions() {
+function updateSemesterOptions() {
     const select = document.getElementById('courseSemester');
     select.innerHTML = ''; // Clear existing options
     const option = document.createElement('option');
@@ -638,16 +711,14 @@ window.onbeforeunload = function(event){
     event.returnValue = "Warning!";
 };
 
-
 document.addEventListener("DOMContentLoaded", updateSemesterOptions);
 
-
-        function closeModal() {
+function closeModal() {
             document.getElementById("editModal").style.display = "none";
     document.getElementById("editModal").style.opacity = "0";
         }
 
-	function closeQuestionModal(){
+function closeQuestionModal(){
             document.getElementById("questionModal").style.display = "none";
     document.getElementById("questionModal").style.opacity = "0";
         }
