@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,15 +7,21 @@
     <title>Manage Courses</title>
     <style>
         body { font-family: Arial, sans-serif; }
+	textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
         .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
         details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
-        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .tab-container { margin-top: 10px; }
-        .tabs { display: flex; cursor: pointer; border-bottom: 2px solid #ccc; }
-        .tab { padding: 8px 12px; border: 1px solid #ccc; border-bottom: none; background: #d9d9d9; }
-        .tab.active { background: #fff; font-weight: bold; }
+        .tabs { display: flex; cursor: pointer; border-bottom: 2px solid #cccccc; }
+        .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
+        .tab.active { background: #ffffff; font-weight: bold; }
         .tab-content { display: none; padding: 10px; height: 120px; overflow-y: auto; border: 1px solid #ccc; }
-        .tab-content.active { display: block; }
+        .tab-content.active { display: block;}
+        .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
+        .modal-content { background: white; padding: 20px; width: 50%; max-height:80vh; overflow-y:auto; margin: 5% auto; border-radius: 10px;}
+        .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
+	
     </style>
 </head>
 <body>
@@ -22,97 +29,177 @@
     <h1>Manage Your Courses</h1>
 
     <!-- Course Input Form -->
+
+    <div style="background:#e0e0e0;padding:20px;">
     <input type="text" id="courseID" placeholder="Enter Course ID" required>
     <input type="text" id="courseName" placeholder="Enter Course Name" required>
     <input type="text" id="courseCRN" placeholder="Enter CRN" required>
     <select id="courseSemester" required>
         <option value="" disabled selected>Select Semester</option>
-        <option value="Spring 2024">Spring 2024</option>
-        <option value="Summer 2024">Summer 2024</option>
-        <option value="Fall 2024">Fall 2024</option>
-        <option value="Winter 2024">Winter 2024</option>
-    </select>
+        <option value="Spring">Spring</option>
+        <option value="Summer">Summer</option>
+        <option value="Fall">Fall</option>
+        <option value="Winter">Winter</option>
+    </select><br/><br/>
+
+    <input type="text" id="courseTextbookTitle" placeholder="Enter Textbook Title" required>
+    <input type="text" id="courseTextbookAuthor" placeholder="Enter Textbook Author" required>
+    <input type="text" id="courseTextbookVersion" placeholder="Enter Textbook Version" required>
+    <input type="text" id="courseTextbookISBN" placeholder="Enter Textbook ISBN" required>
+    <input type="text" id="courseTextbookLink" placeholder="Enter Textbook Website Link" required><br/><br/>
+    
     <button onclick="addCourse()">Add Course</button>
+    </div>
 
     <div id="courseList"></div>
 
+    <!-- Modal for Editing -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">Back</button>
+            <h2 id="modalTitle">Edit</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Modal for Question Selection -->
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">Back</button>
+            <h2 id="questionModalTitle">Select Questions</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+	
+
     <script>
+
+var masterQuestionList = {};
+var masterTestList = {};
+var masterTemplateList = {};
+var masterAttachmentList = {};
+
+
         function addCourse() {
             const courseID = document.getElementById('courseID').value.trim();
             const courseName = document.getElementById('courseName').value.trim();
             const courseCRN = document.getElementById('courseCRN').value.trim();
             const courseSemester = document.getElementById('courseSemester').value;
+	    const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
+            const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
+            const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
+            const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
+            const textbookLink = document.getElementById('courseTextbookLink').value.trim();
+            
 
-            if (!courseID || !courseName || !courseCRN || !courseSemester) {
-                alert("All fields (Course ID, Name, CRN, and Semester) are required.");
+            if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
+                alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
                 return;
             }
 
-            // Create Course Container
             const courseContainer = document.createElement('div');
             courseContainer.classList.add('course-container');
             courseContainer.innerHTML = `
                 <details>
                     <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
 
-                    <!-- Questions Dropdown (with Tabbed Pane for QTI Types) -->
                     <details>
                         <summary>Questions</summary>
+                        <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
                         <div class="tab-container">
                             <div class="tabs">
-                                <div class="tab active" onclick="switchTab(event, 'mcq-${courseID}')">Multiple Choice</div>
-                                <div class="tab" onclick="switchTab(event, 'essay-${courseID}')">Essay</div>
-                                <div class="tab" onclick="switchTab(event, 'truefalse-${courseID}')">True/False</div>
+                                <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
+				<div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
+                                <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
+				<div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
+                                <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
+				<div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
+				<div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+				
                             </div>
-                            <div class="tab-content active" id="mcq-${courseID}">
-                                <p>MCQ questions go here...</p>
-                            </div>
-                            <div class="tab-content" id="essay-${courseID}">
-                                <p>Essay questions go here...</p>
-                            </div>
-                            <div class="tab-content" id="truefalse-${courseID}">
+                            <div class="tab-content active" id="tf-${courseID}">
                                 <p>True/False questions go here...</p>
                             </div>
+                            <div class="tab-content" id="es-${courseID}">
+                                <p>Essay questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="mc-${courseID}">
+                                <p>Multiple Choice questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="sa-${courseID}">
+                                <p>Short Answer questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="ma-${courseID}">
+                                <p>Matching questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="ms-${courseID}">
+                                <p>Multiple Selection questions go here...</p>
+                            </div>
+                            <div class="tab-content" id="fb-${courseID}">
+                                <p>Fill in the Blank questions go here...</p>
+                            </div>
+                                                 
                         </div>
                     </details>
 
-                    <!-- Tests Dropdown -->
                     <details>
                         <summary>Tests</summary>
-                        <p>List of tests for this course...</p>
+                        <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
+                        <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                        <p>You have not added any tests yet...</p>
                     </details>
 
-                    <!-- Templates Dropdown -->
                     <details>
                         <summary>Templates</summary>
-                        <p>List of templates for this course...</p>
+                        <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
+                        <p>You have not added any templates yet...</p>
                     </details>
 
-                    <!-- Attachments Dropdown -->
                     <details>
                         <summary>Attachments</summary>
-                        <p>Any uploaded files related to this course...</p>
+                        <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
+                        <p>You have not uploaded any attachments yet...</p>
                     </details>
 
                     <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
                 </details>
             `;
 
-            // Append Course
             document.getElementById('courseList').appendChild(courseContainer);
-
-            // Clear Inputs
             document.getElementById('courseID').value = "";
             document.getElementById('courseName').value = "";
             document.getElementById('courseCRN').value = "";
             document.getElementById('courseSemester').value = "";
+	    document.getElementById('courseTextbookTitle').value = "";
+            document.getElementById('courseTextbookAuthor').value = "";
+            document.getElementById('courseTextbookVersion').value = "";
+            document.getElementById('courseTextbookISBN').value = "";
+	    document.getElementById('courseTextbookLink').value = "";
+	const questionList = {
+	    'course': courseID,
+	    'tf': [],
+	    'mc': [],
+	    'sa': [],
+	    'es': [],
+	    'ma': [],
+	    'ms': [],
+	    'fb': []
+	}
+    const testList = {
+        'draft': [],
+        'published': []
+    }
+
+	masterQuestionList[courseID] = questionList;
+    masterTestList[courseID] = testList;
+
         }
 
         function confirmRemoveCourse(button) {
-            const confirmation = confirm("Are you sure you want to delete this course? This action cannot be undone.");
-            if (confirmation) {
+            if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
                 button.closest('.course-container').remove();
             }
+	
         }
 
         function switchTab(event, tabID) {
@@ -126,7 +213,446 @@
             event.target.classList.add('active');
             document.getElementById(tabID).classList.add('active');
         }
-    </script>
+
+
+function openEditor(type, courseID) {
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    modalTitle.innerText = `Add ${type}`;
+
+    let formContent = '';    
+
+    if (type != "Question"){
+        formContent += `
+	<label>${type} Name:</label><br/>
+        <input type="text" id="nameField"><br><br>
+    `;
+    }
+    
+
+    if (type === "Question") {
+        formContent += `
+            <label>Question:</label><br/>
+            <textarea id="questionField" rows="5" placeholder="Enter question text here..."></textarea><br><br>
+            
+            <label>Question Type:</label><br/>
+            <select id="typeField">
+                <option value="" disabled selected>Select Question Type</option>
+                <option value="tf">True/False</option>
+                <option value="mc">Multiple Choice</option>
+                <option value="sa">Short Answer</option>
+                <option value="es">Essay</option>
+                <option value="ma">Matching</option>
+                <option value="ms">Multiple Selections</option>
+                <option value="fb">Fill in the Blank</option>
+            </select><br><br>
+
+            <label>Correct Answer:</label><br/>
+            <textarea id="answerField" rows="4" placeholder="For questions that lack a correct answer, please repeat the prompt here."></textarea><br><br>
+
+            <label>Point Value:</label><br/>
+            <input type="number" id="pointValueField" min="1"><br><br>
+
+	    <label>Estimated Time to Solve (Minutes):</label><br/>
+            <input type="number" id="qTimeField" min="1"><br><br>
+
+            <label>Grading Instructions:</label><br/>
+            <textarea id="instructionField" rows="6" placeholder="Grading instructions should be provided for partial credit, short or long answer questions, or questions where a rubric is necessary."></textarea><br><br>
+
+            <label>Reference Text (Optional):</label><br/>
+            <textarea id="refField" rows="3" placeholder="Reference text if needed..."></textarea><br><br>
+
+	    <label>Embedded Graphic (Optional):</label><br/>
+            <input type="file" id="qGraphicField" name="questionSRC"></input><br><br>
+	
+	    <label>Embedded Graphic for the Correct Answer (Optional):</label><br/>
+            <input type="file" id="ansGraphicField" name="answerSRC"></input><br><br>
+
+
+            <button class="add-btn" onclick="addQuestion('${courseID}')">Submit Question</button>
+        `;
+    }
+
+    if (type === "Test"){
+        formContent+= `
+        <div style="background:#e0e0e0;padding:20px;" id="testEditor">
+            <p>Choose a Template!</p><br/>
+            <div id=templateSelectorPane>
+                <select id=templateSelector>
+                    <option value="" disabled selected>Please Select a Template</option>
+                </select> <button id=templateSelection onclick="updateTestParts('${courseID}')">Select This One!</button>
+                <div id="testParts"> </div>
+            </div>
+        </div>
+        `;
+        setTimeout(() => {
+        updateTemplateSelection(courseID);
+    }, 50);
+        
+    }
+
+
+     if (type === "Template") {
+        formContent += `
+            <div  style="background:#e0e0e0;padding:20px;" id="templateEditor"> 
+	    <h1>Font Settings</h1>
+  	    <label>Title Font and Font Size:</label><br/>
+	    <input type="text" id="titleFont" placeholder="Enter Title Font...">
+	    <input type="number" id="titleFontSize" min="1" value="36"><br/><br/>
+	    <label>Subtitle Font and Font Size:</label><br/>
+	    <input type="text" id="subtitleFont" placeholder="Enter Subtitle Font...">
+	    <input type="number" id="subtitleFontSize" min="1" value="24"><br/><br/>
+    	    <label>Body Font and Font Size:</label><br/>
+	    <input type="text" id="bodyFont" placeholder="Enter Body Font...">
+	    <input type="number" id="bodyFontSize" min="1" value="12"><br/><br/>
+ 
+  	    <h1>Header and Footer Settings</h1>
+	    <label>Page Numbers in Header</label><br/>
+	    <input type="checkbox" id="pageNumH"><br/>
+	    <label>Page Numbers in Footer</label><br/>
+	    <input type="checkbox" id="pageNumF"><br/><br/>
+	    <textarea id="headerField" rows="3" placeholder="Enter any desired header text ..."></textarea>
+	    <textarea id="footerField" rows="3" placeholder="Enter any desired footer text..."></textarea>
+	    
+	    <h1>Cover Page Selection</h1><br/>
+	    <select id="coverPageSelector">
+		<option value="" disabled selected>Please Select a Cover Page</option>
+		<option value="CPT1">Cover Page Template 1</option>
+		<option value="CPT2">Cover Page Template 2</option>
+		<option value="CPT3">Cover Page Template 3</option>
+		<option value="CPTC">Cover Page Custom Upload</option>
+	    </select><br/><br/>
+	    <label>Custom Cover Page (Optional)</label><br/>
+	    <input type=file id="coverPageUploader"><br/><br/>
+
+	    <h1>Test Structure Settings</h1>
+	    <label>Number of Parts:</label>
+            <input type="number" id="partCount" min="1" value="1">
+            <button onclick="updateParts()">Update</button>
+            <div style="background:#d0d0d0;padding:20px" id="partsContainer"><p>No Parts Chosen</p></div>
+            
+	    <!-- I may add a button to allow for selection of specific bonus questions as part of the template later -->
+	    <h1>Bonus Question Section Toggle</h1>
+	    <select id="bonusToggle">
+		<option value="True">Bonus Section</option>
+		<option value="False">No Bonus Section</option>
+	    </select><br/><br/>
+
+            <button class="add-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
+
+	    
+        `;
+    }
+
+
+    if (type === "Attachment"){
+        formContent+=`
+            <input type="file" id="newAttachment" name="attachment">
+	        <button class="add-btn" onclick="submitAttachment('${courseID}')">Submit Attachment</button>
+        `;
+   }
+
+    // Ensure the modal content is updated
+    modalBody.innerHTML = formContent;
+
+    // Show the modal
+    modal.style.display = "flex";
+    setTimeout(() => {
+        modal.style.opacity = "1";
+    }, 10);
+}
+
+function submitAttachment(courseID){
+    const attachment = document.getElementById("newAttachment").files[0];
+    const name = document.getElementById("nameField").value.trim();
+    if(!masterAttachmentList[courseID]){
+        masterAttachmentList[courseID] = [];
+    }
+    masterAttachmentList[courseID].push(attachment);
+}
+
+function addTemplate(courseID){
+    const templateName = document.getElementById('nameField').value.trim();
+    const coverPageType = document.getElementById('coverPageSelector').value;
+    
+    if (!templateName) {
+        alert("Template Name is required.");
+        return;
+    }
+
+    const templateData = {
+        name: templateName,
+        titleFont: document.getElementById('titleFont').value,
+        titleFontSize: document.getElementById('titleFontSize').value,
+        subtitleFont: document.getElementById('subtitleFont').value,
+        subtitleFontSize: document.getElementById('subtitleFontSize').value,
+        bodyFont: document.getElementById('bodyFont').value,
+        bodyFontSize: document.getElementById('bodyFontSize').value,
+        pageNumbersInHeader: document.getElementById('pageNumH').checked,
+        pageNumbersInFooter: document.getElementById('pageNumF').checked,
+        headerText: document.getElementById('headerField').value,
+        footerText: document.getElementById('footerField').value,
+        coverPageType: coverPageType,
+        partStructure: collectPartStructure(),
+        bonusSection: document.getElementById('bonusToggle').value === 'True'
+    };
+
+    if (coverPageType === 'CPTC') {
+        templateData.coverPageImg = document.getElementById('coverPageUploader').files[0];
+    }
+
+    if (!masterTemplateList[courseID]) {
+        masterTemplateList[courseID] = [];
+    }
+    
+    masterTemplateList[courseID].push(templateData);
+    
+    alert("Template added successfully!");
+    console.log("Saved Template:", templateData);
+
+    closeModal();
+}
+
+
+function collectPartStructure() {
+    const partCount = parseInt(document.getElementById('partCount').value);
+    const partStructure = [];
+    for (let i = 1; i <= partCount; i++) {
+        const part = {
+            partNumber: i,
+            sections: []
+        };
+        
+        const sectionCount = parseInt(document.getElementById(`sectionCount-${i}`).value);
+        part.sectionCount=sectionCount;
+        const sectionContainer = document.getElementById(`sectionsContainer-${i}`);
+        const sectionSelects = sectionContainer.querySelectorAll('select');
+        
+        sectionSelects.forEach((select, j) => {
+            part.sections.push({
+                sectionNumber: j + 1,
+                questionType: select.value
+            });
+        });
+        
+        partStructure.push(part);
+    }
+    partStructure.partCount=partCount;
+    return partStructure;
+}
+
+function updateTemplateSelection(courseID){
+    if(!masterTemplateList[courseID]){
+            masterTemplateList[courseID] = [];
+        }else if(!masterTemplateList[courseID][0]){
+            alert("No templates available for this course!");
+        }else{
+            const templateList = masterTemplateList[courseID];
+            templateList.forEach((template, index)=>{
+            const selection = document.getElementById("templateSelector");
+            const newoption = document.createElement("option");
+            newoption.value = index;
+            newoption.textContent= template.name;
+            selection.appendChild(newoption);
+        });
+        }
+}
+
+	function addQuestion(courseID) {
+    const prompt = document.getElementById("questionField").value.trim();
+    const solution = document.getElementById("answerField").value.trim();
+    const type = document.getElementById("typeField").value;
+    const points = document.getElementById("pointValueField").value.trim();
+    const instructions = document.getElementById("instructionField").value.trim();
+    const refText = document.getElementById("refField").value.trim();
+    const time = document.getElementById("qTimeField").value.trim();
+    const graphic = document.getElementById("qGraphicField").value;
+    const ansgraphic = document.getElementById("ansGraphicField").value;
+
+
+    if (!prompt || !solution || !type || !points || !instructions || !time) {
+        alert("Some fields (Question, Question Type, Correct Answer, Default Point Value, and Grading Instructions) are required.");
+        return;
+    }
+
+    const question = {
+	text: prompt,
+	answer: solution,
+	qtype: type,
+	score: points,
+	directions: instructions,
+	reference: refText,
+	eta: time,
+	img: graphic,
+	ansimg: ansgraphic
+	}
+    masterQuestionList[courseID][type].push(question);
+    lastquestion = masterQuestionList[courseID][type].length-1;
+    updateTabs(type, courseID);
+    alert("Added the " + masterQuestionList[courseID][type][lastquestion].qtype.toUpperCase() + " Question: \n\"" + masterQuestionList[courseID][type][lastquestion].text + "\"\n (Worth " + masterQuestionList[courseID][type][lastquestion].score + " points!)");
+
+    closeModal();
+}
+
+function updateTestParts(courseID){
+    const templateIndex = document.getElementById("templateSelector").value;
+    const template = masterTemplateList[courseID][templateIndex];
+    const partStructure = template.partStructure;
+    const partCount = partStructure.partCount;
+    alert("Parts: " + partCount);
+
+    let test = document.getElementById("testParts");
+    for(let i=0; i<partCount;i++){
+        
+        let partContainer = document.createElement("div");
+        partContainer.style.padding = '5px';
+        partContainer.style.marginBottom = '8px';
+        partContainer.style.borderBottom = '1px solid #ccc';
+        partContainer.id = `part-${i}-container`;
+        let x=i+1;
+        partContainer.innerHTML=`<h2>Part ${x}</h2>`;
+        const sectionCount = partStructure[i].sectionCount;
+        for(let j=0; j<sectionCount;j++){
+            let sectionContainer = document.createElement('div');
+            sectionContainer.style.padding = '5px';
+            sectionContainer.style.marginBottom = '8px';
+            sectionContainer.style.borderBottom = '1px solid #ccc';
+            sectionContainer.style.backgroundColor = '#d3d3d3';
+            let y=j+1;
+            sectionContainer.innerHTML=`<h3>Section ${y}:<br/> <button>Chooose Questions</button>`;
+            partContainer.appendChild(sectionContainer);
+            alert("Part " + (x) + ", section " + (y) + " added!");
+        }
+        test.appendChild(partContainer);
+    }
+    
+}
+
+
+function updateParts() {
+    const partCount = parseInt(document.getElementById("partCount").value);
+    const partsContainer = document.getElementById("partsContainer");
+    partsContainer.innerHTML = ""; // Clear existing content
+
+    for (let i = 1; i <= partCount; i++) {
+        let sectionInputId = `sectionCount-${i}`;
+        partsContainer.innerHTML += `
+            <div id="part-${i}">
+                <label>Sections in Part ${i}:</label>
+                <input type="number" id="${sectionInputId}" min="1" value="1">
+                <button onclick="updateSections(${i})">Update</button>
+                <div style="background:#c0c0c0;padding:20px;" id="sectionsContainer-${i}"><p>No Sections Chosen...</p></div>
+            </div><br>
+        `;
+    }
+}
+
+function updateSections(partNumber) {
+    const sectionCount = parseInt(document.getElementById(`sectionCount-${partNumber}`).value);
+    const sectionsContainer = document.getElementById(`sectionsContainer-${partNumber}`);
+    sectionsContainer.innerHTML = ""; // Clear old sections
+
+    for (let j = 1; j <= sectionCount; j++) {
+        sectionsContainer.innerHTML += `
+            <label>Question Type for Section ${j}:</label>
+            <select>
+                <option value="TF">True/False</option>
+                <option value="MC">Multiple Choice</option>
+                <option value="SA">Short Answer</option>
+                <option value="ES">Essay</option>
+                <option value="MA">Matching</option>
+                <option value="MS">Multiple Selections</option>
+                <option value="FB">Fill in the Blank</option>
+            </select><br>
+        `;
+    }
+}
+
+
+
+function updateTabs(type, courseID) {
+  const tabContent = document.getElementById(`${type}-${courseID}`);
+  tabContent.innerHTML = '';
+  const questionList = masterQuestionList[courseID][type];
+  if (questionList.length === 0) {
+    tabContent.innerHTML = '<p>No questions available...</p>';
+    return;
+  }
+  
+  questionList.forEach((question, index) => {
+    const questionContainer = document.createElement('div');
+    questionContainer.style.padding = '5px';
+    questionContainer.style.marginBottom = '8px';
+    questionContainer.style.borderBottom = '1px solid #ccc';
+    
+    const questionElement = document.createElement('p');
+    questionElement.textContent = `${question.text} (Worth ${question.score} points)`;
+    
+    questionContainer.appendChild(questionElement);
+    tabContent.appendChild(questionContainer);
+  });
+}
+
+
+	function updateSemesterOptions() {
+    const select = document.getElementById('courseSemester');
+    select.innerHTML = ''; // Clear existing options
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'Please Choose a Semester';
+    option.disabled=true;
+    select.appendChild(option);
+    option.selected=true;
+
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; 
+    let N, N_plus_1;
+    if (month <= 5) {
+        N = year - 1;
+        N_plus_1 = year;
+    } else {
+        N = year;
+        N_plus_1 = year + 1;
+    }
+
+    const semesters = [
+        `Fall ${N}`,
+        `Winter ${N}`,
+        `Spring ${N_plus_1}`,
+        `Summer ${N_plus_1}`
+    ];
+
+    semesters.forEach(semester => {
+        const option = document.createElement('option');
+        option.value = semester;
+        option.textContent = semester;
+        select.appendChild(option);
+    });
+}
+
+window.onbeforeunload = function(event){
+    event.returnValue = "Warning!";
+};
+
+
+document.addEventListener("DOMContentLoaded", updateSemesterOptions);
+
+
+        function closeModal() {
+            document.getElementById("editModal").style.display = "none";
+    document.getElementById("editModal").style.opacity = "0";
+        }
+
+	function closeQuestionModal(){
+            document.getElementById("questionModal").style.display = "none";
+    document.getElementById("questionModal").style.opacity = "0";
+        }
+
+</script>
 
 </body>
 </html>
