@@ -209,7 +209,6 @@ function addCourse() {
  * Precondition: the course exists
  * Postcondition: the course no longer exists
  * 
- * TODO: add a warning and option to cancel? (low priority)
 */
 function confirmRemoveCourse(button) {
     if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
@@ -391,7 +390,6 @@ function openEditor(type, courseID) {
 	    <textarea id="headerField" rows="3" placeholder="Enter any desired header text ..."></textarea>
 	    <textarea id="footerField" rows="3" placeholder="Enter any desired footer text..."></textarea>
 	    
-        <!-- TODO: Update this selection to populate based on the actual coverpages made in the cover page editor-->
 	    <h1>Cover Page Selection</h1><br/>
 	    <select id="coverPageSelector">
 		    <option value="" disabled selected>Please Select a Cover Page</option>
@@ -1295,7 +1293,6 @@ document.addEventListener("DOMContentLoaded", updateSemesterOptions);
  *  original except that it does not add new data but updates old data)
 */
 
-//TODO: Add a function to update the coverpage selector inside of the template editor
 
 
 //TODO: add feedback page (using editmodal for this is fine) that stores both feedback on questions/tests
