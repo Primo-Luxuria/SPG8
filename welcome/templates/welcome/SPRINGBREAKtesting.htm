@@ -188,8 +188,75 @@ function addCourse() {
         'published': []
     }
     
+    let today = new Date();
+    let year= today.getFullYear();
+    let month= today.getMonth() + 1;
+    let date= today.getDate();
 	masterQuestionList[courseID] = questionList;
     masterTestList[courseID] = testList;
+    masterCoverPageList[courseID] = [];
+    masterTemplateList[courseID] = [];
+
+    templateDefault = {
+    name: "System Default",
+    titleFont: "Times New Roman",
+    titleFontSize: 36,
+    subtitleFont: "Times New Roman",
+    subtitleFontSize: 24,
+    bodyFont: "Times New Roman",
+    bodyFontSize: 12,
+    pageNumbersInFooter: true,
+    pageNumbersInHeader: false,
+    headerText: "",
+    footerText: "Please read all questions carefully",
+    coverPageType: 0,
+    bonusSection: false,
+    bonusQuestions: null,
+    partStructure: [
+        {
+            partNumber: 1,
+            sections: [
+                { sectionNumber: 1, questionType: "tf" }
+            ]
+        }
+    ]
+};
+
+
+    masterTemplateList[courseID].push(templateDefault);
+
+    coverPageDefault = {
+        name: "Default 1st Test",
+        testNum: 1,
+        date: `${year}-${month}-${date}`,
+        file: "defaultpage",
+        showFilename: true,
+        blank: "TR",
+        instructions: "Grade according to the rubric, giving partial credit where indicated"
+    };
+
+    coverPageDefault2 = {
+        name: "Default 2nd Test",
+        testNum: 2,
+        date: `${year}-${month}-${date}`,
+        file: "defaultpage_2",
+        showFilename: true,
+        blank: "TR",
+        instructions: "Grade according to the rubric, giving partial credit where indicated"
+    };
+
+    coverPageDefault3 = {
+        name: "Default 3rd Test",
+        testNum: 3,
+        date: `${year}-${month}-${date}`,
+        file: "defaultpage_3",
+        showFilename: true,
+        blank: "TR",
+        instructions: "Grade according to the rubric, giving partial credit where indicated"
+    };
+
+    masterCoverPageList[courseID].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
+
     let thisCourse = {
         id: courseID,
         name: courseName,
