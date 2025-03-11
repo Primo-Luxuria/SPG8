@@ -77,6 +77,7 @@ var masterTestList = {};
 var masterTemplateList = {};
 var masterAttachmentList = {};
 var courseList = [];
+var masterCoverPageList = {};
 
 /**
  * Defines the UI for a given course, used to interact with everything else
@@ -128,6 +129,18 @@ function addCourse() {
             </details>
 
             <details>
+                <summary>Cover Pages</summary>
+                <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
+                <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+            </details>
+
+            <details>
+                <summary>Templates</summary>
+                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
+                    <p>You have not added any templates yet...</p>
+            </details>
+
+            <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
                 <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
@@ -139,12 +152,6 @@ function addCourse() {
                 <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
                 <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
             </div>
-            </details>
-
-            <details>
-                <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <p>You have not added any templates yet...</p>
             </details>
 
             <details>
@@ -180,7 +187,7 @@ function addCourse() {
         'drafts': [],
         'published': []
     }
-
+    
 	masterQuestionList[courseID] = questionList;
     masterTestList[courseID] = testList;
     let thisCourse = {
@@ -295,6 +302,39 @@ function openEditor(type, courseID) {
         `;
     }
 
+    if (type === "Cover Page"){
+        //Needs: test instructions, course number, test number, date of test, filename of the test,
+        //  blank for student name, and grading instructions for the key
+        formContent+= `
+        <div style="background:#e0e0e0;padding:20px;" id="coverPageEditor">
+            <p>Create your Cover Page!</p><br/>
+            <label>Test Number</label>
+            <input type="number" id="tNum" min="0"/><br/>
+
+            <label>Test Date</label>
+            <input type="date" id="tDate"/><br/>
+
+            <label>Test Filename (no extension)</label>
+            <input type="text"/><br/>
+
+            <label>Filename Present on CoverPage</label>
+            <input type="checkbox"/><br/>
+
+            <label>Student Name Location</label>
+            <select id="nameBlankSelector">
+                <option value="" disabled selected>Please select a location</option>
+                <option value="TR">Top Right</option>
+                <option value="TL">Top Left</option>
+                <option value="BT">Below the Title</option>
+            </select><br/><br/>
+
+            <label>Grading Instructions for Key</label>
+            <textarea id="instructions" name="instruct" rows="3" placeholder="Add your instructions for grading here. These will go into the test key."></textarea>
+        </div>
+        `;
+    }
+
+
     if (type === "Test"){
         formContent+= `
         <div style="background:#e0e0e0;padding:20px;" id="testEditor">
@@ -349,6 +389,7 @@ function openEditor(type, courseID) {
 	    <textarea id="headerField" rows="3" placeholder="Enter any desired header text ..."></textarea>
 	    <textarea id="footerField" rows="3" placeholder="Enter any desired footer text..."></textarea>
 	    
+        <!-- TODO: Update this selection to populate based on the actual coverpages made in the cover page editor-->
 	    <h1>Cover Page Selection</h1><br/>
 	    <select id="coverPageSelector">
 		<option value="" disabled selected>Please Select a Cover Page</option>
@@ -1034,51 +1075,54 @@ function updateSemesterOptions() {
     const select = document.getElementById('courseSemester');
     select.innerHTML = ''; // Clear existing options
     const option = document.createElement('option');
-    
-    //create an initial disabled option in the selector
+
+    // Create an initial disabled option in the selector
     option.value = '';
     option.textContent = 'Please Choose a Semester';
-    option.disabled=true;
+    option.disabled = true;
     select.appendChild(option);
-    option.selected=true;
+    option.selected = true;
 
-    //get the current date
+    // Get the current date
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1; 
 
-    let N, N_plus_1; // logic to determine the appropriate year to start the school year in 
-    if (month < 6) { // if it is prior to the start of the new school year, the school year started last year
+    let N, N_plus_1; 
+    if (month < 6) { 
         N = year - 1;
         N_plus_1 = year;
-    } else { //otherwise the school year starts this year
+    } else { 
         N = year;
         N_plus_1 = year + 1;
     }
-    
-    if(month>=6 && month<=8){ // this is an exception so that in the summer you can plan for upcoming semesters
-        const semesters = [
-        `Fall ${N}`,
-        `Winter ${N}`,
-        `Spring ${N}`,
-        `Summer ${N}`
+
+    let semesters;
+    if (month >= 6 && month <= 8) {
+        semesters = [
+            `Fall ${N}`,
+            `Winter ${N}`,
+            `Spring ${N_plus_1}`,
+            `Summer ${N_plus_1}`
         ];
-    }else{
-        const semesters = [
-        `Fall ${N}`,
-        `Winter ${N}`,
-        `Spring ${N_plus_1}`,
-        `Summer ${N_plus_1}`
-    ];
+    } else {
+        semesters = [
+            `Fall ${N}`,
+            `Winter ${N}`,
+            `Spring ${N_plus_1}`,
+            `Summer ${N_plus_1}`
+        ];
     }
 
-    semesters.forEach(semester => { //add the semester options to the selector 
+    // Append semester options to the dropdown
+    semesters.forEach(semester => {
         const option = document.createElement('option');
         option.value = semester;
         option.textContent = semester;
         select.appendChild(option);
     });
 }
+
 
 /**
  * This triggers whenever reloading or exiting the page/tab, and gives a warning 
@@ -1124,6 +1168,9 @@ document.addEventListener("DOMContentLoaded", updateSemesterOptions);
  * (then pull that data for use here to open up a new function using the editModal that mimics the
  *  original except that it does not add new data but updates old data)
 */
+
+//TODO: Add a function to update the coverpage selector inside of the template editor
+
 
 //TODO: add feedback page (using editmodal for this is fine) that stores both feedback on questions/tests
 // and also replies to said feedback 
