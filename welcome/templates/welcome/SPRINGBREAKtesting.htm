@@ -315,10 +315,10 @@ function openEditor(type, courseID) {
             <input type="date" id="tDate"/><br/>
 
             <label>Test Filename (no extension)</label>
-            <input type="text"/><br/>
+            <input id="filename" type="text"/><br/>
 
             <label>Filename Present on CoverPage</label>
-            <input type="checkbox"/><br/>
+            <input id="filenameTF" type="checkbox"/><br/>
 
             <label>Student Name Location</label>
             <select id="nameBlankSelector">
@@ -330,6 +330,8 @@ function openEditor(type, courseID) {
 
             <label>Grading Instructions for Key</label>
             <textarea id="instructions" name="instruct" rows="3" placeholder="Add your instructions for grading here. These will go into the test key."></textarea>
+            <br/>
+            <button class="add-btn" onclick="submitCoverPage('${courseID}')">Submit</button>
         </div>
         `;
     }
@@ -439,6 +441,46 @@ function openEditor(type, courseID) {
 }
 
 /**
+ * Adding the cover page to the list of coverpages
+ * Precondition: all necessary data is in the coverpage editor
+ * Postcondition: cover page added to the list
+*/
+function submitCoverPage(courseID){
+    const pageName = document.getElementById("nameField").value.trim();
+    const testNumber = document.getElementById("tNum").value.trim();
+    const testDate = document.getElementById("tDate").value.trim();
+    const filename = document.getElementById("filename").value.trim();
+    const filenameTF = document.getElementById("filenameTF").checked;
+    const nameBlankSelector = document.getElementById("nameBlankSelector").value.trim();
+    const gradingInstructions = document.getElementById("instructions").value.trim();
+
+    if(!pageName || !testNumber || !testDate || !filename || !nameBlankSelector || !gradingInstructions){
+        alert("Cover page name, Test number, test date, filename, name blank selection, and grading instructions are required fields!");
+        return;
+    }
+
+    if(!masterCoverPageList[courseID]){
+        let coverPageList = [];
+        masterCoverPageList[courseID]= coverPageList;
+    }
+
+
+    let coverPage = {
+        name: pageName,
+        testNum: testNumber,
+        date: testDate,
+        file: filename,
+        showFilename: filenameTF,
+        blank: nameBlankSelector,
+        instructions: gradingInstructions,
+    }
+
+    masterCoverPageList[courseID].push(coverPage);
+    closeModal();
+    alert("Added a cover page");
+}
+
+/**
  * Submit attachments to the attachmentList
  * Precondition: valid attachment
  * Postcondition: attachment posted to attachmentList
@@ -476,21 +518,39 @@ function addTemplate(courseID){
         return;
     }
 
+    let titleFont = document.getElementById('titleFont').value.trim();
+    let titleFontSize = document.getElementById('titleFontSize').value.trim();
+    let subtitleFont = document.getElementById('subtitleFont').value.trim();
+    let subtitleFontSize = document.getElementById('subtitleFontSize').value.trim();
+    let bodyFont = document.getElementById('bodyFont').value.trim();
+    let bodyFontSize = document.getElementById('bodyFontSize').value.trim();
+    let pageNumbersInHeader = document.getElementById('pageNumH').value.trim();
+    let pageNumbersInFooter = document.getElementById('pageNumF').value.trim();
+    let headerText = document.getElementById('headerField').value.trim();
+    let footerText = document.getElementById('footerField').value.trim();
+    let partStructure = collectPartStructure();
+    let bonusSection = document.getElementById('bonusToggle').value === 'True';
+
+    if(!titleFont || !titleFontSize || !subtitleFont || !subtitleFontSize || !bodyFont || !bodyFontSize || !coverPageType){
+        alert("You must choose your fonts and font sizes, as well as a cover page type");
+        return;
+    }
+
     const templateData = {
         name: templateName,
-        titleFont: document.getElementById('titleFont').value,
-        titleFontSize: document.getElementById('titleFontSize').value,
-        subtitleFont: document.getElementById('subtitleFont').value,
-        subtitleFontSize: document.getElementById('subtitleFontSize').value,
-        bodyFont: document.getElementById('bodyFont').value,
-        bodyFontSize: document.getElementById('bodyFontSize').value,
-        pageNumbersInHeader: document.getElementById('pageNumH').checked,
-        pageNumbersInFooter: document.getElementById('pageNumF').checked,
-        headerText: document.getElementById('headerField').value,
-        footerText: document.getElementById('footerField').value,
+        titleFont: titleFont,
+        titleFontSize: titleFontSize,
+        subtitleFont: subTitleFont,
+        subtitleFontSize: subtitleFontSize,
+        bodyFont: bodyFont,
+        bodyFontSize: bodyFontSize,
+        pageNumbersInHeader: pageNumbersInHeader,
+        pageNumbersInFooter: pageNumbersInFooter,
+        headerText: headerText,
+        footerText: footerText,
         coverPageType: coverPageType,
-        partStructure: collectPartStructure(),
-        bonusSection: document.getElementById('bonusToggle').value === 'True'
+        partStructure: partStructure,
+        bonusSection: bonusSection
     };
 
     if (coverPageType === 'CPTC') {
@@ -520,7 +580,11 @@ function addTemplate(courseID){
 function collectPartStructure() {
     const partCount = parseInt(document.getElementById('partCount').value);
     const partStructure = [];
-    
+    if(!partCount){
+        alert("Please select a part count!");
+        return;
+    }
+
     for (let i = 1; i <= partCount; i++) {
         const part = {
             partNumber: i,
@@ -528,6 +592,10 @@ function collectPartStructure() {
         };
         
         const sectionCount = parseInt(document.getElementById(`sectionCount-${i}`).value);
+        if(!sectionCount){
+            alert("Please choose all section counts!");
+            return;
+        }
         const sectionContainer = document.getElementById(`sectionsContainer-${i}`);
         const sectionSelects = sectionContainer.querySelectorAll('select');
         
