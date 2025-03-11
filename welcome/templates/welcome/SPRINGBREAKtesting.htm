@@ -353,7 +353,7 @@ function openEditor(type, courseID) {
         `;
         setTimeout(() => {
         updateTemplateSelection(courseID);
-    }, 50);
+        }, 50);
         
     }
 
@@ -378,12 +378,12 @@ function openEditor(type, courseID) {
         <label>Course Number </label> <input type="text" id="tempCourseNum"><br/>
 
   	    <h1>Header and Footer Settings</h1>
-        <label>Location of Student Score Blank</label><br/>
+        <label>Location of Student Score Blank</label>
         <select id="studentScoreSelector">
             <option value="" disabled selected>Please Select a Location</option>
             <option value="TR"> Top Right</option>
             <option value="TL"> Top Left</option>
-        </select>
+        </select><br/>
 	    <label>Page Numbers in Header</label><br/>
 	    <input type="checkbox" id="pageNumH"><br/>
 	    <label>Page Numbers in Footer</label><br/>
@@ -394,20 +394,14 @@ function openEditor(type, courseID) {
         <!-- TODO: Update this selection to populate based on the actual coverpages made in the cover page editor-->
 	    <h1>Cover Page Selection</h1><br/>
 	    <select id="coverPageSelector">
-		<option value="" disabled selected>Please Select a Cover Page</option>
-		<option value="CPT1">Cover Page Template 1</option>
-		<option value="CPT2">Cover Page Template 2</option>
-		<option value="CPT3">Cover Page Template 3</option>
-		<option value="CPTC">Cover Page Custom Upload</option>
+		    <option value="" disabled selected>Please Select a Cover Page</option>
 	    </select><br/><br/>
-	    <label>Custom Cover Page (Optional)</label><br/>
-	    <input type=file id="coverPageUploader"><br/><br/>
 
 	    <h1>Test Structure Settings</h1>
 	    <label>Number of Parts:</label>
-            <input type="number" id="partCount" min="1" value="1">
-            <button onclick="updateParts()">Update</button>
-            <div style="background:#d0d0d0;padding:20px" id="partsContainer"><p>No Parts Chosen</p></div>
+        <input type="number" id="partCount" min="1" value="1">
+        <button onclick="updateParts()">Update</button>
+        <div style="background:#d0d0d0;padding:20px" id="partsContainer"><p>No Parts Chosen</p></div>
             
 	    <!-- I may add a button to allow for selection of specific bonus questions as part of the template later -->
 	    <h1>Bonus Question Section Toggle</h1>
@@ -417,9 +411,11 @@ function openEditor(type, courseID) {
 	    </select><br/><br/>
 
         <button class="add-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
-
-	    
         `;
+
+        setTimeout(() => {
+        updatePageSelection(courseID);
+        }, 50);
     }
 
 
@@ -505,34 +501,46 @@ function submitAttachment(courseID){
  * Adds a template to the templateList
  * Precondition: valid courseID and template info
  * Postcondition: adds a new template to the list
- * 
- * TODO: error checking. Check to make sure that every part of the template editor is actually filled out
- *         necessary, high priority
 */
-function addTemplate(courseID){
+function addTemplate(courseID) {
     const templateName = document.getElementById('nameField').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
-    
+
+    const titleFont = document.getElementById('titleFont').value.trim();
+    const titleFontSize = parseInt(document.getElementById('titleFontSize').value, 10);
+    const subtitleFont = document.getElementById('subtitleFont').value.trim();
+    const subtitleFontSize = parseInt(document.getElementById('subtitleFontSize').value, 10);
+    const bodyFont = document.getElementById('bodyFont').value.trim();
+    const bodyFontSize = parseInt(document.getElementById('bodyFontSize').value, 10);
+
+    const pageNumbersInHeader = document.getElementById('pageNumH').checked;
+    const pageNumbersInFooter = document.getElementById('pageNumF').checked;
+
+    const headerText = document.getElementById('headerField').value.trim();
+    const footerText = document.getElementById('footerField').value.trim();
+
+    const bonusSection = document.getElementById('bonusToggle').value === 'True';
+
+    // **Improved Error Handling**
     if (!templateName) {
-        alert("Template Name is required.");
+        alert("Error: Template Name is required.");
         return;
     }
-
-    let titleFont = document.getElementById('titleFont').value.trim();
-    let titleFontSize = document.getElementById('titleFontSize').value.trim();
-    let subtitleFont = document.getElementById('subtitleFont').value.trim();
-    let subtitleFontSize = document.getElementById('subtitleFontSize').value.trim();
-    let bodyFont = document.getElementById('bodyFont').value.trim();
-    let bodyFontSize = document.getElementById('bodyFontSize').value.trim();
-    let pageNumbersInHeader = document.getElementById('pageNumH').value.trim();
-    let pageNumbersInFooter = document.getElementById('pageNumF').value.trim();
-    let headerText = document.getElementById('headerField').value.trim();
-    let footerText = document.getElementById('footerField').value.trim();
-    let partStructure = collectPartStructure();
-    let bonusSection = document.getElementById('bonusToggle').value === 'True';
-
-    if(!titleFont || !titleFontSize || !subtitleFont || !subtitleFontSize || !bodyFont || !bodyFontSize || !coverPageType){
-        alert("You must choose your fonts and font sizes, as well as a cover page type");
+    if (!titleFont || !subtitleFont || !bodyFont) {
+        alert("Error: All font fields must be filled.");
+        return;
+    }
+    if (isNaN(titleFontSize) || isNaN(subtitleFontSize) || isNaN(bodyFontSize)) {
+        alert("Error: Font sizes must be valid numbers.");
+        return;
+    }
+    if (!coverPageType) {
+        alert("Error: You must choose a cover page type.");
+        return;
+    }
+    const partStructure = collectPartStructure();
+    if (!partStructure) {
+        alert("Error: Template must include a valid part structure.");
         return;
     }
 
@@ -540,7 +548,7 @@ function addTemplate(courseID){
         name: templateName,
         titleFont: titleFont,
         titleFontSize: titleFontSize,
-        subtitleFont: subTitleFont,
+        subtitleFont: subtitleFont,
         subtitleFontSize: subtitleFontSize,
         bodyFont: bodyFont,
         bodyFontSize: bodyFontSize,
@@ -553,21 +561,18 @@ function addTemplate(courseID){
         bonusSection: bonusSection
     };
 
-    if (coverPageType === 'CPTC') {
-        templateData.coverPageImg = document.getElementById('coverPageUploader').files[0];
-    }
-
     if (!masterTemplateList[courseID]) {
         masterTemplateList[courseID] = [];
     }
-    
+
     masterTemplateList[courseID].push(templateData);
-    
+
     alert("Template added successfully!");
     console.log("Saved Template:", templateData);
 
     closeModal();
 }
+
 
 /**
  * This grabs the structure of the parts and sections inside of a template.
@@ -580,37 +585,90 @@ function addTemplate(courseID){
 function collectPartStructure() {
     const partCount = parseInt(document.getElementById('partCount').value);
     const partStructure = [];
-    if(!partCount){
-        alert("Please select a part count!");
-        return;
+
+    // Validate part count
+    if (isNaN(partCount) || partCount < 1) {
+        alert("Error: Please enter a valid number of parts.");
+        return null; // Return null instead of undefined to prevent further execution
     }
 
     for (let i = 1; i <= partCount; i++) {
+        const sectionCountInput = document.getElementById(`sectionCount-${i}`);
+        
+        if (!sectionCountInput) {
+            alert(`Error: Section count input is missing for Part ${i}.`);
+            return null;
+        }
+
+        const sectionCount = parseInt(sectionCountInput.value);
+        
+        // Validate section count
+        if (isNaN(sectionCount) || sectionCount < 1) {
+            alert(`Error: Please enter a valid number of sections for Part ${i}.`);
+            return null;
+        }
+
         const part = {
             partNumber: i,
             sections: []
         };
-        
-        const sectionCount = parseInt(document.getElementById(`sectionCount-${i}`).value);
-        if(!sectionCount){
-            alert("Please choose all section counts!");
-            return;
-        }
+
         const sectionContainer = document.getElementById(`sectionsContainer-${i}`);
+        if (!sectionContainer) {
+            alert(`Error: Sections container missing for Part ${i}.`);
+            return null;
+        }
+
         const sectionSelects = sectionContainer.querySelectorAll('select');
-        
+
+        if (sectionSelects.length !== sectionCount) {
+            alert(`Error: The number of section selectors does not match the section count for Part ${i}.`);
+            return null;
+        }
+
         sectionSelects.forEach((select, j) => {
+            if (!select.value) {
+                alert(`Error: Please select a question type for Section ${j + 1} in Part ${i}.`);
+                return null;
+            }
+            
             part.sections.push({
                 sectionNumber: j + 1,
                 questionType: select.value
             });
         });
-        
+
         partStructure.push(part);
     }
-    
+
     return partStructure;
 }
+
+
+/**
+ * Updates the potential options for cover pages when you open the template editor
+ * Precondition: Valid courseID
+ * Postcondition: populated selector in template editor (editmodal)
+*/
+function updatePageSelection(courseID) {
+    const selection = document.getElementById("coverPageSelector");
+
+    // Clear existing options
+    selection.innerHTML = '<option value="" disabled selected>Please Select a Cover Page</option>';
+
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
+        alert("No cover pages available for this course!");
+        return;
+    }
+
+    masterCoverPageList[courseID].forEach((page, index) => {
+        const newOption = document.createElement("option");
+        newOption.value = index; 
+        newOption.textContent = page.name;
+        selection.appendChild(newOption);
+    });
+}
+
 
 /**
  * Updates the potential options for templates when you open the test editor
