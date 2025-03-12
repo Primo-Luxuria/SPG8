@@ -195,7 +195,6 @@ function addCourse() {
     document.getElementById('courseTextbookLink').value = "";
 
     const questionList = {
-        'course': courseID,
         'tf': [],
         'mc': [],
         'sa': [],
@@ -340,7 +339,7 @@ function openEditor(type, courseID) {
 
     if (type != "Question"){
         formContent += `
-	<label>${type} Name:</label><br/>
+        <label>${type} Name:</label><br/>
         <input type="text" id="nameField"><br><br>
     `;
     }
@@ -525,11 +524,11 @@ function openEditor(type, courseID) {
             
 	    <!-- I may add a button to allow for selection of specific bonus questions as part of the template later -->
 	    <h1>Bonus Question Section Toggle</h1>
-	    <select id="bonusToggle">
+	    <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
 		<option value="True">Bonus Section</option>
-		<option value="False">No Bonus Section</option>
+		<option value="False" selected>No Bonus Section</option>
 	    </select><br/><br/>
-
+        <button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
         <button class="add-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
         `;
 
@@ -668,7 +667,6 @@ function addTemplate(courseID) {
 
     const bonusSection = document.getElementById('bonusToggle').value === 'True';
 
-    // **Improved Error Handling**
     if (!templateName) {
         alert("Error: Template Name is required.");
         return;
@@ -690,6 +688,10 @@ function addTemplate(courseID) {
         alert("Error: Template must include a valid part structure.");
         return;
     }
+    if (bonusSection && (!masterTemplateList[courseID].bonusQuestions || masterTemplateList[courseID].bonusQuestions.length === 0)) {
+        alert("Error: You must select bonus questions if the bonus section is enabled.");
+        return;
+    }
 
     const templateData = {
         name: templateName,
@@ -705,7 +707,8 @@ function addTemplate(courseID) {
         footerText: footerText,
         coverPageType: coverPageType,
         partStructure: partStructure,
-        bonusSection: bonusSection
+        bonusSection: bonusSection,
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || []
     };
 
     if (!masterTemplateList[courseID]) {
@@ -1052,6 +1055,21 @@ function saveTest(courseID, isPublished) {
         testData.parts.push(partData);
     });
     
+    if (template.bonusSection) {
+        const bonusPart = {
+            partNumber: testData.parts.length + 1,
+            sections: [{
+                sectionNumber: 1,
+                questionType: 'bonus',
+                questions: template.bonusQuestions.map(q => {
+                    const [type, index] = q.split('-');
+                    return masterQuestionList[courseID][type][index];
+                })
+            }]
+        };
+        testData.parts.push(bonusPart);
+    }
+
     // Save the test data
     if (!masterTestList[courseID]) {
         masterTestList[courseID] = { drafts: [], published: [] };
@@ -1791,6 +1809,83 @@ function deleteTest(courseID, testIndex) {
         updateTestTabs(courseID);
         alert("Test deleted successfully!");
     }
+}
+
+function toggleBonusQuestionSelection(courseID) {
+    const bonusToggle = document.getElementById('bonusToggle').value;
+    const selectBonusQuestionsBtn = document.getElementById('selectBonusQuestionsBtn');
+    if (bonusToggle === 'True') {
+        selectBonusQuestionsBtn.style.display = 'block';
+    } else {
+        selectBonusQuestionsBtn.style.display = 'none';
+    }
+}
+
+
+
+function openBonusQuestionModal(courseID) {
+    const modal = document.getElementById("questionModal");
+    const modalTitle = document.getElementById("questionModalTitle");
+    const modalBody = document.getElementById("questionModalBody");
+
+    modalBody.innerHTML = ""; // Clear existing content
+
+    // Store the relevant data in the modal for later use
+    modalBody.dataset.courseId = courseID;
+    modalBody.dataset.questionType = 'bonus';
+
+    const questionContainer = document.createElement('div');
+    questionContainer.style.padding = '5px';
+    questionContainer.style.marginBottom = '8px';
+    questionContainer.style.borderBottom = '1px solid #ccc';
+
+    Object.keys(masterQuestionList[courseID]).forEach(type => {
+        const questions = masterQuestionList[courseID][type];
+        questions.forEach((question, index) => {
+            const element = document.createElement("div");
+            element.style.padding = '8px';
+            element.style.margin = '5px 0';
+            element.style.backgroundColor = '#f0f0f0';
+            element.style.borderRadius = '4px';
+            element.innerHTML = `
+                <input type="checkbox" id="q-${type}-${index}" value="${type}-${index}">
+                <label for="q-${type}-${index}">${question.text} (${question.score} Points)</label>
+            `;   
+            questionContainer.appendChild(element);
+        });
+    });
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'add-btn';
+    submitButton.textContent = 'Add Selected Questions';
+    submitButton.onclick = function() {
+        addSelectedBonusQuestions(courseID);
+    };
+    questionContainer.appendChild(submitButton);
+
+    modalTitle.innerText = `Select Bonus Questions`;
+    modalBody.appendChild(questionContainer);
+
+    modal.style.display = "flex";
+    setTimeout(() => {
+        modal.style.opacity = "1";
+    }, 10);
+}
+
+
+function addSelectedBonusQuestions(courseID) {
+    const modalBody = document.getElementById("questionModalBody");
+    const checkboxes = modalBody.querySelectorAll('input[type="checkbox"]:checked');
+    const selectedQuestions = Array.from(checkboxes).map(cb => cb.value);
+
+    if (selectedQuestions.length === 0) {
+        alert("Please select at least one question.");
+        return;
+    }
+
+    masterTemplateList[courseID].bonusQuestions = selectedQuestions;
+    closeQuestionModal();
+    alert(`Added ${selectedQuestions.length} bonus questions.`);
 }
 
 </script>
