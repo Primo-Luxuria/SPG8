@@ -24,7 +24,7 @@
         .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
         .form-group label {width: 120px;text-align: right;margin-right: 10px;}
         .form-group input {flex: 1;}
-        .context-menu {display: none;position: absolute;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
+        .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
         .context-menu ul {list-style: none;margin: 0;padding: 0;}
         .context-menu ul li {padding: 8px 12px;cursor: pointer;}
         .context-menu ul li:hover {background: #f0f0f0;}
@@ -109,7 +109,7 @@ function addCourse() {
     const courseName = document.getElementById('courseName').value.trim();
     const courseCRN = document.getElementById('courseCRN').value.trim();
     const courseSemester = document.getElementById('courseSemester').value;
-	const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
+    const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
     const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
     const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
     const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
@@ -131,13 +131,13 @@ function addCourse() {
             <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
-				    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
                     <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
-				    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
                     <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
-				    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
-				    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
-			    </div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                </div>
                 <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
                 <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
                 <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
@@ -150,14 +150,14 @@ function addCourse() {
 
             <details>
                 <summary>Cover Pages</summary>
-                <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
-                <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
+                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
                     <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <p>You have not added any templates yet...</p>
+                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
@@ -167,8 +167,8 @@ function addCourse() {
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
-				    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
-			    </div>
+                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                </div>
                 <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
                 <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
             </div>
@@ -177,7 +177,7 @@ function addCourse() {
             <details>
                 <summary>Attachments</summary>
                 <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
-                <p>You have not uploaded any attachments yet...</p>
+                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
             <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
         </details>
@@ -188,64 +188,65 @@ function addCourse() {
     document.getElementById('courseName').value = "";
     document.getElementById('courseCRN').value = "";
     document.getElementById('courseSemester').value = "";
-	document.getElementById('courseTextbookTitle').value = "";
+    document.getElementById('courseTextbookTitle').value = "";
     document.getElementById('courseTextbookAuthor').value = "";
     document.getElementById('courseTextbookVersion').value = "";
     document.getElementById('courseTextbookISBN').value = "";
-	document.getElementById('courseTextbookLink').value = "";
-	const questionList = {
-	    'course': courseID,
-	    'tf': [],
-	    'mc': [],
-	    'sa': [],
-	    'es': [],
-	    'ma': [],
-	    'ms': [],
-	    'fb': []
-	}
+    document.getElementById('courseTextbookLink').value = "";
+
+    const questionList = {
+        'course': courseID,
+        'tf': [],
+        'mc': [],
+        'sa': [],
+        'es': [],
+        'ma': [],
+        'ms': [],
+        'fb': []
+    };
     const testList = {
         'drafts': [],
         'published': []
-    }
-    
+    };
+
     let today = new Date();
-    let year= today.getFullYear();
-    let month= today.getMonth() + 1;
-    let date= today.getDate();
-	masterQuestionList[courseID] = questionList;
+    let year = today.getFullYear();
+    let month = today.getMonth() + 1;
+    let date = today.getDate();
+
+    masterQuestionList[courseID] = questionList;
     masterTestList[courseID] = testList;
     masterCoverPageList[courseID] = [];
     masterTemplateList[courseID] = [];
 
-    templateDefault = {
-    name: "System Default",
-    titleFont: "Times New Roman",
-    titleFontSize: 36,
-    subtitleFont: "Times New Roman",
-    subtitleFontSize: 24,
-    bodyFont: "Times New Roman",
-    bodyFontSize: 12,
-    pageNumbersInFooter: true,
-    pageNumbersInHeader: false,
-    headerText: "",
-    footerText: "Please read all questions carefully",
-    coverPageType: 0,
-    bonusSection: false,
-    bonusQuestions: null,
-    partStructure: [
-        {
-            partNumber: 1,
-            sections: [
-                { sectionNumber: 1, questionType: "tf" }
-            ]
-        }
-    ]
-};
-
+    const templateDefault = {
+        name: "System Default",
+        titleFont: "Times New Roman",
+        titleFontSize: 36,
+        subtitleFont: "Times New Roman",
+        subtitleFontSize: 24,
+        bodyFont: "Times New Roman",
+        bodyFontSize: 12,
+        pageNumbersInFooter: true,
+        pageNumbersInHeader: false,
+        headerText: "",
+        footerText: "Please read all questions carefully",
+        coverPageType: 0,
+        bonusSection: false,
+        bonusQuestions: null,
+        partStructure: [
+            {
+                partNumber: 1,
+                sections: [
+                    { sectionNumber: 1, questionType: "tf" }
+                ]
+            }
+        ]
+    };
 
     masterTemplateList[courseID].push(templateDefault);
 
-    coverPageDefault = {
+    const coverPageDefault = {
         name: "Default 1st Test",
         testNum: 1,
         date: `${year}-${month}-${date}`,
@@ -255,7 +256,7 @@ function addCourse() {
         instructions: "Grade according to the rubric, giving partial credit where indicated"
     };
 
-    coverPageDefault2 = {
+    const coverPageDefault2 = {
         name: "Default 2nd Test",
         testNum: 2,
         date: `${year}-${month}-${date}`,
@@ -265,7 +266,7 @@ function addCourse() {
         instructions: "Grade according to the rubric, giving partial credit where indicated"
     };
 
-    coverPageDefault3 = {
+    const coverPageDefault3 = {
         name: "Default 3rd Test",
         testNum: 3,
         date: `${year}-${month}-${date}`,
@@ -276,8 +277,10 @@ function addCourse() {
     };
 
     masterCoverPageList[courseID].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
+    updateTemplates(courseID);
+    updateCoverPages(courseID);
 
-    let thisCourse = {
+    const thisCourse = {
         id: courseID,
         name: courseName,
         crn: courseCRN,
@@ -287,7 +290,7 @@ function addCourse() {
         tbVersion: textbookVersion,
         tbISBN: textbookISBN,
         tbLink: textbookLink
-    }
+    };
     courseList.push(thisCourse);
 }
 
@@ -605,13 +608,40 @@ function submitCoverPage(courseID){
  * 
  *          necessary but low priority
 */
-function submitAttachment(courseID){
+function submitAttachment(courseID) {
     const attachment = document.getElementById("newAttachment").files[0];
     const name = document.getElementById("nameField").value.trim();
-    if(!masterAttachmentList[courseID]){
+
+    if (!attachment || !name) {
+        alert("Attachment file and name are required.");
+        return;
+    }
+
+    if (!masterAttachmentList[courseID]) {
         masterAttachmentList[courseID] = [];
     }
-    masterAttachmentList[courseID].push(attachment);
+
+    masterAttachmentList[courseID].push({ name: name, file: attachment });
+    updateAttachments(courseID);
+    closeModal();
+    alert("Attachment added successfully!");
+}
+
+function updateAttachments(courseID) {
+    const attachmentList = masterAttachmentList[courseID];
+    const attachmentContainer = document.getElementById("attachments-" + courseID);
+    attachmentContainer.innerHTML = "";
+
+    if (attachmentList.length === 0) {
+        attachmentContainer.innerHTML = '<p>You have not uploaded any attachments yet...</p>';
+        return;
+    }
+
+    attachmentList.forEach((attachment, index) => {
+        const attachmentDiv = document.createElement("div");
+        attachmentDiv.innerHTML = `<p>Attachment ${index + 1}: ${attachment.name}</p>`;
+        attachmentContainer.appendChild(attachmentDiv);
+    });
 }
 
 /**
@@ -687,6 +717,7 @@ function addTemplate(courseID) {
     alert("Template added successfully!");
     console.log("Saved Template:", templateData);
 
+    updateTemplates(courseID);
     closeModal();
 }
 
@@ -807,6 +838,17 @@ function updateTemplateSelection(courseID){
             selection.appendChild(newoption);
         });
     }
+}
+
+function updateAttachments(courseID){
+    let attachmentList = masterAttachmentList[courseID];
+    let attachmentContainer = document.getElementById("attachments-" + courseID);
+    attachmentContainer.innerHTML = "";
+    attachmentList.forEach((attachment, index) => {
+        let attachmentDiv = document.createElement("div");
+        attachmentDiv.innerHTML = `<p>Attachment ${index + 1}: ${attachment.name}</p>`;
+        attachmentContainer.appendChild(attachmentDiv);
+    });
 }
 
 /**
@@ -1258,6 +1300,62 @@ function updateQuestionTabs(type, courseID) {
     });
 }
 
+function updateCoverPages(courseID) {
+    const pages = masterCoverPageList[courseID];
+    const pageTabContent = document.getElementById("coverpages-" + courseID);
+    pageTabContent.innerHTML = "";
+
+    if (pages.length === 0) {
+        pageTabContent.innerHTML = '<p>No cover pages available...</p>';
+    } else {
+        pages.forEach((page, index) => {
+            const pageContainer = document.createElement('div');
+            pageContainer.classList.add('context-menu-target');
+            pageContainer.style.padding = '5px';
+            pageContainer.style.marginBottom = '8px';
+            pageContainer.style.borderBottom = '1px solid #ccc';
+            pageContainer.dataset.pageIndex = index;
+            pageContainer.dataset.courseID = courseID;
+
+            const pageElement = document.createElement('p');
+            pageElement.textContent = page.name;
+
+            pageContainer.appendChild(pageElement);
+            pageTabContent.appendChild(pageContainer);
+
+            console.log(`Added contextmenu event listener to page index: ${index}`);
+        });
+    }
+}
+
+function updateTemplates(courseID) {
+    const templates = masterTemplateList[courseID];
+    const templateTabContent = document.getElementById("templates-" + courseID);
+    templateTabContent.innerHTML = "";
+
+    if (templates.length === 0) {
+        templateTabContent.innerHTML = '<p>No templates available...</p>';
+    } else {
+        templates.forEach((template, index) => {
+            const templateContainer = document.createElement('div');
+            templateContainer.classList.add('context-menu-target');
+            templateContainer.style.padding = '5px';
+            templateContainer.style.marginBottom = '8px';
+            templateContainer.style.borderBottom = '1px solid #ccc';
+            templateContainer.dataset.templateIndex = index;
+            templateContainer.dataset.courseID = courseID;
+
+            const templateElement = document.createElement('p');
+            templateElement.textContent = template.name;
+
+            templateContainer.appendChild(templateElement);
+            templateTabContent.appendChild(templateContainer);
+
+            console.log(`Added contextmenu event listener to template index: ${index}`);
+        });
+    }
+}
+
 function updateTestTabs(courseID) {
     // For drafts tab
     const draftsTabContent = document.getElementById(`drafts-${courseID}`);
@@ -1514,13 +1612,13 @@ function deleteQuestion() {
  * (use it to store the question data inside of the div container when updating tabs)
  * (then pull that data for use here to open up a new function using the editModal that mimics the
  *  original except that it does not add new data but updates old data)
+ * (HIGH PRIORITY BUT ALSO VERY VERY TROUBLESOME TO IMPLEMENT NOW)
 */
 
 
 
 //TODO: add feedback page (using editmodal for this is fine) that stores both feedback on questions/tests
 // and also replies to said feedback 
-// (HIGH PRIORITY BUT ALSO VERY VERY TROUBLESOME TO IMPLEMENT NOW)
 // every feedback{} element should include a discussion[] element value to its initial post key
 
 </script>
