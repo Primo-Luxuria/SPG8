@@ -30,9 +30,9 @@
         .context-menu ul li:hover {background: #f0f0f0;}
     </style>
 </head>
-<body>
+<body style="background-color: #2e3a42;">
 
-    <h1>Manage Your Courses</h1>
+    <h1 style="color:whitesmoke;">Manage Your Courses</h1>
 
     <!-- Course Input Form -->
 
@@ -119,6 +119,12 @@ function addCourse() {
         alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
         return;
     }
+
+    if (courseList.find(course => course.id === courseID)) {
+        alert("Error: A course with that ID already exists.");
+        return;
+    }
+
 
     const courseContainer = document.createElement('div');
     courseContainer.classList.add('course-container');
@@ -1066,6 +1072,8 @@ function saveTest(courseID, isPublished, testIndex = null) {
     }
 
     const template = masterTemplateList[courseID][templateIndex];
+    
+    let usedQuestions = [];
 
     const testData = {
         name: testName,
@@ -1116,7 +1124,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
 
                 // Update points for this clone if they were changed
                 question.score = points;
-
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
                 // Add to the questions for this section
                 sectionData.questions.push(question);
                 noquestions=false;
@@ -1174,6 +1182,12 @@ function saveTest(courseID, isPublished, testIndex = null) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
     }
+
+    usedQuestions.forEach(question => {
+        question.tests.push(testData.name);
+        console.log("Updated question:", question);
+        console.log("Question published value:", question.published);
+    });
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
     updateTestTabs(courseID);
@@ -1717,6 +1731,11 @@ function deleteItem() {
 }
 
 function editQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
+        if(!confirm("This question is published. Are you sure you want to edit it?")){
+           return;
+        }
+    }
     const question = masterQuestionList[courseID][questionType][questionIndex];
 
     // Open the edit modal and populate it with the question data
@@ -1767,8 +1786,30 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     const directions = document.getElementById('editInstructionField').value.trim();
 
     if (!text || !answer || !score || !directions) {
-        alert("All fields are required.");
+        alert("Some fields are required.");
         return;
+    }
+
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
+        if(confirm("This question is published. Would you like to clone this question instead?")){
+            const newQuestion = {
+                text: text,
+                answer: answer,
+                score: score,
+                directions: directions,
+                time: time,
+                reference: reference,
+                graphic: graphic,
+                ansGraphic: ansGraphic,
+                comments: comments,
+                published: 0
+            };
+            masterQuestionList[courseID][questionType].push(newQuestion);
+            updateQuestionTabs(questionType, courseID);
+            closeModal();
+            alert("Question cloned successfully!");
+            return;
+        }
     }
 
     const question = masterQuestionList[courseID][questionType][questionIndex];
@@ -1789,6 +1830,10 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
 }
 
 function deleteQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
+        alert("This question is published and cannot be deleted.");
+        return;
+    }
     if (confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
         masterQuestionList[courseID][questionType].splice(questionIndex, 1);
         updateQuestionTabs(questionType, courseID);
@@ -1836,6 +1881,10 @@ function editCoverPage(courseID, pageIndex) {
 }
 
 function deleteCoverPage(courseID, pageIndex) {
+    if(masterCoverPageList[courseID][pageIndex].published === 1){
+        alert("This cover page is published and cannot be deleted.");
+        return;
+    }
     if (confirm("Are you sure you want to delete this cover page? This action cannot be undone.")) {
         masterCoverPageList[courseID].splice(pageIndex, 1);
         updateCoverPages(courseID);
@@ -2000,8 +2049,6 @@ function submitEditTemplate(courseID, templateIndex) {
         return;
     }
 
-
-
     if(bonusSection){
         if(masterTemplateList[courseID].bonusQuestions.length>0){
             masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
@@ -2054,6 +2101,10 @@ function submitEditTemplate(courseID, templateIndex) {
 }
 
 function deleteTemplate(courseID, templateIndex) {
+    if(masterTemplateList[courseID][templateIndex].published === 1){
+        alert("This template is published and cannot be deleted.");
+        return;
+    }
     if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
         masterTemplateList[courseID].splice(templateIndex, 1);
         updateTemplates(courseID);
