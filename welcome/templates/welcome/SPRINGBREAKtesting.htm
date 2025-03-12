@@ -20,6 +20,10 @@
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
         .modal-content { background: white; padding: 20px; width: 50%; max-height:80vh; overflow-y:auto; margin: 5% auto; border-radius: 10px;}
         .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
+        .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
+        .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
+        .form-group label {width: 120px;text-align: right;margin-right: 10px;}
+        .form-group input {flex: 1;}
     </style>
 </head>
 <body>
@@ -429,27 +433,59 @@ function openEditor(type, courseID) {
             <div  style="background:#e0e0e0;padding:20px;" id="templateEditor"> 
 	    <h1>Font Settings</h1>
   	    <label>Title Font and Font Size:</label><br/>
-	    <input type="text" id="titleFont" placeholder="Enter Title Font...">
+        <select id="titleFont">
+            <option value="" selected disabled>Please choose a font</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Arial">Arial</option>
+            <option value="Calibri">Calibri</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Cambria">Cambria</option>
+            <option value="Garamond">Garamond</option>
+        </select>
 	    <input type="number" id="titleFontSize" min="1" value="36"><br/><br/>
+
 	    <label>Subtitle Font and Font Size:</label><br/>
-	    <input type="text" id="subtitleFont" placeholder="Enter Subtitle Font...">
+	    <select id="subtitleFont">
+            <option value="" selected disabled>Please choose a font</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Arial">Arial</option>
+            <option value="Calibri">Calibri</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Cambria">Cambria</option>
+            <option value="Garamond">Garamond</option>
+        </select>
 	    <input type="number" id="subtitleFontSize" min="1" value="24"><br/><br/>
-    	    <label>Body Font and Font Size:</label><br/>
-	    <input type="text" id="bodyFont" placeholder="Enter Body Font...">
+
+    	<label>Body Font and Font Size:</label><br/>
+	    <select id="bodyFont">
+            <option value="" selected disabled>Please choose a font</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Arial">Arial</option>
+            <option value="Calibri">Calibri</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Cambria">Cambria</option>
+            <option value="Garamond">Garamond</option>
+        </select>
 	    <input type="number" id="bodyFontSize" min="1" value="12"><br/><br/>
         
+        
         <h1>Tags Section (Optional)</h1>
-        <label>Test Name </label> <input type="text" id="tempTestName"><br/>
-        <label>Date </label> <input type="text" id="tempDate"><br/>
-        <label>Course Number </label> <input type="text" id="tempCourseNum"><br/>
+        <div class="form-container">
+            <div class="form-group"><label>Test Name </label> <input type="text" id="tempTestName"></div>
+            <div class="form-group"><label>Date </label> <input type="text" id="tempDate"></div>
+            <div class="form-group"><label>Course Number </label> <input type="text" id="tempCourseNum"></div>
+        </div>
 
   	    <h1>Header and Footer Settings</h1>
-        <label>Location of Student Score Blank</label>
+        <label>Location of Student Score Blank (On the second page of the test)</label>
         <select id="studentScoreSelector">
             <option value="" disabled selected>Please Select a Location</option>
             <option value="TR"> Top Right</option>
             <option value="TL"> Top Left</option>
-        </select><br/>
+        </select><br/><br/>
 	    <label>Page Numbers in Header</label><br/>
 	    <input type="checkbox" id="pageNumH"><br/>
 	    <label>Page Numbers in Footer</label><br/>
