@@ -97,7 +97,7 @@ var masterQuestionList = {};
 var masterTestList = {};
 var masterTemplateList = {};
 var masterAttachmentList = {};
-var courseList = [];
+var courseList = {};
 var masterCoverPageList = {};
 var masterTextbookList = {};
 
@@ -299,7 +299,9 @@ function addCourse() {
     if(!masterTextbookList[ISBN]){
         let textbook = {
             chapters: [
-                questions = []
+                sections = [
+                    questions = []
+                ]
             ],
             title: textbookTitle,
             tbAuthor: textbookAuthor,  
@@ -322,7 +324,7 @@ function addCourse() {
         sem: courseSemester,
         textbook: masterTextbookList[ISBN]
     };
-    courseList.push(thisCourse);
+    courseList[courseID] = thisCourse;
 }
 
 /**
