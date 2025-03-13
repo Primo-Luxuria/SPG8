@@ -65,6 +65,7 @@
             <li onclick="editItem()">Edit</li>
             <li onclick="deleteItem()">Delete</li>
             <li onclick="addFeedback()">Add Feedback</li>
+            <li onclick="viewFeedback()">View Feedback</li>
         </ul>
     </div>
     
@@ -98,6 +99,7 @@ var masterTemplateList = {};
 var masterAttachmentList = {};
 var courseList = [];
 var masterCoverPageList = {};
+var masterTextbookList = {};
 
 /**
  * Defines the UI for a given course, used to interact with everything else
@@ -232,7 +234,9 @@ function addCourse() {
         file: "defaultpage",
         showFilename: true,
         blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated"
+        instructions: "Grade according to the rubric, giving partial credit where indicated",
+        published: 1,
+        feedback: []
     };
 
     const coverPageDefault2 = {
@@ -242,7 +246,9 @@ function addCourse() {
         file: "defaultpage_2",
         showFilename: true,
         blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated"
+        instructions: "Grade according to the rubric, giving partial credit where indicated",
+        published: 1,
+        feedback: []
     };
 
     const coverPageDefault3 = {
@@ -252,7 +258,9 @@ function addCourse() {
         file: "defaultpage_3",
         showFilename: true,
         blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated"
+        instructions: "Grade according to the rubric, giving partial credit where indicated",
+        published: 1,
+        feedback: []
     };
 
     masterCoverPageList[courseID].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
@@ -280,22 +288,39 @@ function addCourse() {
                     { sectionNumber: 1, questionType: "tf" }
                 ]
             }
-        ]
+        ],
+        published: 1,
+        feedback: []    
     };
 
     masterTemplateList[courseID].push(templateDefault);
     updateTemplates(courseID);
+
+    if(!masterTextbookList[ISBN]){
+        let textbook = {
+            chapters: [
+                questions = []
+            ],
+            title: textbookTitle,
+            tbAuthor: textbookAuthor,  
+            tbVersion: textbookVersion,    
+            tbISBN: textbookISBN,  
+            tbLink: textbookLink  
+        };
+        masterTextbookList[ISBN] = textbook;
+    }
+
+    if(!masterAttachmentList[courseID]){
+        let attachmentList = [];
+        masterAttachmentList[courseID] = attachmentList;
+    }
 
     const thisCourse = {
         id: courseID,
         name: courseName,
         crn: courseCRN,
         sem: courseSemester,
-        tbTitle: textbookTitle,
-        tbAuthor: textbookAuthor,
-        tbVersion: textbookVersion,
-        tbISBN: textbookISBN,
-        tbLink: textbookLink
+        textbook: masterTextbookList[ISBN]
     };
     courseList.push(thisCourse);
 }
@@ -594,6 +619,7 @@ function submitCoverPage(courseID){
         showFilename: filenameTF,
         blank: nameBlankSelector,
         instructions: gradingInstructions,
+        feedback: []
     }
 
     masterCoverPageList[courseID].push(coverPage);
@@ -725,7 +751,8 @@ function addTemplate(courseID) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[courseID].bonusQuestions || []
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        feedback: []
     };
 
     if (!masterTemplateList[courseID]) {
@@ -1080,7 +1107,8 @@ function saveTest(courseID, isPublished, testIndex = null) {
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
-        parts: []
+        parts: [],
+        feedback: []
     };
 
     // Loop through all parts and sections rendered in the UI
@@ -1173,7 +1201,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
     } else {
         targetList.push(testData);
     }
-
+    
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
         masterTemplateList[courseID][templateIndex].published = 1;
@@ -1313,10 +1341,32 @@ function addSelectedQuestions() {
         selectedQuestionsDiv.appendChild(questionElement);
     });
 
+    const randomizer = document.createElement("button");
+    randomizer.className = "add-btn";
+    randomizer.textContent = "Randomize Question Order";
+    randomizer.onclick = function() {
+        const questionElements = Array.from(selectedQuestionsDiv.children).slice(1); // Skip the first child
+        ShuffleArray(questionElements);
+        selectedQuestionsDiv.innerHTML = ''; 
+        selectedQuestionsDiv.appendChild(sectionPointsDiv);
+        questionElements.forEach((element, index) => {
+            selectedQuestionsDiv.appendChild(element);
+        });
+    };
+    selectedQuestionsDiv.appendChild(randomizer);
+
     alert(`Added ${questions.length} questions to Part ${partNum + 1}, Section ${sectionNum + 1}`);
 
     closeQuestionModal();
 }
+
+function ShuffleArray(questionElements){
+    for (let i = questionElements.length - 2; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questionElements[i], questionElements[j]] = [questionElements[j], questionElements[i]];
+    }
+}
+
 
 /**
  * This code is for the test editor. It updates the points for every question inside a section,
@@ -1509,6 +1559,11 @@ function updateTestTabs(courseID) {
             testContainer.style.marginBottom = '8px';
             testContainer.style.borderBottom = '1px solid #ccc';
             testContainer.dataset.itemType = 'test';
+            if(test.published===1){
+                testContainer.dataset.testType = 'published';
+            }else{
+                testContainer.dataset.testType = 'draft';
+            }
             testContainer.dataset.itemIndex = index;
             testContainer.dataset.courseID = courseID;
             testContainer.dataset.testType = 'draft';
@@ -1661,6 +1716,7 @@ document.addEventListener('contextmenu', function (event) {
         contextMenu.dataset.itemIndex = target.dataset.itemIndex;
         contextMenu.dataset.courseID = target.dataset.courseID;
         contextMenu.dataset.questionType = target.dataset.questionType;
+        contextMenu.dataset.testType = target.dataset.testType;
 
         console.log(`Context menu opened for target:`, target);
     } else {
@@ -1692,6 +1748,10 @@ function editItem() {
             editTemplate(courseID, itemIndex);
             break;
         case 'test':
+            if(contextMenu.dataset.testType === 'published'){
+                alert("You cannot edit published tests.");
+                return;
+            }
             editTest(courseID, itemIndex);
             break;
         case 'attachment':
@@ -1720,6 +1780,10 @@ function deleteItem() {
             deleteTemplate(courseID, itemIndex);
             break;
         case 'test':
+            if(contextMenu.dataset.testType === 'published'){
+                alert("You cannot delete published tests.");
+                return;
+            }
             deleteTest(courseID, itemIndex);
             break;
         case 'attachment':
@@ -1802,7 +1866,8 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
                 graphic: graphic,
                 ansGraphic: ansGraphic,
                 comments: comments,
-                published: 0
+                published: 0,
+                feedback: []
             };
             masterQuestionList[courseID][questionType].push(newQuestion);
             updateQuestionTabs(questionType, courseID);
@@ -2087,7 +2152,8 @@ function submitEditTemplate(courseID, templateIndex) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[courseID].bonusQuestions || []
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        feedback: []
     };
 
     masterTemplateList[courseID][templateIndex] = templateData;
@@ -2113,7 +2179,7 @@ function deleteTemplate(courseID, templateIndex) {
 }
 
 function editTest(courseID, testIndex) {
-    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex];
 
     // Open the edit modal and populate it with the test data
     const modal = document.getElementById('editModal');
@@ -2134,8 +2200,8 @@ function editTest(courseID, testIndex) {
                 <button id="templateSelection" onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <button class="add-btn" id="testDraftButton" onclick="saveTest('${courseID}', '${false}', ${testIndex})">Save as Draft</button>
-            <button class="add-btn" id="testPublishButton" onclick="saveTest('${courseID}', '${true}', ${testIndex})">Publish Test</button>
+            <button class="add-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testIndex})">Save as Draft</button>
+            <button class="add-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testIndex})">Publish Test</button>
         </div>
     `;
 
@@ -2270,6 +2336,10 @@ function editTest(courseID, testIndex) {
 }
 
 function deleteTest(courseID, testIndex) {
+    if(masterTestList[courseID]['drafts'][testIndex].published === 1){
+        alert("This test is published and cannot be deleted.");
+        return;
+    }
     if (confirm("Are you sure you want to delete this test? This action cannot be undone.")) {
         const isDraft = masterTestList[courseID]['drafts'][testIndex] !== undefined;
         const targetList = isDraft ? masterTestList[courseID]['drafts'] : masterTestList[courseID]['published'];
@@ -2401,6 +2471,272 @@ function deleteAttachment(courseID, attachmentIndex) {
     }
 }
 
+function submitEditedTest(courseID, isPublished, testIndex) {
+    const testName = document.getElementById("nameField").value.trim();
+    if (!testName) {
+        alert("Test Name is required.");
+        return;
+    }
+
+    const templateIndex = document.getElementById("templateSelector").value;
+    if (!templateIndex) {
+        alert("Please select a template first");
+        return;
+    }
+
+    const template = masterTemplateList[courseID][templateIndex];
+    
+    let usedQuestions = [];
+
+    const testData = {
+        name: testName,
+        template: template,
+        templateName: template.name,
+        templateIndex: templateIndex,
+        parts: [],
+        feedback: []
+    };
+
+    // Loop through all parts and sections rendered in the UI
+    const testParts = document.getElementById("testParts");
+    const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
+    let noquestions = true;
+    partContainers.forEach((partContainer, partIndex) => {
+        const partData = {
+            partNumber: partIndex + 1,
+            sections: []
+        };
+
+        // Find all section containers within this part
+        const sectionContainers = partContainer.querySelectorAll('[id^="part-' + partIndex + '-section-"]');
+
+        sectionContainers.forEach((sectionContainer, sectionIndex) => {
+            const questionType = template.partStructure[partIndex].sections[sectionIndex].questionType;
+            const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
+
+            // Skip sections with no questions
+            if (!selectedQuestionsDiv || !selectedQuestionsDiv.children.length) {
+                return;
+            }
+
+            const sectionData = {
+                sectionNumber: sectionIndex + 1,
+                questionType: questionType,
+                questions: []
+            };
+
+            // Get all question divs (skip the first child which is the section points setter)
+            const questionDivs = selectedQuestionsDiv.querySelectorAll('div[style*="border-radius"]');
+
+            questionDivs.forEach((questionDiv) => {
+                const questionIndex = questionDiv.dataset.questionIndex;
+                const pointsInput = questionDiv.querySelector('.question-points');
+                const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
+
+                // Get the question from master list and clone it
+                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]));
+
+                // Update points for this clone if they were changed
+                question.score = points;
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
+                // Add to the questions for this section
+                sectionData.questions.push(question);
+                noquestions=false;
+                // Set the published key to 1 if the test is published
+                if (isPublished === 'true') {
+                    masterQuestionList[courseID][questionType.toLowerCase()][questionIndex].published = 1;
+                }
+            });
+            if(noquestions){
+                alert("Please select questions for each section");
+                return;
+            }
+            partData.sections.push(sectionData);
+        });
+
+        testData.parts.push(partData);
+    });
+
+    if (template.bonusSection) {
+        const bonusPart = {
+            partNumber: testData.parts.length + 1,
+            sections: [{
+                sectionNumber: 1,
+                questionType: 'bonus',
+                questions: template.bonusQuestions.map(q => {
+                    const [type, index] = q.split('-');
+                    const question = masterQuestionList[courseID][type][index];
+                    if (isPublished === 'true') {
+                        question.published = 1;
+                    }
+                    return question;
+                })
+            }]
+        };
+        testData.parts.push(bonusPart);
+    }
+
+    // Save the test data
+    if (!masterTestList[courseID]) {
+        masterTestList[courseID] = { drafts: [], published: [] };
+    }
+
+    const draftsList = masterTestList[courseID].drafts;
+    const publishedList = masterTestList[courseID].published;
+
+    if (isPublished === 'true') {
+        // Remove from drafts and add to published
+        draftsList.splice(testIndex, 1);
+        testData.published = 1;
+        publishedList.push(testData);
+    } else {
+        // Update the draft test
+        draftsList[testIndex] = testData;
+    }
+
+    // Set the published key for the template and cover page if the test is published
+    if (isPublished === 'true') {
+        masterTemplateList[courseID][templateIndex].published = 1;
+        const coverPageIndex = template.coverPageType;
+        if (masterCoverPageList[courseID][coverPageIndex]) {
+            masterCoverPageList[courseID][coverPageIndex].published = 1;
+        }
+    }
+
+    usedQuestions.forEach(question => {
+        question.tests.push(testData.name);
+        console.log("Updated question:", question);
+        console.log("Question published value:", question.published);
+    });
+
+    alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
+    updateTestTabs(courseID);
+    closeModal();
+}
+
+function addFeedback() {
+    const contextMenu = document.getElementById('contextMenu');
+    const itemType = contextMenu.dataset.itemType;
+    const itemIndex = contextMenu.dataset.itemIndex;
+    const courseID = contextMenu.dataset.courseID;
+    const questionType = contextMenu.dataset.questionType;
+
+    if (itemType !== 'question') {
+        alert("Feedback can only be added to questions.");
+        return;
+    }
+
+    const question = masterQuestionList[courseID][questionType][itemIndex];
+
+    // Open the feedback modal and populate it with the feedback form
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    modalTitle.innerText = 'Add Feedback';
+
+    const formContent = `
+        <label>Rating (1-5):</label><br/>
+        <input type="number" id="feedbackRating" min="1" max="5"><br><br>
+        <label>Class Average Score:</label><br/>
+        <input type="number" id="feedbackAverageScore" min="0"><br><br>
+        <label>Comments:</label><br/>
+        <textarea id="feedbackComments" rows="4"></textarea><br><br>
+        <button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemIndex})">Submit Feedback</button>
+    `;
+
+    modalBody.innerHTML = formContent;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.style.opacity = '1';
+    }, 10);
+}
+
+function submitFeedback(courseID, questionType, questionIndex) {
+    const rating = parseInt(document.getElementById('feedbackRating').value);
+    const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
+    const comments = document.getElementById('feedbackComments').value.trim();
+
+    if (isNaN(rating) || rating < 1 || rating > 5) {
+        alert("Please enter a valid rating between 1 and 5.");
+        return;
+    }
+    if (isNaN(averageScore) || averageScore < 0 ) {
+        alert("Please enter a valid, non-negative class average score.");
+        return;
+    }
+    if (!comments) {
+        alert("Comments are required.");
+        return;
+    }
+
+    const feedback = {
+        username: courseID, // Using courseID as the username for now
+        rating: rating,
+        averageScore: averageScore,
+        comments: comments,
+        date: new Date().toLocaleString(),
+        responses: []
+    };
+
+    const question = masterQuestionList[courseID][questionType][questionIndex];
+    if (!question.feedback) {
+        question.feedback = [];
+    }
+    question.feedback.push(feedback);
+
+    alert("Feedback submitted successfully!");
+    closeModal();
+    viewFeedback(courseID, questionType, questionIndex);
+}
+
+function viewQuestionFeedback(courseID, questionType, questionIndex) {
+    const question = masterQuestionList[courseID][questionType][questionIndex];
+
+    // Open the feedback modal and populate it with the feedback reviews
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    modalTitle.innerText = 'View Feedback';
+
+    let feedbackContent = '<h3>Feedback Reviews:</h3>';
+    if (!question.feedback || question.feedback.length === 0) {
+        feedbackContent += '<p>No feedback available for this question.</p>';
+    } else {
+        question.feedback.forEach((feedback, index) => {
+            feedbackContent += `
+                <div style="border-bottom: 1px solid #ccc; padding: 10px;">
+                    <p><strong>${feedback.username}</strong> (${feedback.date})</p>
+                    <p>Rating: ${feedback.rating}/5</p>
+                    <p>Class Average Score: ${feedback.averageScore}/${question.score}</p>
+                    <p>Comments: ${feedback.comments}</p>
+                </div>
+            `;
+        });
+    }
+
+    modalBody.innerHTML = feedbackContent;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.style.opacity = '1';
+    }, 10);
+}
+
+function viewFeedback() {
+    const contextMenu = document.getElementById('contextMenu');
+    const itemType = contextMenu.dataset.itemType;
+    const itemIndex = contextMenu.dataset.itemIndex;
+    const courseID = contextMenu.dataset.courseID;
+    const questionType = contextMenu.dataset.questionType;
+
+    if (itemType !== 'question') {
+        alert("Feedback can only be viewed for questions and tests.");
+        return;
+    }
+
+    viewQuestionFeedback(courseID, questionType, itemIndex);
+}
 </script>
 </body>
 </html>
