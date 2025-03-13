@@ -122,7 +122,7 @@ function addCourse() {
         return;
     }
 
-    if (courseList.find(course => course.id === courseID)) {
+    if (courseList[courseID]) {
         alert("Error: A course with that ID already exists.");
         return;
     }
@@ -296,7 +296,7 @@ function addCourse() {
     masterTemplateList[courseID].push(templateDefault);
     updateTemplates(courseID);
 
-    if(!masterTextbookList[ISBN]){
+    if(!masterTextbookList[textbookISBN]){
         let textbook = {
             chapters: [
                 sections = [
@@ -304,12 +304,12 @@ function addCourse() {
                 ]
             ],
             title: textbookTitle,
-            tbAuthor: textbookAuthor,  
-            tbVersion: textbookVersion,    
-            tbISBN: textbookISBN,  
-            tbLink: textbookLink  
+            author: textbookAuthor,  
+            version: textbookVersion,    
+            isbn: textbookISBN,  
+            link: textbookLink  
         };
-        masterTextbookList[ISBN] = textbook;
+        masterTextbookList[textbookISBN] = textbook;
     }
 
     if(!masterAttachmentList[courseID]){
@@ -322,7 +322,7 @@ function addCourse() {
         name: courseName,
         crn: courseCRN,
         sem: courseSemester,
-        textbook: masterTextbookList[ISBN]
+        textbook: masterTextbookList[textbookISBN]
     };
     courseList[courseID] = thisCourse;
 }
@@ -1250,6 +1250,49 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     modalBody.dataset.sectionNum = sectionNum;
     modalBody.dataset.questionType = type;
 
+    const filterContainer = document.createElement('div');
+    filterContainer.style.padding = '5px';
+    filterContainer.style.marginBottom = '8px';
+    filterContainer.style.borderBottom = '1px solid #ccc';
+
+    // Filter by Test
+    const testFilterLabel = document.createElement('label');
+    testFilterLabel.textContent = 'Filter by Test:';
+    filterContainer.appendChild(testFilterLabel);
+
+    const testFilterSelect = document.createElement('select');
+    testFilterSelect.id = 'testFilterSelect';
+    testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
+    const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
+    testList.forEach((test, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = test.name;
+        testFilterSelect.appendChild(option);
+    });
+    filterContainer.appendChild(testFilterSelect);
+
+    // Filter by Textbook (commented form)
+    /*
+    const textbookFilterLabel = document.createElement('label');
+    textbookFilterLabel.textContent = 'Filter by Textbook Chapter:';
+    filterContainer.appendChild(textbookFilterLabel);
+
+    const textbookFilterSelect = document.createElement('select');
+    textbookFilterSelect.id = 'textbookFilterSelect';
+    textbookFilterSelect.innerHTML = '<option value="" selected>All Chapters</option>';
+    const textbook = courseList[courseID].textbook;
+    textbook.chapters.forEach((chapter, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `Chapter ${index + 1}`;
+        textbookFilterSelect.appendChild(option);
+    });
+    filterContainer.appendChild(textbookFilterSelect);
+    */
+
+    modalBody.appendChild(filterContainer);
+
     const questionContainer = document.createElement('div');
     questionContainer.style.padding = '5px';
     questionContainer.style.marginBottom = '8px';
@@ -1283,6 +1326,58 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     setTimeout(() => {
         modal.style.opacity = "1";
     }, 10);
+
+    // Add event listeners for filters
+    testFilterSelect.addEventListener('change', () => filterQuestions(courseID, type));
+    // textbookFilterSelect.addEventListener('change', () => filterQuestions(courseID, type)); // Uncomment when implementing textbook filter
+}
+
+function filterQuestions(courseID, type) {
+    const testFilterSelect = document.getElementById('testFilterSelect');
+    // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
+    const selectedTestIndex = testFilterSelect.value;
+    // const selectedChapterIndex = textbookFilterSelect.value; // Uncomment when implementing textbook filter
+
+    const questions = masterQuestionList[courseID][type];
+    const questionContainer = document.querySelector('#questionModalBody > div:nth-child(2)');
+    questionContainer.innerHTML = ''; // Clear existing content
+
+    let filteredQuestions = questions;
+
+    // Filter by Test
+    if (selectedTestIndex !== '') {
+        const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
+        const selectedTest = testList[selectedTestIndex];
+        filteredQuestions = selectedTest.parts.flatMap(part => part.sections.flatMap(section => section.questions)).filter(q => q.qtype === type);
+    }
+
+    // Filter by Textbook (commented form)
+    /*
+    if (selectedChapterIndex !== '') {
+        filteredQuestions = filteredQuestions.filter(q => q.chapter === parseInt(selectedChapterIndex));
+    }
+    */
+
+    filteredQuestions.forEach((question, index) => {
+        const element = document.createElement("div");
+        element.style.padding = '8px';
+        element.style.margin = '5px 0';
+        element.style.backgroundColor = '#f0f0f0';
+        element.style.borderRadius = '4px';
+        element.innerHTML = `
+            <input type="checkbox" id="q-${index}" value="${index}">
+            <label for="q-${index}">${question.text} (${question.score} Points)</label>
+        `;   
+        questionContainer.appendChild(element);
+    });
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'add-btn';
+    submitButton.textContent = 'Add Selected Questions';
+    submitButton.onclick = function() {
+        addSelectedQuestions();
+    };
+    questionContainer.appendChild(submitButton);
 }
 
 /**
