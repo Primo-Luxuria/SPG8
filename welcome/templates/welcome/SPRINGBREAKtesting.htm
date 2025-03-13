@@ -1971,6 +1971,11 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
             closeModal();
             alert("Question cloned successfully!");
             return;
+        }else if(confirm("Are you sure you want to edit this question?")){
+            // Continue with editing the question   
+        }else{
+            alert("Question not edited.");  
+            return;
         }
     }
 
@@ -2063,6 +2068,16 @@ function editTemplate(courseID, templateIndex) {
     const modalBody = document.getElementById('modalBody');
 
     modalTitle.innerText = 'Edit Template';
+    if(template.published === 1){
+        alert("This template is published. You cannot edit it.");
+        return;
+    }
+    let coverPageIndex = 0;
+    if(!template.coverPageType){
+        coverPageType = 0;
+    }else{
+        coverPageType = template.coverPageType;
+    }
 
     const formContent = `
         <div style="background:#e0e0e0;padding:20px;" id="templateEditor"> 
@@ -2148,6 +2163,8 @@ function editTemplate(courseID, templateIndex) {
 
     // Populate the cover page selector
     updatePageSelection(courseID);
+    pageSelector = document.getElementById('coverPageSelector');
+    pageSelector.value = coverPageType;
     
     // Populate the parts and sections
     updateParts();
@@ -2718,35 +2735,59 @@ function addFeedback() {
     const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
-    if (itemType !== 'question') {
-        alert("Feedback can only be added to questions.");
-        return;
+    if (itemType === 'question') {
+        const question = masterQuestionList[courseID][questionType][itemIndex];
+
+        // Open the feedback modal and populate it with the feedback form
+        const modal = document.getElementById('editModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+
+        modalTitle.innerText = 'Add Feedback';
+
+        const formContent = `
+            <label>Rating (1-5):</label><br/>
+            <input type="number" id="feedbackRating" min="1" max="5"><br><br>
+            <label>Class Average Score:</label><br/>
+            <input type="number" id="feedbackAverageScore" min="0"><br><br>
+            <label>Comments:</label><br/>
+            <textarea id="feedbackComments" rows="4"></textarea><br><br>
+            <button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemIndex})">Submit Feedback</button>
+        `;
+
+        modalBody.innerHTML = formContent;
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 10);
+    } else if (itemType === 'test') {
+        const test = masterTestList[courseID]['drafts'][itemIndex] || masterTestList[courseID]['published'][itemIndex];
+
+        // Open the feedback modal and populate it with the feedback form
+        const modal = document.getElementById('editModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+
+        modalTitle.innerText = 'Add Feedback';
+
+        const formContent = `
+            <label>Rating (1-5):</label><br/>
+            <input type="number" id="feedbackRating" min="1" max="5"><br><br>
+            <label>Class Average Score:</label><br/>
+            <input type="number" id="feedbackAverageScore" min="0"><br><br>
+            <label>Comments:</label><br/>
+            <textarea id="feedbackComments" rows="4"></textarea><br><br>
+            <button class="add-btn" onclick="submitTestFeedback('${courseID}', ${itemIndex})">Submit Feedback</button>
+        `;
+
+        modalBody.innerHTML = formContent;
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.style.opacity = '1';
+        }, 10);
+    } else {
+        alert("Feedback can only be added to questions and tests.");
     }
-
-    const question = masterQuestionList[courseID][questionType][itemIndex];
-
-    // Open the feedback modal and populate it with the feedback form
-    const modal = document.getElementById('editModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalBody = document.getElementById('modalBody');
-
-    modalTitle.innerText = 'Add Feedback';
-
-    const formContent = `
-        <label>Rating (1-5):</label><br/>
-        <input type="number" id="feedbackRating" min="1" max="5"><br><br>
-        <label>Class Average Score:</label><br/>
-        <input type="number" id="feedbackAverageScore" min="0"><br><br>
-        <label>Comments:</label><br/>
-        <textarea id="feedbackComments" rows="4"></textarea><br><br>
-        <button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemIndex})">Submit Feedback</button>
-    `;
-
-    modalBody.innerHTML = formContent;
-    modal.style.display = 'flex';
-    setTimeout(() => {
-        modal.style.opacity = '1';
-    }, 10);
 }
 
 function submitFeedback(courseID, questionType, questionIndex) {
@@ -2758,7 +2799,7 @@ function submitFeedback(courseID, questionType, questionIndex) {
         alert("Please enter a valid rating between 1 and 5.");
         return;
     }
-    if (isNaN(averageScore) || averageScore < 0 ) {
+    if (isNaN(averageScore) || averageScore < 0) {
         alert("Please enter a valid, non-negative class average score.");
         return;
     }
@@ -2784,7 +2825,61 @@ function submitFeedback(courseID, questionType, questionIndex) {
 
     alert("Feedback submitted successfully!");
     closeModal();
-    viewFeedback(courseID, questionType, questionIndex);
+    viewQuestionFeedback(courseID, questionType, questionIndex);
+}
+
+function submitTestFeedback(courseID, testIndex) {
+    const rating = parseInt(document.getElementById('feedbackRating').value);
+    const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
+    const comments = document.getElementById('feedbackComments').value.trim();
+
+    if (isNaN(rating) || rating < 1 || rating > 5) {
+        alert("Please enter a valid rating between 1 and 5.");
+        return;
+    }
+    if (isNaN(averageScore) || averageScore < 0) {
+        alert("Please enter a valid, non-negative class average score.");
+        return;
+    }
+    if (!comments) {
+        alert("Comments are required.");
+        return;
+    }
+
+    const feedback = {
+        username: courseID, // Using courseID as the username for now
+        rating: rating,
+        averageScore: averageScore,
+        comments: comments,
+        date: new Date().toLocaleString(),
+        responses: []
+    };
+
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
+    if (!test.feedback) {
+        test.feedback = [];
+    }
+    test.feedback.push(feedback);
+
+    alert("Feedback submitted successfully!");
+    closeModal();
+    viewTestFeedback(courseID, testIndex);
+}
+
+function viewFeedback() {
+    const contextMenu = document.getElementById('contextMenu');
+    const itemType = contextMenu.dataset.itemType;
+    const itemIndex = contextMenu.dataset.itemIndex;
+    const courseID = contextMenu.dataset.courseID;
+    const questionType = contextMenu.dataset.questionType;
+
+    if (itemType === 'question') {
+        viewQuestionFeedback(courseID, questionType, itemIndex);
+    } else if (itemType === 'test') {
+        viewTestFeedback(courseID, itemIndex);
+    } else {
+        alert("Feedback can only be viewed for questions and tests.");
+    }
 }
 
 function viewQuestionFeedback(courseID, questionType, questionIndex) {
@@ -2801,13 +2896,23 @@ function viewQuestionFeedback(courseID, questionType, questionIndex) {
     if (!question.feedback || question.feedback.length === 0) {
         feedbackContent += '<p>No feedback available for this question.</p>';
     } else {
-        question.feedback.forEach((feedback, index) => {
+        question.feedback.forEach((feedback, feedbackIndex) => {
             feedbackContent += `
                 <div style="border-bottom: 1px solid #ccc; padding: 10px;">
                     <p><strong>${feedback.username}</strong> (${feedback.date})</p>
                     <p>Rating: ${feedback.rating}/5</p>
                     <p>Class Average Score: ${feedback.averageScore}/${question.score}</p>
                     <p>Comments: ${feedback.comments}</p>
+                    <div id="responses-${feedbackIndex}">
+                        ${feedback.responses.map(response => `
+                            <div style="margin-left: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                                <p><strong>${response.username}</strong> (${response.date})</p>
+                                <p>${response.text}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
+                    <button class="add-btn" onclick="submitResponse('${courseID}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -2820,19 +2925,89 @@ function viewQuestionFeedback(courseID, questionType, questionIndex) {
     }, 10);
 }
 
-function viewFeedback() {
-    const contextMenu = document.getElementById('contextMenu');
-    const itemType = contextMenu.dataset.itemType;
-    const itemIndex = contextMenu.dataset.itemIndex;
-    const courseID = contextMenu.dataset.courseID;
-    const questionType = contextMenu.dataset.questionType;
+function viewTestFeedback(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
 
-    if (itemType !== 'question') {
-        alert("Feedback can only be viewed for questions and tests.");
+    // Open the feedback modal and populate it with the feedback reviews
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+
+    modalTitle.innerText = 'View Feedback';
+
+    let feedbackContent = '<h3>Feedback Reviews:</h3>';
+    if (!test.feedback || test.feedback.length === 0) {
+        feedbackContent += '<p>No feedback available for this test.</p>';
+    } else {
+        test.feedback.forEach((feedback, feedbackIndex) => {
+            feedbackContent += `
+                <div style="border-bottom: 1px solid #ccc; padding: 10px;">
+                    <p><strong>${feedback.username}</strong> (${feedback.date})</p>
+                    <p>Rating: ${feedback.rating}/5</p>
+                    <p>Class Average Score: ${feedback.averageScore}</p>
+                    <p>Comments: ${feedback.comments}</p>
+                    <div id="responses-${feedbackIndex}">
+                        ${feedback.responses.map(response => `
+                            <div style="margin-left: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                                <p><strong>${response.username}</strong> (${response.date})</p>
+                                <p>${response.text}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
+                    <button class="add-btn" onclick="submitTestResponse('${courseID}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
+                </div>
+            `;
+        });
+    }
+
+    modalBody.innerHTML = feedbackContent;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.style.opacity = '1';
+    }, 10);
+}
+
+function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
+    const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
+
+    if (!responseText) {
+        alert("Response text is required.");
         return;
     }
 
-    viewQuestionFeedback(courseID, questionType, itemIndex);
+    const response = {
+        username: courseID, // Using courseID as the username for now
+        text: responseText,
+        date: new Date().toLocaleString()
+    };
+
+    const question = masterQuestionList[courseID][questionType][questionIndex];
+    question.feedback[feedbackIndex].responses.push(response);
+
+    alert("Response submitted successfully!");
+    viewQuestionFeedback(courseID, questionType, questionIndex);
+}
+
+function submitTestResponse(courseID, testIndex, feedbackIndex) {
+    const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
+
+    if (!responseText) {
+        alert("Response text is required.");
+        return;
+    }
+
+    const response = {
+        username: courseID, // Using courseID as the username for now
+        text: responseText,
+        date: new Date().toLocaleString()
+    };
+
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
+    test.feedback[feedbackIndex].responses.push(response);
+
+    alert("Response submitted successfully!");
+    viewTestFeedback(courseID, testIndex);
 }
 </script>
 </body>
