@@ -384,7 +384,7 @@ function openEditor(type, courseID) {
             <textarea id="questionField" rows="5" placeholder="Enter question text here..."></textarea><br><br>
             
             <label>Question Type:</label><br/>
-            <select id="typeField">
+            <select id="typeField" onchange="updateQuestionForm()">
                 <option value="" disabled selected>Select Question Type</option>
                 <option value="tf">True/False</option>
                 <option value="mc">Multiple Choice</option>
@@ -395,13 +395,12 @@ function openEditor(type, courseID) {
                 <option value="fb">Fill in the Blank</option>
             </select><br><br>
 
-            <label>Correct Answer:</label><br/>
-            <textarea id="answerField" rows="4" placeholder="For questions that lack a correct answer, please repeat the prompt here."></textarea><br><br>
+            <div id="questionSpecificFields"></div>
 
             <label>Point Value:</label><br/>
             <input type="number" id="pointValueField" min="1"><br><br>
 
-	    <label>Estimated Time to Solve (Minutes):</label><br/>
+            <label>Estimated Time to Solve (Minutes):</label><br/>
             <input type="number" id="qTimeField" min="1"><br><br>
 
             <label>Grading Instructions:</label><br/>
@@ -410,13 +409,13 @@ function openEditor(type, courseID) {
             <label>Reference Text (Optional):</label><br/>
             <textarea id="refField" rows="3" placeholder="Reference text if needed..."></textarea><br><br>
 
-	    <label>Embedded Graphic (Optional):</label><br/>
-            <input type="file" id="qGraphicField" name="questionSRC"></input><br><br>
-	
-	    <label>Embedded Graphic for the Correct Answer (Optional):</label><br/>
-            <input type="file" id="ansGraphicField" name="answerSRC"></input><br><br>
+            <label>Embedded Graphic (Optional):</label><br/>
+            <input type="file" id="qGraphicField" name="questionSRC"><br><br>
         
-        <label>Instructor Comments (Optional):</label><br/>
+            <label>Embedded Graphic for the Correct Answer (Optional):</label><br/>
+            <input type="file" id="ansGraphicField" name="answerSRC"><br><br>
+        
+            <label>Instructor Comments (Optional):</label><br/>
             <textarea id="instructorCommentField" placeholder="Comments go here"></textarea><br><br>
 
             <button class="add-btn" onclick="addQuestion('${courseID}')">Submit Question</button>
@@ -588,12 +587,82 @@ function openEditor(type, courseID) {
     }, 10);
 }
 
+function updateQuestionForm() {
+    const type = document.getElementById('typeField').value;
+    const questionSpecificFields = document.getElementById('questionSpecificFields');
+    questionSpecificFields.innerHTML = '';
+
+    if (type === 'tf') {
+        questionSpecificFields.innerHTML = `
+            <label>Correct Answer:</label><br/>
+            <select id="answerField">
+                <option value="true">True</option>
+                <option value="false">False</option>
+            </select><br><br>
+        `;
+    } else if (type === 'sa' || type === 'es') {
+        questionSpecificFields.innerHTML = `
+            <label>Correct Answer:</label><br/>
+            <textarea id="answerField" rows="4" placeholder="Enter the correct answer here..."></textarea><br><br>
+        `;
+    } else if (type === 'mc') {
+        questionSpecificFields.innerHTML = `
+            <label>Options:</label><br/>
+            <input type="text" id="optionA" placeholder="Option A"><br>
+            <input type="text" id="optionB" placeholder="Option B"><br>
+            <input type="text" id="optionC" placeholder="Option C"><br>
+            <input type="text" id="optionD" placeholder="Option D"><br><br>
+            <label>Correct Answer:</label><br/>
+            <select id="answerField">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+            </select><br><br>
+        `;
+    } else if (type === 'ma') {
+        questionSpecificFields.innerHTML = `
+            <label>Number of Options:</label><br/>
+            <input type="number" id="numOptions" min="2" step="2" onchange="updateOptions('${type}')"><br><br>
+            <div id="optionsContainer"></div>
+        `;
+    } else if (type === 'ms') {
+        questionSpecificFields.innerHTML = `
+            <label>Number of Options:</label><br/>
+            <input type="number" id="numOptions" min="1" max="20" onchange="updateOptions('${type}')"><br><br>
+            <div id="optionsContainer"></div>
+        `;
+    } else if (type === 'fb') {
+        questionSpecificFields.innerHTML = `
+            <label>Number of Blanks:</label><br/>
+            <input type="number" id="numBlanks" min="1" onchange="updateOptions('${type}')"><br><br>
+            <div id="optionsContainer"></div>
+            <label>Include Formula:</label>
+            <input type="checkbox" id="includeFormula" onchange="toggleFormulaInput()"><br><br>
+            <div id="formulaContainer"></div>
+        `;
+    }
+}
+
+function toggleFormulaInput() {
+    const includeFormula = document.getElementById('includeFormula').checked;
+    const formulaContainer = document.getElementById('formulaContainer');
+    if (includeFormula) {
+        formulaContainer.innerHTML = `
+            <label>Formula:</label><br/>
+            <input type="text" id="formulaField" placeholder="Enter the formula here..."><br><br>
+        `;
+    } else {
+        formulaContainer.innerHTML = '';
+    }
+}
+
 /**
  * Adding the cover page to the list of coverpages
  * Precondition: all necessary data is in the coverpage editor
  * Postcondition: cover page added to the list
 */
-function submitCoverPage(courseID){
+function submitCoverPage(courseID) {
     const pageName = document.getElementById("nameField").value.trim();
     const testNumber = document.getElementById("tNum").value.trim();
     const testDate = document.getElementById("tDate").value.trim();
@@ -602,18 +671,16 @@ function submitCoverPage(courseID){
     const nameBlankSelector = document.getElementById("nameBlankSelector").value.trim();
     const gradingInstructions = document.getElementById("instructions").value.trim();
 
-    if(!pageName || !testNumber || !testDate || !filename || !nameBlankSelector || !gradingInstructions){
+    if (!pageName || !testNumber || !testDate || !filename || !nameBlankSelector || !gradingInstructions) {
         alert("Cover page name, Test number, test date, filename, name blank selection, and grading instructions are required fields!");
         return;
     }
 
-    if(!masterCoverPageList[courseID]){
-        let coverPageList = [];
-        masterCoverPageList[courseID]= coverPageList;
+    if (!masterCoverPageList[courseID]) {
+        masterCoverPageList[courseID] = [];
     }
 
-
-    let coverPage = {
+    const coverPage = {
         name: pageName,
         testNum: testNumber,
         date: testDate,
@@ -622,9 +689,10 @@ function submitCoverPage(courseID){
         blank: nameBlankSelector,
         instructions: gradingInstructions,
         feedback: []
-    }
+    };
 
     masterCoverPageList[courseID].push(coverPage);
+    updateCoverPages(courseID);
     closeModal();
     alert("Added a cover page");
 }
@@ -893,7 +961,7 @@ function updateTemplateSelection(courseID){
 
 
 /**
- * Adds the question from the currently open editModal in question mode.
+ * Adding the question from the currently open editModal in question mode.
  * Preconditions: expects a valid courseID, and for all of the required fields to be present
  * Postconditions: adds the question to the appropriate array for its type in the course questionList
  * 
@@ -905,7 +973,6 @@ function updateTemplateSelection(courseID){
 */
 function addQuestion(courseID) {
     const text = document.getElementById("questionField").value.trim();
-    const answer = document.getElementById("answerField").value.trim();
     const type = document.getElementById("typeField").value;
     const points = document.getElementById("pointValueField").value.trim();
     const instructions = document.getElementById("instructionField").value.trim();
@@ -915,9 +982,54 @@ function addQuestion(courseID) {
     const ansgraphic = document.getElementById("ansGraphicField").files[0];
     const instcomm = document.getElementById("instructorCommentField").value;
 
-    if (!text || !answer || !type || !points || !instructions || !time) {
-        alert("Some fields (Question, Question Type, Correct Answer, Default Point Value, and Grading Instructions) are required.");
+    if (!text || !type || !points || !instructions || !time) {
+        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required.");
         return;
+    }
+
+    let answer = '';
+    let prompts = [];
+    let options = [];
+
+    if (type === 'tf') {
+        answer = document.getElementById("answerField").value;
+    } else if (type === 'sa' || type === 'es') {
+        answer = document.getElementById("answerField").value.trim();
+    } else if (type === 'mc') {
+        options = [
+            document.getElementById("optionA").value.trim(),
+            document.getElementById("optionB").value.trim(),
+            document.getElementById("optionC").value.trim(),
+            document.getElementById("optionD").value.trim()
+        ];
+        answer = document.getElementById("answerField").value;
+    } else if (type === 'ma') {
+        const numOptions = parseInt(document.getElementById("numOptions").value);
+        for (let i = 1; i <= numOptions; i++) {
+            options.push(document.getElementById(`option${i}`).value.trim());
+        }
+        answer = [];
+        for (let i = 1; i <= numOptions / 2; i++) {
+            const prompt = document.getElementById(`option${i}`).value.trim();
+            const match = document.getElementById(`option${i + numOptions / 2}`).value.trim();
+            answer.push({ prompt: prompt, match: match });
+        }
+    } else if (type === 'ms') {
+        const numOptions = parseInt(document.getElementById("numOptions").value);
+        for (let i = 1; i <= numOptions; i++) {
+            options.push(document.getElementById(`option${i}`).value.trim());
+            if (document.getElementById(`correct${i}`).checked) {
+                answer.push(document.getElementById(`option${i}`).value.trim());
+            }
+        }
+    } else if (type === 'fb') {
+        const numBlanks = parseInt(document.getElementById("numBlanks").value);
+        for (let i = 1; i <= numBlanks; i++) {
+            answer.push(document.getElementById(`blank${i}`).value.trim());
+        }
+        if (document.getElementById('includeFormula').checked) {
+            answer.push({ formula: document.getElementById('formulaField').value.trim() });
+        }
     }
 
     const question = {
@@ -931,6 +1043,8 @@ function addQuestion(courseID) {
         img: graphic,
         ansimg: ansgraphic,
         comments: instcomm,
+        prompts: prompts,
+        options: options,
         tests: [],
         published: 0
     };
@@ -940,7 +1054,6 @@ function addQuestion(courseID) {
     }
 
     masterQuestionList[courseID][type].push(question);
-    const lastQuestionIndex = masterQuestionList[courseID][type].length - 1;
     updateQuestionTabs(type, courseID);
     alert(`Added the ${type.toUpperCase()} Question: \n"${question.text}"\n (Worth ${question.score} points!)`);
 
@@ -1494,216 +1607,6 @@ function updateSectionPoints(partNum, sectionNum) {
 }
 
 /**
- * This function updates the number of parts in the template editor selected in the part count value
- * Assuming the number is above one, it creates section containers with a selection for section number.
- * It creates as many sections as the number specified in the sectionInput number input
- * Preconditions: Valid part count selected, template editor open
- * Postconditions: Updates template editor with a set of parts with section selection options
- */
-function updateParts() {
-    const partCount = parseInt(document.getElementById("partCount").value);
-    const partsContainer = document.getElementById("partsContainer");
-    partsContainer.innerHTML = ""; // Clear existing content
-
-    for (let i = 1; i <= partCount; i++) {
-        let sectionInputId = `sectionCount-${i}`;
-        partsContainer.innerHTML += `
-            <div id="part-${i}">
-                <label>Sections in Part ${i}:</label>
-                <input type="number" id="${sectionInputId}" min="1" value="1"> 
-                <button onclick="updateSections(${i})">Update</button>
-                <div style="background:#c0c0c0;padding:20px;" id="sectionsContainer-${i}"><p>No Sections Chosen...</p></div>
-            </div><br>
-        `;
-    }
-}
-
-/**
- * Updates the sections within the template editor. This is called when the number of sections
- * in a part has been chosen. It brings up a set of selectors for each section to choose the
- * question type for each section.
- * Precondition: Have the template editor open, a valid partNumber is passed
- * Postcondition: Should create a dropdown selector to determine the question type
-*/
-function updateSections(partNumber) {
-    const sectionCount = parseInt(document.getElementById(`sectionCount-${partNumber}`).value);
-    const sectionsContainer = document.getElementById(`sectionsContainer-${partNumber}`);
-    sectionsContainer.innerHTML = ""; // Clear old sections
-
-    for (let j = 1; j <= sectionCount; j++) {
-        sectionsContainer.innerHTML += `
-            <label>Question Type for Section ${j}:</label>
-            <select>
-                <option value="tf">True/False</option>
-                <option value="mc">Multiple Choice</option>
-                <option value="sa">Short Answer</option>
-                <option value="es">Essay</option>
-                <option value="ma">Matching</option>
-                <option value="ms">Multiple Selections</option>
-                <option value="fb">Fill in the Blank</option>
-            </select><br>
-        `;
-    }
-}
-
-/**
- * Updates the question tab specified by the courseID and type supplied.
- * Preconditions: courseID refers to a valid courseID, type refers to a valid lowercase question type
- * Postconditions: updated question tabs, with test question and points listed.
-*/
-function updateQuestionTabs(type, courseID) {
-    const tabContent = document.getElementById(`${type}-${courseID}`);
-    tabContent.innerHTML = '';
-    const questionList = masterQuestionList[courseID][type];
-
-    if (questionList.length === 0) {
-        tabContent.innerHTML = '<p>No questions available...</p>';
-        return;
-    }
-
-    questionList.forEach((question, index) => {
-        const questionContainer = document.createElement('div');
-        questionContainer.classList.add('context-menu-target');
-        questionContainer.style.padding = '5px';
-        questionContainer.style.marginBottom = '8px';
-        questionContainer.style.borderBottom = '1px solid #ccc';
-
-        // Ensure dataset attributes are correctly set
-        questionContainer.dataset.itemType = 'question';
-        questionContainer.dataset.itemIndex = index;
-        questionContainer.dataset.courseID = courseID;
-        questionContainer.dataset.questionType = type;  // Ensure question type is included
-
-        const questionElement = document.createElement('p');
-        questionElement.textContent = `${question.text} (${question.score} points)`;
-
-        questionContainer.appendChild(questionElement);
-        tabContent.appendChild(questionContainer);
-    });
-}
-
-function updateCoverPages(courseID) {
-    const pages = masterCoverPageList[courseID];
-    const pageTabContent = document.getElementById("coverpages-" + courseID);
-    pageTabContent.innerHTML = "";
-
-    if (pages.length === 0) {
-        pageTabContent.innerHTML = '<p>No cover pages available...</p>';
-    } else {
-        pages.forEach((page, index) => {
-            const pageContainer = document.createElement('div');
-            pageContainer.classList.add('context-menu-target');
-            pageContainer.style.padding = '5px';
-            pageContainer.style.marginBottom = '8px';
-            pageContainer.style.borderBottom = '1px solid #ccc';
-            pageContainer.dataset.itemType = 'coverPage';
-            pageContainer.dataset.itemIndex = index;
-            pageContainer.dataset.courseID = courseID;
-
-            const pageElement = document.createElement('p');
-            pageElement.textContent = page.name;
-
-            pageContainer.appendChild(pageElement);
-            pageTabContent.appendChild(pageContainer);
-
-            console.log(`Added contextmenu event listener to page index: ${index}`);
-        });
-    }
-}
-
-function updateTemplates(courseID) {
-    const templates = masterTemplateList[courseID];
-    const templateTabContent = document.getElementById("templates-" + courseID);
-    templateTabContent.innerHTML = "";
-
-    if (templates.length === 0) {
-        templateTabContent.innerHTML = '<p>No templates available...</p>';
-    } else {
-        templates.forEach((template, index) => {
-            const templateContainer = document.createElement('div');
-            templateContainer.classList.add('context-menu-target');
-            templateContainer.style.padding = '5px';
-            templateContainer.style.marginBottom = '8px';
-            templateContainer.style.borderBottom = '1px solid #ccc';
-            templateContainer.dataset.itemType = 'template';
-            templateContainer.dataset.itemIndex = index;
-            templateContainer.dataset.courseID = courseID;
-
-            const templateElement = document.createElement('p');
-            templateElement.textContent = template.name;
-
-            templateContainer.appendChild(templateElement);
-            templateTabContent.appendChild(templateContainer);
-
-            console.log(`Added contextmenu event listener to template index: ${index}`);
-        });
-    }
-}
-
-function updateTestTabs(courseID) {
-    // For drafts tab
-    const draftsTabContent = document.getElementById(`drafts-${courseID}`);
-    draftsTabContent.innerHTML = '';
-    const draftsTestList = masterTestList[courseID]['drafts'];
-
-    if (draftsTestList.length === 0) {
-        draftsTabContent.innerHTML = '<p>No draft tests available...</p>';
-    } else {
-        draftsTestList.forEach((test, index) => {
-            const testContainer = document.createElement('div');
-            testContainer.classList.add('context-menu-target');
-            testContainer.style.padding = '5px';
-            testContainer.style.marginBottom = '8px';
-            testContainer.style.borderBottom = '1px solid #ccc';
-            testContainer.dataset.itemType = 'test';
-            if(test.published===1){
-                testContainer.dataset.testType = 'published';
-            }else{
-                testContainer.dataset.testType = 'draft';
-            }
-            testContainer.dataset.itemIndex = index;
-            testContainer.dataset.courseID = courseID;
-            testContainer.dataset.testType = 'draft';
-
-            const testElement = document.createElement('p');
-            testElement.textContent = test.name;
-            testContainer.appendChild(testElement);
-            draftsTabContent.appendChild(testContainer);
-
-            console.log(`Added contextmenu event listener to draft test index: ${index}`);
-        });
-    }
-
-    // For published tab
-    const publishedTabContent = document.getElementById(`published-${courseID}`);
-    publishedTabContent.innerHTML = '';
-    const publishedTestList = masterTestList[courseID]['published'];
-
-    if (publishedTestList.length === 0) {
-        publishedTabContent.innerHTML = '<p>No published tests available...</p>';
-    } else {
-        publishedTestList.forEach((test, index) => {
-            const testContainer = document.createElement('div');
-            testContainer.classList.add('context-menu-target');
-            testContainer.style.padding = '5px';
-            testContainer.style.marginBottom = '8px';
-            testContainer.style.borderBottom = '1px solid #ccc';
-            testContainer.dataset.itemType = 'test';
-            testContainer.dataset.itemIndex = index;
-            testContainer.dataset.courseID = courseID;
-            testContainer.dataset.testType = 'published';
-            const testElement = document.createElement('p');
-            testElement.textContent = test.name;
-
-            testContainer.appendChild(testElement);
-            publishedTabContent.appendChild(testContainer);
-
-            console.log(`Added contextmenu event listener to published test index: ${index}`);
-        });
-    }
-}
-
-/**
  * This function grabs the courseSemester selector at the top of the course addition page
  * and updates it to include the current school year rather than a standard set of seasons.
  * For example, in the 2024-2025 school year the values would be Fall 2024, Winter 2024, Spring 2025, Summer 2025
@@ -1996,6 +1899,98 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     alert("Question edited successfully!");
 }
 
+function updateTestTabs(courseID) {
+    const draftsContainer = document.getElementById(`drafts-${courseID}`);
+    const publishedContainer = document.getElementById(`published-${courseID}`);
+    draftsContainer.innerHTML = ''; // Clear existing content
+    publishedContainer.innerHTML = ''; // Clear existing content
+
+    const drafts = masterTestList[courseID].drafts;
+    const published = masterTestList[courseID].published;
+
+    if (drafts.length === 0) {
+        draftsContainer.innerHTML = '<p>No drafts available...</p>';
+    } else {
+        drafts.forEach((test, index) => {
+            const testDiv = document.createElement('div');
+            testDiv.style.backgroundColor = '#d0d0d0';
+            testDiv.style.padding = '5px';
+            testDiv.style.marginBottom = '8px';
+            testDiv.style.borderBottom = '1px solid #ccc';
+            testDiv.classList.add('context-menu-target');
+            testDiv.dataset.itemType = 'test';
+            testDiv.dataset.itemIndex = index;
+            testDiv.dataset.courseID = courseID;
+            testDiv.dataset.testType = 'draft';
+
+            testDiv.innerHTML = `
+                <p><strong>${test.name}</strong></p>
+                <p>Template: ${test.templateName}</p>
+                <p>Parts: ${test.parts.length - 2}</p>
+            `;
+
+            draftsContainer.appendChild(testDiv);
+        });
+    }
+
+    if (published.length === 0) {
+        publishedContainer.innerHTML = '<p>No published tests available...</p>';
+    } else {
+        published.forEach((test, index) => {
+            const testDiv = document.createElement('div');
+            testDiv.style.backgroundColor = '#d0d0d0';
+            testDiv.style.padding = '5px';
+            testDiv.style.marginBottom = '8px';
+            testDiv.style.borderBottom = '1px solid #ccc';
+            testDiv.classList.add('context-menu-target');
+            testDiv.dataset.itemType = 'test';
+            testDiv.dataset.itemIndex = index;
+            testDiv.dataset.courseID = courseID;
+            testDiv.dataset.testType = 'published';
+
+            testDiv.innerHTML = `
+                <p><strong>${test.name}</strong></p>
+                <p>Template: ${test.templateName}</p>
+                <p>Parts: ${test.parts.length}</p>
+            `;
+
+            publishedContainer.appendChild(testDiv);
+        });
+    }
+}
+
+function updateQuestionTabs(questionType, courseID) {
+    const tabContent = document.getElementById(`${questionType}-${courseID}`);
+    tabContent.innerHTML = ''; // Clear existing content
+
+    const questions = masterQuestionList[courseID][questionType];
+
+    if (questions.length === 0) {
+        tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
+    } else {
+        questions.forEach((question, index) => {
+            const questionDiv = document.createElement('div');
+            questionDiv.style.backgroundColor = '#d0d0d0';
+            questionDiv.style.padding = '5px';
+            questionDiv.style.marginBottom = '8px';
+            questionDiv.style.borderBottom = '1px solid #ccc';
+            questionDiv.classList.add('context-menu-target');
+            questionDiv.dataset.itemType = 'question';
+            questionDiv.dataset.itemIndex = index;
+            questionDiv.dataset.courseID = courseID;
+            questionDiv.dataset.questionType = questionType;
+
+            questionDiv.innerHTML = `
+                <p><strong>${question.text}</strong></p>
+                <p>Points: ${question.score}</p>
+                <p>Estimated Time: ${question.eta} minutes</p>
+            `;
+
+            tabContent.appendChild(questionDiv);
+        });
+    }
+}
+
 function deleteQuestion(courseID, questionType, questionIndex) {
     if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         alert("This question is published and cannot be deleted.");
@@ -2057,6 +2052,64 @@ function deleteCoverPage(courseID, pageIndex) {
         updateCoverPages(courseID);
         alert("Cover page deleted successfully!");
     }
+}
+
+function updateCoverPages(courseID) {
+    const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
+    coverPageContainer.innerHTML = ''; // Clear existing content
+
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
+        coverPageContainer.innerHTML = '<p>You have not added any cover pages yet...</p>';
+        return;
+    }
+
+    masterCoverPageList[courseID].forEach((coverPage, index) => {
+        const coverPageDiv = document.createElement('div');
+        coverPageDiv.style.backgroundColor = '#d0d0d0';
+        coverPageDiv.style.padding = '5px';
+        coverPageDiv.style.marginBottom = '8px';
+        coverPageDiv.style.borderBottom = '1px solid #ccc';
+        coverPageDiv.classList.add('context-menu-target');
+        coverPageDiv.dataset.itemType = 'coverPage';
+        coverPageDiv.dataset.itemIndex = index;
+        coverPageDiv.dataset.courseID = courseID;
+
+        coverPageDiv.innerHTML = `
+            <p><strong>${coverPage.name}</strong> (Test Number: ${coverPage.testNum}, Date: ${coverPage.date})</p>
+            <p>Filename: ${coverPage.file}</p>
+            <p>Grading Instructions: ${coverPage.instructions}</p>
+        `;
+
+        coverPageContainer.appendChild(coverPageDiv);
+    });
+}
+
+function updateTemplates(courseID) {
+    const templateContainer = document.getElementById(`templates-${courseID}`);
+    templateContainer.innerHTML = ''; // Clear existing content
+
+    if (!masterTemplateList[courseID] || masterTemplateList[courseID].length === 0) {
+        templateContainer.innerHTML = '<p>You have not added any templates yet...</p>';
+        return;
+    }
+
+    masterTemplateList[courseID].forEach((template, index) => {
+        const templateDiv = document.createElement('div');
+        templateDiv.style.backgroundColor = '#d0d0d0';
+        templateDiv.style.padding = '5px';
+        templateDiv.style.marginBottom = '8px';
+        templateDiv.style.borderBottom = '1px solid #ccc';
+        templateDiv.classList.add('context-menu-target');
+        templateDiv.dataset.itemType = 'template';
+        templateDiv.dataset.itemIndex = index;
+        templateDiv.dataset.courseID = courseID;
+
+        templateDiv.innerHTML = `
+            <p><strong>${template.name}</strong></p>
+        `;
+
+        templateContainer.appendChild(templateDiv);
+    });
 }
 
 function editTemplate(courseID, templateIndex) {
@@ -3008,6 +3061,39 @@ function submitTestResponse(courseID, testIndex, feedbackIndex) {
 
     alert("Response submitted successfully!");
     viewTestFeedback(courseID, testIndex);
+}
+
+function updateOptions(type) {
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = '';
+
+    if (type === 'ma') {
+        const numOptions = parseInt(document.getElementById('numOptions').value);
+        for (let i = 1; i <= numOptions; i++) {
+            optionsContainer.innerHTML += `
+                <label>Option ${i}:</label><br/>
+                <input type="text" id="option${i}" placeholder="Option ${i}"><br><br>
+            `;
+        }
+    } else if (type === 'ms') {
+        const numOptions = parseInt(document.getElementById('numOptions').value);
+        for (let i = 1; i <= numOptions; i++) {
+            optionsContainer.innerHTML += `
+                <label>Option ${i}:</label><br/>
+                <input type="text" id="option${i}" placeholder="Option ${i}"><br>
+                <label>Correct Answer:</label>
+                <input type="checkbox" id="correct${i}"><br><br>
+            `;
+        }
+    } else if (type === 'fb') {
+        const numBlanks = parseInt(document.getElementById('numBlanks').value);
+        for (let i = 1; i <= numBlanks; i++) {
+            optionsContainer.innerHTML += `
+                <label>Answer for Blank ${i}:</label><br/>
+                <input type="text" id="blank${i}" placeholder="Answer for Blank ${i}"><br><br>
+            `;
+        }
+    }
 }
 </script>
 </body>
