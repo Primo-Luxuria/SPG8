@@ -69,9 +69,6 @@
         </ul>
     </div>
     
-
-
-
     <!-- Primary Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
@@ -92,7 +89,7 @@
 
 <script>
 
-//Can be used for persistent storage
+//Can be used for session-level storage and testing
 var masterQuestionList = {};
 var masterTestList = {};
 var masterTemplateList = {};
@@ -220,7 +217,8 @@ function addCourse() {
     let year = today.getFullYear();
     let month = today.getMonth() + 1;
     let date = today.getDate();
-    if(month<10){
+
+    if(month<10){ //ensuring that the values are valid for HTML date YYYY-MM-DD
         month = '0' + month;
     }
     if(date<10){
@@ -602,6 +600,12 @@ function openEditor(type, courseID) {
 
 }
 
+/** 
+ *  Updates the graphic selectors inside of the editor modal during openEditor() execution
+ * Is active when the editorModal is in question mode
+ * Precondition: valid courseID
+ * Postcondition: graphic selectors are updated with a list of files from the Attachments Section
+*/
 function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
@@ -627,6 +631,11 @@ function updateGraphicSelectors(courseID) {
     });
 }
 
+/**
+ * Updates the different possible options for a question type in the question editor
+ * Precondition: valid question type
+ * Postcondition: question editor is updated with the correct fields for the question type
+*/
 function updateQuestionForm() {
     const type = document.getElementById('typeField').value;
     const questionSpecificFields = document.getElementById('questionSpecificFields');
@@ -684,6 +693,12 @@ function updateQuestionForm() {
     }
 }
 
+/**
+ * Toggles a formula input field in the question editor for fill in the blank questions 
+ * Precondition: valid checkbox state
+ * Postcondition: formula input field is toggled on or off
+ * Variation: May be used for the numeric field instead in the future (TODO)
+*/
 function toggleFormulaInput() {
     const includeFormula = document.getElementById('includeFormula').checked;
     const formulaContainer = document.getElementById('formulaContainer');
@@ -741,13 +756,6 @@ function submitCoverPage(courseID) {
  * Submit attachments to the attachmentList
  * Precondition: valid attachment
  * Postcondition: attachment posted to attachmentList
- * 
- * TODO: have attachment filenames be parsed here and made visible in the attachment section 
- *       (requires that you add a div container to the attachment section in addCourse)
- *       (could alternatively entail making attachments visible at a standard size by 
- *         placing them inside of an appropriately sized div container and restricting them)
- * 
- *          necessary but low priority
 */
 function submitAttachment(courseID) {
     const attachment = document.getElementById("newAttachment").files[0];
@@ -768,6 +776,11 @@ function submitAttachment(courseID) {
     alert("Attachment added successfully!");
 }
 
+/**
+ * Updates the attachments for a given course
+ * Precondition: valid courseID, attachmentList
+ * Postcondition: the attachments dropdown will have interactible div containers for each attachment
+*/
 function updateAttachments(courseID) {
     const attachmentList = masterAttachmentList[courseID];
     const attachmentContainer = document.getElementById("attachments-" + courseID);
@@ -1005,12 +1018,6 @@ function updateTemplateSelection(courseID){
  * Adding the question from the currently open editModal in question mode.
  * Preconditions: expects a valid courseID, and for all of the required fields to be present
  * Postconditions: adds the question to the appropriate array for its type in the course questionList
- * 
- * TODO: change the question addition to account for formulas, multiple possible options and inputs, etc..
- *          priority (medium, delayed: cannot be worked on until the editor is altered. check the inside
- *                      of the openEditor function for more information)
- * 
- *       create feedback{} and add it to question data
 */
 function addQuestion(courseID) {
     const text = document.getElementById("questionField").value.trim();
@@ -1233,13 +1240,6 @@ function updateTestParts(courseID) {
  * This rather involved function saves the test based on all the info in the test editor.
  * Preconditions: a valid courseID, one of two save buttons pressed, a test name, a valid template
  * Postconditions: saves the test as either a draft or published test.
- * 
- * TODO: update all questions used on the test, adding the test to their tests[] value and 
- *       setting their published value to 1, if they are published, preventing their deletion
- * 
- *       create discussions[] and then create feedback[] with discussions[] as an element of it
- *       then finally add discussions[] to testdata
- *       does not need exactly this implementation, but it could be useful
 */
 function saveTest(courseID, isPublished, testIndex = null) {
     const testName = document.getElementById("nameField").value.trim();
@@ -1486,6 +1486,12 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     // textbookFilterSelect.addEventListener('change', () => filterQuestions(courseID, type)); // Uncomment when implementing textbook filter
 }
 
+/**
+ * Filters the type of questions that are selectable in the menu for the test editor
+ * Preconditions: valid courseID, type
+ * Postconditions: filters the questions by test and/or textbook chapter/section
+ * TODO: Complete textbook support
+*/
 function filterQuestions(courseID, type) {
     const testFilterSelect = document.getElementById('testFilterSelect');
     // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
@@ -1710,6 +1716,8 @@ function updateSemesterOptions() {
 /**
  * This triggers whenever reloading or exiting the page/tab, and gives a warning 
  * that some of the data may not be saved.
+ * Precondition: NA
+ * Postcondition: Warning message displayed
 */
 window.onbeforeunload = function(event){
     event.returnValue = "Warning! Data entered may not be saved!";
@@ -1743,6 +1751,12 @@ function closeQuestionModal(){
 */
 document.addEventListener("DOMContentLoaded", updateSemesterOptions);
 
+/**
+ * Opens up a context menu on right click when the user is on a context-menu-target element.
+ * This context menu is used to edit or delete items, or to add/view feedback for questions and tests.
+ * Precondition: context-menu-target element 
+ * Postcondition: context menu is displayed with options to edit or delete the item
+*/
 document.addEventListener('contextmenu', function (event) {
     const target = event.target.closest('.context-menu-target');
     if (target) {
@@ -1766,11 +1780,22 @@ document.addEventListener('contextmenu', function (event) {
     }
 });
 
+/**
+ * This closes the context menu when the user clicks anywhere on the document.
+ * Precondition: context menu is open
+ * Postcondition: context menu is closed
+*/
 document.addEventListener('click', function () {
     const contextMenu = document.getElementById('contextMenu');
     contextMenu.style.display = 'none';
 });
 
+/**
+ * This function is called when the user clicks the edit button in the context menu.
+ * It determines the type of item being edited and calls the appropriate edit function.
+ * Precondition: context menu is open, edit button is clicked
+ * Postcondition: edit modal is opened with the appropriate item data
+*/
 function editItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
@@ -1803,6 +1828,12 @@ function editItem() {
     }
 }
 
+/**
+ * This function is called when the user clicks the delete button in the context menu.
+ * It determines the type of item being deleted and calls the appropriate delete function.
+ * Precondition: context menu is open, delete button is clicked, and is not published
+ * Postcondition: item is deleted from the master list, if it is not published
+*/
 function deleteItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
@@ -1835,6 +1866,12 @@ function deleteItem() {
     }
 }
 
+/**
+ * This function is called when the user clicks the edit button for a question in the context menu.
+ * It will allow the editing of published questions, but only after a confirmation dialog.
+ * Precondition: context menu is open, edit button is clicked
+ * Postcondition: edit modal is opened with the appropriate question data
+*/
 function editQuestion(courseID, questionType, questionIndex) {
     if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
@@ -1941,6 +1978,12 @@ function editQuestion(courseID, questionType, questionIndex) {
     updateEditGraphicSelectors(courseID, question);
 }
 
+/**
+ * This function updates the graphics fields in the editor modal with the available graphics for the course.
+ * This version of the function is used when the user is editing a question
+ * Precondition: valid courseID and question, attachments exist in the course attachment list
+ * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
+*/
 function updateEditGraphicSelectors(courseID, question) {
     const qGraphicField = document.getElementById('editGraphicField');
     const ansGraphicField = document.getElementById('editAnsGraphicField');
@@ -1970,6 +2013,12 @@ function updateEditGraphicSelectors(courseID, question) {
     ansGraphicField.value = question.ansGraphic;
 }
 
+/**
+ * This function is called to update the graphics fields in the editor modal with the available graphics for the course.
+ * This version of the function is used when the user is first creating a question.
+ * Precondition: valid courseID, attachments exist in the course attachment list
+ * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
+*/
 function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
@@ -1995,6 +2044,12 @@ function updateGraphicSelectors(courseID) {
     });
 }
 
+/**
+ * This function is used to update the possible options for a question in the editor modal during question editing. 
+ * It updates the possible options and answers for a question based on question type, similar to the options during question creation.
+ * Precondition: valid question type, options, and answers  
+ * Postcondition: options and answers are updated in the editor modal
+*/
 function updateEditOptions(type, options = [], answers = []) {
     const optionsContainer = document.getElementById('editOptionsContainer');
     optionsContainer.innerHTML = '';
@@ -2034,6 +2089,12 @@ function updateEditOptions(type, options = [], answers = []) {
     }
 }
 
+/**
+ * This function determines whether or not a formula input checkbox is available when editing a question.
+ * It is activated by fill in the blank questions for now, but will likely be moved to numeric type questions (TODO: add numeric questions)
+ * Precondition: checked formula toggle
+ * Postcondition: formula input is displayed or hidden based on the checkbox
+*/
 function toggleEditFormulaInput() {
     const includeFormula = document.getElementById('editIncludeFormula').checked;
     const formulaContainer = document.getElementById('editFormulaContainer');
@@ -2047,6 +2108,13 @@ function toggleEditFormulaInput() {
     }
 }
 
+/**
+ * This function is called when the user submits an edited question in the editor modal.
+ * It updates the question in the master question list with the new data.
+ * Precondition: valid courseID, question type, and question index
+ * Postcondition: question is updated in the master question list or a clone is created
+ * RECENTLY EDITED
+*/
 function submitEditQuestion(courseID, questionType, questionIndex) {
     const text = document.getElementById('editQuestionField').value.trim();
     const score = document.getElementById('editPointValueField').value.trim();
@@ -2106,23 +2174,56 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
         }
     }
 
+    
     const question = masterQuestionList[courseID][questionType][questionIndex];
-    question.text = text;
-    question.answer = answer;
-    question.score = score;
-    question.directions = directions;
-    question.time = time;
-    question.reference = reference;
-    question.graphic = graphic;
-    question.ansGraphic = ansGraphic;
-    question.comments = comments;
-    question.options = options;
+    if(question.published===1){
+        if(confirm("Are you sure you want to edit a published question? If you would rather clone this question, click okay.")){
+            let clone = {
+                text: text,
+                answer: answer,
+                score: score,
+                directions: directions,
+                time: time,
+                reference: reference,
+                graphic: graphic,
+                ansGraphic: ansGraphic,
+                comments: comments,
+                options: options,
+                published: 0
+            }
+            masterQuestionList[courseID][questionType].push(clone);
+            updateQuestionTabs(questionType, courseID);
+            closeModal();
+            alert("Question cloned successfully!");
+            return;
+        }else if (confirm("Are you sure you want to edit a published question?")){
+            question.text = text;
+            question.answer = answer;
+            question.score = score;
+            question.directions = directions;
+            question.time = time;
+            question.reference = reference;
+            question.graphic = graphic;
+            question.ansGraphic = ansGraphic;
+            question.comments = comments;
+            question.options = options;
+        }else{
+            alert("Question not edited.");
+            return;
+        }
+    }
+    
 
     updateQuestionTabs(questionType, courseID);
     closeModal();
     alert("Question edited successfully!");
 }
 
+/**
+ * This function is called to update the test content inside of the test containers whenever a test is saved
+ * Precondition: valid courseID
+ * Postcondition: test content is updated in the test containers    
+*/
 function updateTestTabs(courseID) {
     const draftsContainer = document.getElementById(`drafts-${courseID}`);
     const publishedContainer = document.getElementById(`published-${courseID}`);
@@ -2183,6 +2284,11 @@ function updateTestTabs(courseID) {
     }
 }
 
+/**
+ * This function is called to update the question content inside the question containers whenever a question is saved
+ * Precondition: valid questionType, courseID
+ * Postcondition: question content is updated in the question containers
+*/
 function updateQuestionTabs(questionType, courseID) {
     const tabContent = document.getElementById(`${questionType}-${courseID}`);
     tabContent.innerHTML = ''; // Clear existing content
@@ -2215,6 +2321,11 @@ function updateQuestionTabs(questionType, courseID) {
     }
 }
 
+/**
+ * This function deletes a selected question when chosen from the master list
+ * Precondition: valid courseID, questionType, questionIndex, not published
+ * Postcondition: question is deleted from the master list
+*/
 function deleteQuestion(courseID, questionType, questionIndex) {
     if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         alert("This question is published and cannot be deleted.");
@@ -2227,6 +2338,11 @@ function deleteQuestion(courseID, questionType, questionIndex) {
     }
 }
 
+/**
+ * This function edits the cover page that was previously saved. 
+ * Precondition: valid courseID, pageIndex
+ * Postcondition: cover page is edited and republished in the master list
+*/
 function editCoverPage(courseID, pageIndex) {
     const coverPage = masterCoverPageList[courseID][pageIndex];
 
@@ -2266,6 +2382,11 @@ function editCoverPage(courseID, pageIndex) {
     }, 10);
 }
 
+/**
+ * This function is called to delete a cover page from the master list
+ * Precondition: valid courseID, pageIndex, not published
+ * Postcondition: cover page is deleted from the master list
+*/
 function deleteCoverPage(courseID, pageIndex) {
     if(masterCoverPageList[courseID][pageIndex].published === 1){
         alert("This cover page is published and cannot be deleted.");
@@ -2278,6 +2399,11 @@ function deleteCoverPage(courseID, pageIndex) {
     }
 }
 
+/**
+ * This function is called to update the coverpage options inside any template editor
+ * Precondition: valid courseID
+ * Postcondition: cover page options are updated in the template editor
+*/
 function updateCoverPages(courseID) {
     const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
@@ -2308,6 +2434,11 @@ function updateCoverPages(courseID) {
     });
 }
 
+/**
+ * This function updates the templates inside of the template container UI when a template is saved/edited
+ * Precondition: valid courseID
+ * Postcondition: templates are updated in the template container
+*/
 function updateTemplates(courseID) {
     const templateContainer = document.getElementById(`templates-${courseID}`);
     templateContainer.innerHTML = ''; // Clear existing content
@@ -2336,6 +2467,11 @@ function updateTemplates(courseID) {
     });
 }
 
+/**
+ * This function is called from the context menu to edit an existing template from the course UI
+ * Precondition: valid courseID, templateIndex, not published
+ * Postcondition: template is edited and saved in the master list
+*/
 function editTemplate(courseID, templateIndex) {
     const template = masterTemplateList[courseID][templateIndex];
 
@@ -2464,6 +2600,11 @@ function editTemplate(courseID, templateIndex) {
     }, 10);
 }
 
+/**
+ * This function is used to submit an edited template when the user is finished editing the template from the context menu
+ * Precondition: valid courseID, templateIndex
+ * Postcondition: template is edited and saved in the master list
+*/
 function submitEditTemplate(courseID, templateIndex) {
     const templateName = document.getElementById('tempTestName').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
@@ -2557,6 +2698,11 @@ function submitEditTemplate(courseID, templateIndex) {
     closeModal();
 }
 
+/**
+ * This function is called to delete a template from the master Templatelist. 
+ * Precondition: valid courseID, templateIndex, not published
+ * Postcondition: template is deleted from the master list
+*/
 function deleteTemplate(courseID, templateIndex) {
     if(masterTemplateList[courseID][templateIndex].published === 1){
         alert("This template is published and cannot be deleted.");
@@ -2569,6 +2715,11 @@ function deleteTemplate(courseID, templateIndex) {
     }
 }
 
+/**
+ * This function is used to edit a draft test after it has been saved in the master list
+ * Precondition: valid courseID, testIndex, not published
+ * Postcondition: test is edited and saved in the master list
+*/
 function editTest(courseID, testIndex) {
     const test = masterTestList[courseID]['drafts'][testIndex];
 
@@ -2726,6 +2877,11 @@ function editTest(courseID, testIndex) {
     }, 10);
 }
 
+/**
+ * This function is called to delete a test from the master test list
+ * Precondition: valid courseID, testIndex, not published
+ * Postcondition: test is deleted from the master list
+*/
 function deleteTest(courseID, testIndex) {
     if(masterTestList[courseID]['drafts'][testIndex].published === 1){
         alert("This test is published and cannot be deleted.");
@@ -2740,6 +2896,11 @@ function deleteTest(courseID, testIndex) {
     }
 }
 
+/**
+ * This function determines whether or not bonus questions are available inside the template
+ * Precondition: valid courseID
+ * Postcondition: bonus questions are toggled on or off in the template editor
+*/
 function toggleBonusQuestionSelection(courseID) {
     const bonusToggle = document.getElementById('bonusToggle').value;
     const selectBonusQuestionsBtn = document.getElementById('selectBonusQuestionsBtn');
@@ -2750,8 +2911,11 @@ function toggleBonusQuestionSelection(courseID) {
     }
 }
 
-
-
+/**
+ * The bonus question modal is opened when the user wants to add bonus questions to a template or test
+ * Precondition: valid courseID
+ * Postcondition: bonus question modal is opened
+*/
 function openBonusQuestionModal(courseID) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
@@ -2801,7 +2965,11 @@ function openBonusQuestionModal(courseID) {
     }, 10);
 }
 
-
+/**
+ * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open
+ * Precondition: valid courseID, bonus questions selected
+ * Postcondition: bonus questions are added to the template or test
+*/
 function addSelectedBonusQuestions(courseID) {
     const modalBody = document.getElementById("questionModalBody");
     const checkboxes = modalBody.querySelectorAll('input[type="checkbox"]:checked');
@@ -2817,6 +2985,11 @@ function addSelectedBonusQuestions(courseID) {
     alert(`Added ${selectedQuestions.length} bonus questions.`);
 }
 
+/**
+ * This renames attachments, not much else to it, it is an editor to facilitate renaming them
+ * Precondition: valid attachmentIndex and courseID
+ * Postcondition: the attachment editer is opened
+*/
 function editAttachment(courseID, attachmentIndex) {
     const attachment = masterAttachmentList[courseID][attachmentIndex];
 
@@ -2840,6 +3013,11 @@ function editAttachment(courseID, attachmentIndex) {
     }, 10);
 }
 
+/**
+ * This publishes the changes to the attachment name made in the editAttachment function
+ * Precondition: valid courseID, attachmentIndex
+ * Postcondition: attachment is renamed
+*/
 function submitEditAttachment(courseID, attachmentIndex) {
     const newName = document.getElementById('editAttachmentName').value.trim();
 
@@ -2854,6 +3032,12 @@ function submitEditAttachment(courseID, attachmentIndex) {
     alert("Attachment renamed successfully!");
 }
 
+/**
+ * This function is called to delete an attachment from the master list
+ * Precondition: valid courseID, attachmentIndex
+ * Postcondition: attachment is deleted from the master list
+ * TODO: Prohibit deletion of published attachments, track published attachments using ID or hash
+*/
 function deleteAttachment(courseID, attachmentIndex) {
     if (confirm("Are you sure you want to delete this attachment? This action cannot be undone.")) {
         masterAttachmentList[courseID].splice(attachmentIndex, 1);
@@ -2862,6 +3046,11 @@ function deleteAttachment(courseID, attachmentIndex) {
     }
 }
 
+/**
+ * This function is called to submit an edited test
+ * Precondition: valid courseID, isPublished, testIndex
+ * Postcondition: test is edited and saved in the master list
+*/
 function submitEditedTest(courseID, isPublished, testIndex) {
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
@@ -3005,6 +3194,13 @@ function submitEditedTest(courseID, isPublished, testIndex) {
     closeModal();
 }
 
+/**
+ * This function opens up the modal to produce a feedback form
+ * It allows the user to leave a rating out of five stars, the average score, average time taken, and comments
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback form is opened 
+ * TODO: add average time taken field
+*/
 function addFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
@@ -3067,6 +3263,11 @@ function addFeedback() {
     }
 }
 
+/**
+ * This function is called to submit feedback for a question
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback is submitted and saved in the master list
+*/
 function submitFeedback(courseID, questionType, questionIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
@@ -3105,6 +3306,11 @@ function submitFeedback(courseID, questionType, questionIndex) {
     viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
+/**
+ * This function is called to submit feedback for a test
+ * Precondition: valid courseID, testIndex
+ * Postcondition: feedback is submitted and saved in the master list
+*/
 function submitTestFeedback(courseID, testIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
@@ -3143,6 +3349,12 @@ function submitTestFeedback(courseID, testIndex) {
     viewTestFeedback(courseID, testIndex);
 }
 
+/**
+ * This function is called to view feedback for a question or test
+ * It opens up an amazon review-like page
+ * Precondition: valid courseID, questionType (for questions), questionIndex stored in context menu
+ * Postcondition: feedback is displayed in the modal
+*/
 function viewFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
@@ -3159,6 +3371,11 @@ function viewFeedback() {
     }
 }
 
+/**
+ * This function is called to view the feedback to questions, it is called by viewFeedback
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback is displayed in the modal
+*/
 function viewQuestionFeedback(courseID, questionType, questionIndex) {
     const question = masterQuestionList[courseID][questionType][questionIndex];
 
@@ -3202,6 +3419,11 @@ function viewQuestionFeedback(courseID, questionType, questionIndex) {
     }, 10);
 }
 
+/**
+ * This function is called to view the feedback to tests, it is called by viewFeedback
+ * Precondition: valid courseID, testIndex
+ * Postcondition: feedback is displayed in the modal
+*/
 function viewTestFeedback(courseID, testIndex) {
     const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
 
@@ -3245,6 +3467,11 @@ function viewTestFeedback(courseID, testIndex) {
     }, 10);
 }
 
+/**
+ * This function is called to submit response inside of the feedback modal
+ * Precondition: valid courseID, questionType, questionIndex, feedbackIndex
+ * Postcondition: response is submitted and saved in the master list, displayed on the review page
+*/
 function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
@@ -3266,6 +3493,11 @@ function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
     viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
+/**
+ * This function is called to submit response inside of the feedback modal for tests
+ * Precondition: valid courseID, testIndex, feedbackIndex
+ * Postcondition: response is submitted and saved in the master list, displayed on the review page
+*/
 function submitTestResponse(courseID, testIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
@@ -3287,6 +3519,11 @@ function submitTestResponse(courseID, testIndex, feedbackIndex) {
     viewTestFeedback(courseID, testIndex);
 }
 
+/**
+ * This function is called to update the options inside of the question editor when first creating a question
+ * Precondition: valid question type
+ * Postcondition: options are updated in the question editor
+*/
 function updateOptions(type) {
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = '';
@@ -3319,6 +3556,8 @@ function updateOptions(type) {
         }
     }
 }
+
+
 </script>
 </body>
 </html>
