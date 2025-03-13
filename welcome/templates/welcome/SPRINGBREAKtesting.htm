@@ -416,10 +416,14 @@ function openEditor(type, courseID) {
             <textarea id="refField" rows="3" placeholder="Reference text if needed..."></textarea><br><br>
 
             <label>Embedded Graphic (Optional):</label><br/>
-            <input type="file" id="qGraphicField" name="questionSRC"><br><br>
+            <select id="qGraphicField">
+                <option value="" disabled selected>Select a graphic</option>
+            </select><br><br>
         
             <label>Embedded Graphic for the Correct Answer (Optional):</label><br/>
-            <input type="file" id="ansGraphicField" name="answerSRC"><br><br>
+            <select id="ansGraphicField">
+                <option value="" disabled selected>Select a graphic</option>
+            </select><br><br>
         
             <label>Instructor Comments (Optional):</label><br/>
             <textarea id="instructorCommentField" placeholder="Comments go here"></textarea><br><br>
@@ -575,7 +579,7 @@ function openEditor(type, courseID) {
         }, 50);
     }
 
-
+    
     if (type === "Attachment"){
         formContent+=`
             <input type="file" id="newAttachment" name="attachment">
@@ -591,6 +595,36 @@ function openEditor(type, courseID) {
     setTimeout(() => {
         modal.style.opacity = "1";
     }, 10);
+
+    if (type === "Question") {
+        updateGraphicSelectors(courseID);
+    }
+
+}
+
+function updateGraphicSelectors(courseID) {
+    const qGraphicField = document.getElementById('qGraphicField');
+    const ansGraphicField = document.getElementById('ansGraphicField');
+
+    qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+    ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
+        alert("No attachments available for this course!");
+        return;
+    }
+
+    masterAttachmentList[courseID].forEach((attachment, index) => {
+        const option = document.createElement('option');
+        option.value = attachment.name; //TODO: change this to index, store attachments associated to questions from database
+        option.textContent = attachment.name;
+        qGraphicField.appendChild(option);
+
+        const ansOption = document.createElement('option');
+        ansOption.value = attachment.name;
+        ansOption.textContent = attachment.name;
+        ansGraphicField.appendChild(ansOption);
+    });
 }
 
 function updateQuestionForm() {
@@ -751,14 +785,15 @@ function updateAttachments(courseID) {
         attachmentDiv.style.marginBottom = '8px';
         attachmentDiv.style.borderBottom = '1px solid #ccc';
         attachmentDiv.classList.add('context-menu-target');
-        attachmentLabel = document.createElement("p");
-        attachmentLabel.innerHTML = `<p>Attachment ${index + 1}: ${attachment.name}</p>`;
         attachmentDiv.dataset.itemType = 'attachment';
         attachmentDiv.dataset.itemIndex = index;
         attachmentDiv.dataset.courseID = courseID;
-        attachmentDiv.appendChild(attachmentLabel);
-        attachmentContainer.appendChild(attachmentDiv);
 
+        const attachmentLabel = document.createElement("p");
+        attachmentLabel.innerHTML = `Attachment ${index + 1}: ${attachment.name}`;
+        attachmentDiv.appendChild(attachmentLabel);
+
+        attachmentContainer.appendChild(attachmentDiv);
     });
 }
 
@@ -984,8 +1019,8 @@ function addQuestion(courseID) {
     const instructions = document.getElementById("instructionField").value.trim();
     const refText = document.getElementById("refField").value.trim();
     const time = document.getElementById("qTimeField").value.trim();
-    const graphic = document.getElementById("qGraphicField").files[0];
-    const ansgraphic = document.getElementById("ansGraphicField").files[0];
+    const graphic = document.getElementById("qGraphicField").value;
+    const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
 
     if (!text || !type || !points || !instructions || !time) {
@@ -1882,9 +1917,13 @@ function editQuestion(courseID, questionType, questionIndex) {
         <label>Reference Text:</label><br/>
         <textarea id="editRefField" rows="4">${question.reference}</textarea><br><br>
         <label>Question Image:</label><br/>
-        <input type="file" id="editGraphicField"><br><br>
+        <select id="editGraphicField">
+            <option value="" disabled selected>Select a graphic</option>
+        </select><br><br>
         <label>Answer Image:</label><br/>
-        <input type="file" id="editAnsGraphicField"><br><br>
+        <select id="editAnsGraphicField">
+            <option value="" disabled selected>Select a graphic</option>
+        </select><br><br>
         <label>Instructor Comment:</label><br/>
         <textarea id="editInstructorCommentField" rows="4">${question.comments}</textarea><br><br>
         <label>Grading Instructions:</label><br/>
@@ -1897,6 +1936,63 @@ function editQuestion(courseID, questionType, questionIndex) {
     setTimeout(() => {
         modal.style.opacity = '1';
     }, 10);
+
+    // Populate the graphic selectors
+    updateEditGraphicSelectors(courseID, question);
+}
+
+function updateEditGraphicSelectors(courseID, question) {
+    const qGraphicField = document.getElementById('editGraphicField');
+    const ansGraphicField = document.getElementById('editAnsGraphicField');
+
+    qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+    ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
+        alert("No attachments available for this course!");
+        return;
+    }
+
+    masterAttachmentList[courseID].forEach((attachment, index) => {
+        const option = document.createElement('option');
+        option.value = attachment.name;
+        option.textContent = attachment.name;
+        qGraphicField.appendChild(option);
+
+        const ansOption = document.createElement('option');
+        ansOption.value = attachment.name;
+        ansOption.textContent = attachment.name;
+        ansGraphicField.appendChild(ansOption);
+    });
+
+    // Set the current selection
+    qGraphicField.value = question.graphic;
+    ansGraphicField.value = question.ansGraphic;
+}
+
+function updateGraphicSelectors(courseID) {
+    const qGraphicField = document.getElementById('qGraphicField');
+    const ansGraphicField = document.getElementById('ansGraphicField');
+
+    qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+    ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
+
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
+        alert("No attachments available for this course!");
+        return;
+    }
+
+    masterAttachmentList[courseID].forEach((attachment, index) => {
+        const option = document.createElement('option');
+        option.value = attachment.name;
+        option.textContent = attachment.name;
+        qGraphicField.appendChild(option);
+
+        const ansOption = document.createElement('option');
+        ansOption.value = attachment.name;
+        ansOption.textContent = attachment.name;
+        ansGraphicField.appendChild(ansOption);
+    });
 }
 
 function updateEditOptions(type, options = [], answers = []) {
@@ -1956,8 +2052,8 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     const score = document.getElementById('editPointValueField').value.trim();
     const reference = document.getElementById('editRefField').value.trim();
     const time = document.getElementById('editTimeField').value.trim();
-    const graphic = document.getElementById('editGraphicField').files[0];
-    const ansGraphic = document.getElementById('editAnsGraphicField').files[0];
+    const graphic = document.getElementById('editGraphicField').value;
+    const ansGraphic = document.getElementById('editAnsGraphicField').value;
     const comments = document.getElementById('editInstructorCommentField').value.trim();
     const directions = document.getElementById('editInstructionField').value.trim();
 
