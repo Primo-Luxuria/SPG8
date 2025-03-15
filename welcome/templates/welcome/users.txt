@@ -1,4 +1,0 @@
-teachertest|$2y$12$rURKBvPrdMqKtm5pTyFnZOhdRT16RStQtDIlSs6B7CacsMjN4QrpG|teacher
-publishertest|$2y$12$YIR53Z2gRs.VFtlxf5TIjunoftjTWhr1MTHCndpph08./SPHqa8D6|publisher
-admintest|$2y$12$9NZIT/qRA8gf04JcEVqMZuChOTl4kySF9io4RzgA5eO6Bg3evywDe|webmaster
-itsme|$2y$10$MF..IKNp3S70C1ihzqP.YeomLnQVGpqMT6ubKoY91KHFGPGxjO5Hi|Teacher

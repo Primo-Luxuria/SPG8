@@ -16,7 +16,6 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -27,7 +26,6 @@ SECRET_KEY = 'django-insecure-s@@-gq^j3(rkb!e(9one-4lw49b12+&633-yy90*4$a1((88$=
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -41,7 +39,7 @@ INSTALLED_APPS = [
     'welcome',
     'django_extensions'
     '',
-    
+
 ]
 
 MIDDLEWARE = [
@@ -74,7 +72,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'quizpress.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -97,9 +94,14 @@ DATABASES = {
         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client
         'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
         'PORT': '3306',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'MyDbTest',  # Your database name
+        'USER': 'test_user',  # Your MySQL username
+        'PASSWORD': 'yourpassword',  # Your MySQL password
+        'HOST': 'localhost',  # Use 'localhost' for local development
+        'PORT': '3306',  # Default MySQL port
     }
 }
-
 
 
 
@@ -121,7 +123,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -133,7 +134,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -144,8 +144,10 @@ STATICFILES_DIRS = [
 
 ]
 
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
