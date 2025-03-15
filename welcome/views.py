@@ -432,3 +432,26 @@ def parse_qti_xml(request):
     else:
         return JsonResponse({"message": "File processed successfully!", "file_info": file_info})
 #
+
+
+# testing connecting the html files
+from django.shortcuts import render
+
+#each of these functions renders a different html file
+def home(request):  
+    return render(request, 'quiz/home.html')
+
+def login_view(request):
+    return render(request, 'quiz/login.html')
+
+def signup_view(request):
+    return render(request, 'quiz/signup.html')
+
+def teacher_dashboard(request):
+    return render(request, 'quiz/SBteacher.htm')
+
+def publisher_dashboard(request):
+    return render(request, 'quiz/SBpublisher.htm')
+
+def login_view(request):
+    return render(request, 'welcome/login.html')

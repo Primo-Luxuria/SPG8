@@ -94,12 +94,6 @@ DATABASES = {
         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client
         'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
         'PORT': '3306',
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'MyDbTest',  # Your database name
-        'USER': 'test_user',  # Your MySQL username
-        'PASSWORD': 'yourpassword',  # Your MySQL password
-        'HOST': 'localhost',  # Use 'localhost' for local development
-        'PORT': '3306',  # Default MySQL port
     }
 }
 
