@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Textbooks</title>
+    <title>Manage Courses</title>
     <style>
         body { font-family: Arial, sans-serif; }
 	    textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
@@ -23,7 +23,7 @@
         .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
         .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
         .form-group label {width: 120px;text-align: right;margin-right: 10px;}
-        .form-group input {flex: 1;}
+        .form-group input {flex: 1;}  
         .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
         .context-menu ul {list-style: none;margin: 0;padding: 0;}
         .context-menu ul li {padding: 8px 12px;cursor: pointer;}
@@ -41,8 +41,8 @@
     <input type="text" id="author" placeholder="Enter Textbook Author" required>
     <input type="text" id="version" placeholder="Enter Textbook Version" required>
     <input type="text" id="isbn" placeholder="Enter Textbook ISBN" required>
-    <input type="number" id="chapters" placeholder="Enter Number of Chapters" required>
-    <input type="text" id="link" placeholder="Enter Textbook Website Link" required><br/><br/>
+    <input type="text" id="link" placeholder="Enter Textbook Website Link" required>
+    <input type="number" id="chapters" min="1" placeholder="Enter Number of Chapters" required><br/><br/>
     
     <button onclick="addTextbook()">Add Textbook</button>
     </div>
@@ -84,6 +84,7 @@ var masterQuestionList = {};
 var masterTestList = {};
 var masterTemplateList = {};
 var masterAttachmentList = {};
+var textbookList = {};
 var masterCoverPageList = {};
 var masterTextbookList = {};
 
@@ -93,6 +94,7 @@ var masterTextbookList = {};
  * Postconditions: Creates a course UI with tabbed panes for question and test data
 */
 function addTextbook() {
+    
     const title = document.getElementById('title').value.trim();
     const author = document.getElementById('author').value.trim();
     const version = document.getElementById('version').value.trim();
@@ -101,24 +103,43 @@ function addTextbook() {
     const chapters = document.getElementById('chapters').value.trim();
 
     if (!title || !author || !version || !isbn || !link || !chapters) {
-        alert("All fields (Textbook Title/Author/Version/ISBN/Link/Chapters) are required.");
+        alert("All fields (Title, Author, Version, ISBN, Link, and Number of Chapters) are required.");
+        return;
+    }   
+
+
+    if (textbookList[isbn]) {
+        alert("Error: A testbook with that isbn already exists.");
         return;
     }
 
-    if (masterTextbookList[isbn]) {
-        alert("Error: A textbook with that isbn already exists.");
-        return;
-    }
 
-    const textbookList = document.createElement('div');
-    textbookList.classList.add('textbook-container');
-    textbookList.innerHTML = `
+    const textbookContainer = document.createElement('div');
+    textbookContainer.classList.add('textbook-container');
+    textbookContainer.innerHTML = `
         <details>
-            <summary><strong>${title}</strong> (Author: ${author}, Version: ${version}, ISBN: ${isbn})</summary>
+            <summary><strong>${title}</strong> (ID: ${isbn})</summary>
             <details>
-                <summary>Chapters</summary>
-            <div id="chapters-container-${isbn}"></div>
-            
+                <summary>Questions</summary>
+            <button class="add-btn" onclick="openEditor('Question', '${isbn}')">Add Question</button>
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'tf-${isbn}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${isbn}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${isbn}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${isbn}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${isbn}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${isbn}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${isbn}')">Fill in the Blank</div>
+                </div>
+                <div class="tab-content active" id="tf-${isbn}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${isbn}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${isbn}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${isbn}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${isbn}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${isbn}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${isbn}"><p>Fill in the Blank questions go here...</p></div>
+            </div>
             </details>
 
             <details>
@@ -141,7 +162,7 @@ function addTextbook() {
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${isbn}')">Drafts</div>
                     <div class="tab" onclick="switchTab(event, 'published-${isbn}')">Published Tests</div>
-                </div>
+                </div> 
                 <div class="tab-content active" id="drafts-${isbn}"><p>Saved drafts go here...</p></div>
                 <div class="tab-content" id="published-${isbn}"><p>Published tests go here...</p></div>
             </div>
@@ -152,16 +173,17 @@ function addTextbook() {
                 <button class="add-btn" onclick="openEditor('Attachment', '${isbn}')">Add Attachment</button>
                 <div id="attachments-${isbn}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveTextbook(this)">Remove Course</button>
         </details>
     `;
 
-    document.getElementById('textbookList').appendChild(textbookList);  
+    document.getElementById('textbookList').appendChild(textbookContainer);
     document.getElementById('title').value = "";
     document.getElementById('author').value = "";
     document.getElementById('version').value = "";
     document.getElementById('isbn').value = "";
     document.getElementById('link').value = "";
+    document.getElementById('chapters').value = "";
 
     const questionList = {
         'tf': [],
@@ -172,6 +194,7 @@ function addTextbook() {
         'ms': [],
         'fb': []
     };
+
     const testList = {
         'drafts': [],
         'published': []
@@ -204,7 +227,6 @@ function addTextbook() {
         blank: "TR",
         instructions: "Grade according to the rubric, giving partial credit where indicated",
         published: 1,
-        feedback: []
     };
 
     const coverPageDefault2 = {
@@ -216,7 +238,6 @@ function addTextbook() {
         blank: "TR",
         instructions: "Grade according to the rubric, giving partial credit where indicated",
         published: 1,
-        feedback: []
     };
 
     const coverPageDefault3 = {
@@ -228,15 +249,10 @@ function addTextbook() {
         blank: "TR",
         instructions: "Grade according to the rubric, giving partial credit where indicated",
         published: 1,
-        feedback: []
     };
 
     masterCoverPageList[isbn].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
-    
-    // Ensure the element exists before updating it
-    if (document.getElementById(`coverpages-${isbn}`)) {
-        updateCoverPages(isbn);
-    }
+    updateCoverPages(isbn);
 
     const templateDefault = {
         name: "System Default",
@@ -261,108 +277,27 @@ function addTextbook() {
                 ]
             }
         ],
-        published: 1,
-        feedback: []    
+        published: 1  
     };
 
     masterTemplateList[isbn].push(templateDefault);
     updateTemplates(isbn);
-
-    masterTextbookList[isbn] = {
-        title: title,
-        author: author,
-        version: version,
-        isbn: isbn,
-        link: link,
-        chapters: []
-    };
 
     if(!masterAttachmentList[isbn]){
         let attachmentList = [];
         masterAttachmentList[isbn] = attachmentList;
     }
 
-    addChapters(isbn, chapters);
-    document.getElementById('chapters').value = "";
-
-}
-
-function addChapters(isbn, chapters) {
-    const chaptersContainer = document.getElementById(`chapters-container-${isbn}`);
-    chaptersContainer.innerHTML = ''; // Clear existing content
-
-    for (let i = 1; i <= chapters; i++) {
-        const chapterDiv = document.createElement('div');
-        chapterDiv.classList.add('chapter-container');
-        chapterDiv.innerHTML = `
-            <details>
-                <summary>Chapter ${i}</summary>
-                <label id="sectionLabel-${i}">Number of Sections:</label>
-                <input type="number" id="sections-${isbn}-${i}" min="1" placeholder="Enter number of sections">
-                <button class="add-btn" id="addSectionButton-${i}" onclick="addSections('${isbn}', ${i})">Add Sections</button>
-                <div id="sections-container-${isbn}-${i}"></div>
-            </details>
-        `;
-        chaptersContainer.appendChild(chapterDiv);
-    }
-}
-
-function addSections(isbn, chapter) {
-    const sections = parseInt(document.getElementById(`sections-${isbn}-${chapter}`).value.trim());
-    const button = document.getElementById(`addSectionButton-${chapter}`);
-    const sectionsContainer = document.getElementById(`sections-container-${isbn}-${chapter}`);
-    sectionsContainer.innerHTML = ''; // Clear existing content
-
-    if (isNaN(sections) || sections < 1) {
-        alert("Please enter a valid number of sections.");
-        return;
-    }
-
-    for (let i = 1; i <= sections; i++) {
-        const sectionDiv = document.createElement('div');
-        sectionDiv.classList.add('section-container');
-        sectionDiv.innerHTML = `
-            <details>
-                <summary>Section ${i}</summary>
-                <button class="add-btn" onclick="openQuestionEditor('Question', '${isbn}', ${chapter}, ${i})">Add Question</button>
-                <div class="tab-container">
-                    <div class="tabs">
-                        <div class="tab active" onclick="switchTab(event, 'tf-${isbn}-${chapter}-${i}')">True/False</div>
-                        <div class="tab" onclick="switchTab(event, 'mc-${isbn}-${chapter}-${i}')">Multiple Choice</div>
-                        <div class="tab" onclick="switchTab(event, 'sa-${isbn}-${chapter}-${i}')">Short Answer</div>
-                        <div class="tab" onclick="switchTab(event, 'es-${isbn}-${chapter}-${i}')">Essay</div>
-                        <div class="tab" onclick="switchTab(event, 'ma-${isbn}-${chapter}-${i}')">Matching</div>
-                        <div class="tab" onclick="switchTab(event, 'ms-${isbn}-${chapter}-${i}')">Multiple Selection</div>
-                        <div class="tab" onclick="switchTab(event, 'fb-${isbn}-${chapter}-${i}')">Fill in the Blank</div>
-                    </div>
-                    <div class="tab-content active" id="tf-${isbn}-${chapter}-${i}"><p>True/False questions go here...</p></div>
-                    <div class="tab-content" id="mc-${isbn}-${chapter}-${i}"><p>Multiple Choice questions go here...</p></div>
-                    <div class="tab-content" id="sa-${isbn}-${chapter}-${i}"><p>Short Answer questions go here...</p></div>
-                    <div class="tab-content" id="es-${isbn}-${chapter}-${i}"><p>Essay questions go here...</p></div>
-                    <div class="tab-content" id="ma-${isbn}-${chapter}-${i}"><p>Matching questions go here...</p></div>
-                    <div class="tab-content" id="ms-${isbn}-${chapter}-${i}"><p>Multiple Selection questions go here...</p></div>
-                    <div class="tab-content" id="fb-${isbn}-${chapter}-${i}"><p>Fill in the Blank questions go here...</p></div>
-                </div>
-            </details>
-        `;
-        sectionsContainer.appendChild(sectionDiv);
-    }
-    
-        let label = document.getElementById(`sectionLabel-${chapter}`); 
-        label.remove();
-        let sectionInput = document.getElementById(`sections-${isbn}-${chapter}`);
-        sectionInput.remove();  
-        button.remove();
 }
 
 /**
- * Used to remove a course 
- * Precondition: the course exists
- * Postcondition: the course no longer exists
+ * Used to remove a textbook
+ * Precondition: the textbook exists
+ * Postcondition: the textbook no longer exists
  * 
 */
 function confirmRemoveTextbook(button) {
-    if (confirm("Are you sure you want to delete this textbook? This action cannot be undone.")) {
+    if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
         button.closest('.textbook-container').remove();
     }
 }
@@ -405,191 +340,6 @@ function openEditor(type, isbn) {
         <input type="text" id="nameField"><br><br>
     `;
     }
-        
-    if (type === "Cover Page"){
-        //Needs: test instructions, course number, test number, date of test, filename of the test,
-        //  blank for student name, and grading instructions for the key
-        formContent+= `
-        <div style="background:#e0e0e0;padding:20px;" id="coverPageEditor">
-            <p>Create your Cover Page!</p><br/>
-            <label>Test Number</label>
-            <input type="number" id="tNum" min="0"/><br/>
-
-            <label>Test Date</label>
-            <input type="date" id="tDate"/><br/>
-
-            <label>Test Filename (no extension)</label>
-            <input id="filename" type="text"/><br/>
-
-            <label>Filename Present on CoverPage</label>
-            <input id="filenameTF" type="checkbox"/><br/>
-
-            <label>Student Name Location</label>
-            <select id="nameBlankSelector">
-                <option value="" disabled selected>Please select a location</option>
-                <option value="TR">Top Right</option>
-                <option value="TL">Top Left</option>
-                <option value="BT">Below the Title</option>
-            </select><br/><br/>
-
-            <label>Grading Instructions for Key</label>
-            <textarea id="instructions" name="instruct" rows="3" placeholder="Add your instructions for grading here. These will go into the test key."></textarea>
-            <br/>
-            <button class="add-btn" onclick="submitCoverPage('${isbn}')">Submit</button>
-        </div>
-        `;
-    }
-    
-
-    if (type === "Test"){
-        formContent+= `
-        <div style="background:#e0e0e0;padding:20px;" id="testEditor">
-            <p>Choose a Template!</p><br/>
-            <div id=templateSelectorPane>
-                <select id=templateSelector>
-                    <option value="" disabled selected>Please Select a Template</option>
-                </select> <button id=templateSelection onclick="updateTestParts('${isbn}')">Select This One!</button>
-                <div id="testParts"> </div>
-            </div>
-            <button class="add-btn" id="testDraftButton" onclick="saveTest('${isbn}', '${false}')">Save as Draft</button>
-            <button class="add-btn" id="testPublishButton" onclick="saveTest('${isbn}', '${true}')">Publish Test</button>
-        </div>
-        `;
-        setTimeout(() => {
-        updateTemplateSelection(isbn);
-        }, 50);
-        
-    }
-
-
-     if (type === "Template") {
-        formContent += `
-            <div  style="background:#e0e0e0;padding:20px;" id="templateEditor"> 
-	    <h1>Font Settings</h1>
-  	    <label>Title Font and Font Size:</label><br/>
-        <select id="titleFont">
-            <option value="" selected disabled>Please choose a font</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Arial">Arial</option>
-            <option value="Calibri">Calibri</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Cambria">Cambria</option>
-            <option value="Garamond">Garamond</option>
-        </select>
-	    <input type="number" id="titleFontSize" min="1" value="36"><br/><br/>
-
-	    <label>Subtitle Font and Font Size:</label><br/>
-	    <select id="subtitleFont">
-            <option value="" selected disabled>Please choose a font</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Arial">Arial</option>
-            <option value="Calibri">Calibri</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Cambria">Cambria</option>
-            <option value="Garamond">Garamond</option>
-        </select>
-	    <input type="number" id="subtitleFontSize" min="1" value="24"><br/><br/>
-
-    	<label>Body Font and Font Size:</label><br/>
-	    <select id="bodyFont">
-            <option value="" selected disabled>Please choose a font</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Arial">Arial</option>
-            <option value="Calibri">Calibri</option>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Cambria">Cambria</option>
-            <option value="Garamond">Garamond</option>
-        </select>
-	    <input type="number" id="bodyFontSize" min="1" value="12"><br/><br/>
-        
-        
-        <h1>Tags Section (Optional)</h1>
-        <div class="form-container">
-            <div class="form-group"><label>Test Name </label> <input type="text" id="tempTestName"></div>
-            <div class="form-group"><label>Date </label> <input type="text" id="tempDate"></div>
-            <div class="form-group"><label>Course Number </label> <input type="text" id="tempCourseNum"></div>
-        </div>
-
-  	    <h1>Header and Footer Settings</h1>
-        <label>Location of Student Score Blank (On the second page of the test)</label>
-        <select id="studentScoreSelector">
-            <option value="" disabled selected>Please Select a Location</option>
-            <option value="TR"> Top Right</option>
-            <option value="TL"> Top Left</option>
-        </select><br/><br/>
-	    <label>Page Numbers in Header</label><br/>
-	    <input type="checkbox" id="pageNumH"><br/>
-	    <label>Page Numbers in Footer</label><br/>
-	    <input type="checkbox" id="pageNumF"><br/><br/>
-	    <textarea id="headerField" rows="3" placeholder="Enter any desired header text ..."></textarea>
-	    <textarea id="footerField" rows="3" placeholder="Enter any desired footer text..."></textarea>
-	    
-	    <h1>Cover Page Selection</h1><br/>
-	    <select id="coverPageSelector">
-		    <option value="" disabled selected>Please Select a Cover Page</option>
-	    </select><br/><br/>
-
-	    <h1>Test Structure Settings</h1>
-	    <label>Number of Parts:</label>
-        <input type="number" id="partCount" min="1" value="1">
-        <button onclick="updateParts()">Update</button>
-        <div style="background:#c0c0c0;padding:20px;" id="partsContainer"><p>No Parts Chosen</p></div>
-            
-	    
-	    <h1>Bonus Question Section Toggle</h1>
-	    <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${isbn}')">
-		<option value="True">Bonus Section</option>
-		<option value="False" selected>No Bonus Section</option>
-	    </select><br/><br/>
-        <button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${isbn}')">Select Bonus Questions</button>
-        <button class="add-btn" onclick="addTemplate('${isbn}')">Submit Template</button></div>
-        `;
-
-        setTimeout(() => {
-        updatePageSelection(isbn);
-        }, 50);
-    }
-
-    
-    if (type === "Attachment"){
-        formContent+=`
-            <input type="file" id="newAttachment" name="attachment">
-	        <button class="add-btn" onclick="submitAttachment('${isbn}')">Submit Attachment</button>
-        `;
-   }
-
-    // Ensure the modal content is updated
-    modalBody.innerHTML = formContent;
-
-    // Show the modal
-    modal.style.display = "flex";
-    setTimeout(() => {
-        modal.style.opacity = "1";
-    }, 10);
-
-
-}
-
-
-
-function openQuestionEditor(type, isbn, chapter, section) {
-    const modal = document.getElementById('editModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalBody = document.getElementById('modalBody');
-
-    modalTitle.innerText = `Add ${type}`;
-
-    let formContent = '';    
-
-    if (type != "Question"){
-        formContent += `
-        <label>${type} Name:</label><br/>
-        <input type="text" id="nameField"><br><br>
-    `;
-    }
 
     if (type === "Question") {
         formContent += `
@@ -612,6 +362,12 @@ function openQuestionEditor(type, isbn, chapter, section) {
 
             <label>Point Value:</label><br/>
             <input type="number" id="pointValueField" min="1"><br><br>
+            
+            <label for="qChapter" >Chapter:</label><br/>    
+            <input type="number" id="qChapter" min="1"><br><br>
+
+            <label for="qSection" >Section:</label><br/> 
+            <input type="number" id="qSection" min="1"><br><br>
 
             <label>Estimated Time to Solve (Minutes):</label><br/>
             <input type="number" id="qTimeField" min="1"><br><br>
@@ -635,7 +391,7 @@ function openQuestionEditor(type, isbn, chapter, section) {
             <label>Instructor Comments (Optional):</label><br/>
             <textarea id="instructorCommentField" placeholder="Comments go here"></textarea><br><br>
 
-            <button class="add-btn" onclick="addQuestion('${isbn}', ${chapter}, ${section})">Submit Question</button>
+            <button class="add-btn" onclick="addQuestion('${isbn}')">Submit Question</button>
         `;
     }
 
@@ -809,25 +565,65 @@ function openQuestionEditor(type, isbn, chapter, section) {
 
 }
 
+function updateParts() {
+     const partCount = parseInt(document.getElementById("partCount").value);
+     const partsContainer = document.getElementById("partsContainer");
+     partsContainer.innerHTML = ""; // Clear existing content
+ 
+     for (let i = 1; i <= partCount; i++) {
+         let sectionInputId = `sectionCount-${i}`;
+         partsContainer.innerHTML += `
+             <div id="part-${i}">
+                 <label>Sections in Part ${i}:</label>
+                 <input type="number" id="${sectionInputId}" min="1" value="1"> 
+                 <button onclick="updateSections(${i})">Update</button>
+                 <div style="background:#c0c0c0;padding:20px;" id="sectionsContainer-${i}"><p>No Sections Chosen...</p></div>
+             </div><br>
+         `;
+     }
+ }
+
+ function updateSections(partNumber) {
+     const sectionCount = parseInt(document.getElementById(`sectionCount-${partNumber}`).value);
+     const sectionsContainer = document.getElementById(`sectionsContainer-${partNumber}`);
+     sectionsContainer.innerHTML = ""; // Clear old sections
+ 
+     for (let j = 1; j <= sectionCount; j++) {
+         sectionsContainer.innerHTML += `
+             <label>Question Type for Section ${j}:</label>
+             <select>
+                 <option value="tf">True/False</option>
+                 <option value="mc">Multiple Choice</option>
+                 <option value="sa">Short Answer</option>
+                 <option value="es">Essay</option>
+                 <option value="ma">Matching</option>
+                 <option value="ms">Multiple Selections</option>
+                 <option value="fb">Fill in the Blank</option>
+             </select><br>
+         `;
+     }
+ }
+
+
 /** 
  *  Updates the graphic selectors inside of the editor modal during openEditor() execution
  * Is active when the editorModal is in question mode
  * Precondition: valid courseID
  * Postcondition: graphic selectors are updated with a list of files from the Attachments Section
 */
-function updateGraphicSelectors(isbn) {
+function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
         alert("No attachments available for this course!");
         return;
     }
 
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name; //TODO: change this to index, store attachments associated to questions from database
         option.textContent = attachment.name;
@@ -926,7 +722,7 @@ function toggleFormulaInput() {
  * Precondition: all necessary data is in the coverpage editor
  * Postcondition: cover page added to the list
 */
-function submitCoverPage(isbn) {
+function submitCoverPage(courseID) {
     const pageName = document.getElementById("nameField").value.trim();
     const testNumber = document.getElementById("tNum").value.trim();
     const testDate = document.getElementById("tDate").value.trim();
@@ -940,8 +736,8 @@ function submitCoverPage(isbn) {
         return;
     }
 
-    if (!masterCoverPageList[isbn]) {
-        masterCoverPageList[isbn] = [];
+    if (!masterCoverPageList[courseID]) {
+        masterCoverPageList[courseID] = [];
     }
 
     const coverPage = {
@@ -955,8 +751,8 @@ function submitCoverPage(isbn) {
         feedback: []
     };
 
-    masterCoverPageList[isbn].push(coverPage);
-    updateCoverPages(isbn);
+    masterCoverPageList[courseID].push(coverPage);
+    updateCoverPages(courseID);
     closeModal();
     alert("Added a cover page");
 }
@@ -966,7 +762,7 @@ function submitCoverPage(isbn) {
  * Precondition: valid attachment
  * Postcondition: attachment posted to attachmentList
 */
-function submitAttachment(isbn) {
+function submitAttachment(courseID) {
     const attachment = document.getElementById("newAttachment").files[0];
     const name = document.getElementById("nameField").value.trim();
 
@@ -975,12 +771,12 @@ function submitAttachment(isbn) {
         return;
     }
 
-    if (!masterAttachmentList[isbn]) {
-        masterAttachmentList[isbn] = [];
+    if (!masterAttachmentList[courseID]) {
+        masterAttachmentList[courseID] = [];
     }
 
-    masterAttachmentList[isbn].push({ name: name, file: attachment });
-    updateAttachments(isbn);
+    masterAttachmentList[courseID].push({ name: name, file: attachment });
+    updateAttachments(courseID);
     closeModal();
     alert("Attachment added successfully!");
 }
@@ -990,9 +786,9 @@ function submitAttachment(isbn) {
  * Precondition: valid courseID, attachmentList
  * Postcondition: the attachments dropdown will have interactible div containers for each attachment
 */
-function updateAttachments(isbn) {
-    const attachmentList = masterAttachmentList[isbn];
-    const attachmentContainer = document.getElementById("attachments-" + isbn);
+function updateAttachments(courseID) {
+    const attachmentList = masterAttachmentList[courseID];
+    const attachmentContainer = document.getElementById("attachments-" + courseID);
     attachmentContainer.innerHTML = "";
 
     if (attachmentList.length === 0) {
@@ -1009,7 +805,7 @@ function updateAttachments(isbn) {
         attachmentDiv.classList.add('context-menu-target');
         attachmentDiv.dataset.itemType = 'attachment';
         attachmentDiv.dataset.itemIndex = index;
-        attachmentDiv.dataset.isbn = isbn;
+        attachmentDiv.dataset.courseID = courseID;
 
         const attachmentLabel = document.createElement("p");
         attachmentLabel.innerHTML = `Attachment ${index + 1}: ${attachment.name}`;
@@ -1024,7 +820,7 @@ function updateAttachments(isbn) {
  * Precondition: valid courseID and template info
  * Postcondition: adds a new template to the list
 */
-function addTemplate(isbn) {
+function addTemplate(courseID) {
     const templateName = document.getElementById('nameField').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
 
@@ -1064,7 +860,7 @@ function addTemplate(isbn) {
         alert("Error: Template must include a valid part structure.");
         return;
     }
-    if (bonusSection && (!masterTemplateList[isbn].bonusQuestions || masterTemplateList[isbn].bonusQuestions.length === 0)) {
+    if (bonusSection && (!masterTemplateList[courseID].bonusQuestions || masterTemplateList[courseID].bonusQuestions.length === 0)) {
         alert("Error: You must select bonus questions if the bonus section is enabled.");
         return;
     }
@@ -1084,21 +880,21 @@ function addTemplate(isbn) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[isbn].bonusQuestions || [],
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
         feedback: []
     };
 
-    if (!masterTemplateList[isbn]) {
-        masterTemplateList[isbn] = [];
+    if (!masterTemplateList[courseID]) {
+        masterTemplateList[courseID] = [];
     }
 
-    masterTemplateList[isbn].bonusQuestions
-    masterTemplateList[isbn].push(templateData);
+    masterTemplateList[courseID].bonusQuestions
+    masterTemplateList[courseID].push(templateData);
 
     alert("Template added successfully!");
     console.log("Saved Template:", templateData);
 
-    updateTemplates(isbn);
+    updateTemplates(courseID);
     closeModal();
 }
 
@@ -1179,18 +975,18 @@ function collectPartStructure() {
  * Precondition: Valid courseID
  * Postcondition: populated selector in template editor (editmodal)
 */
-function updatePageSelection(isbn) {
+function updatePageSelection(courseID) {
     const selection = document.getElementById("coverPageSelector");
 
     // Clear existing options
     selection.innerHTML = '<option value="" disabled selected>Please Select a Cover Page</option>';
 
-    if (!masterCoverPageList[isbn] || masterCoverPageList[isbn].length === 0) {
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
         alert("No cover pages available for this course!");
         return;
     }
 
-    masterCoverPageList[isbn].forEach((page, index) => {
+    masterCoverPageList[courseID].forEach((page, index) => {
         const newOption = document.createElement("option");
         newOption.value = index; 
         newOption.textContent = page.name;
@@ -1204,13 +1000,13 @@ function updatePageSelection(isbn) {
  * Precondition: valid courseID
  * Postcondition: populated selector in test editor (editmodal)
 */
-function updateTemplateSelection(isbn){
-    if(!masterTemplateList[isbn]){
-            masterTemplateList[isbn] = [];
-        }else if(!masterTemplateList[isbn][0]){
+function updateTemplateSelection(courseID){
+    if(!masterTemplateList[courseID]){
+            masterTemplateList[courseID] = [];
+        }else if(!masterTemplateList[courseID][0]){
             alert("No templates available for this course!");
         }else{
-            const templateList = masterTemplateList[isbn];
+            const templateList = masterTemplateList[courseID];
             templateList.forEach((template, index)=>{
             const selection = document.getElementById("templateSelector");
             const newoption = document.createElement("option");
@@ -1228,7 +1024,7 @@ function updateTemplateSelection(isbn){
  * Preconditions: expects a valid courseID, and for all of the required fields to be present
  * Postconditions: adds the question to the appropriate array for its type in the course questionList
 */
-function addQuestion(isbn, chapter, section) {
+function addQuestion(courseID) {
     const text = document.getElementById("questionField").value.trim();
     const type = document.getElementById("typeField").value;
     const points = document.getElementById("pointValueField").value.trim();
@@ -1238,9 +1034,11 @@ function addQuestion(isbn, chapter, section) {
     const graphic = document.getElementById("qGraphicField").value;
     const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
+    const chapter = document.getElementById("qChapter").value;
+    const section = document.getElementById("qSection").value;
 
-    if (!text || !type || !points || !instructions || !time) {
-        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required.");
+    if (!text || !type || !points || !instructions || !time || !chapter || !section) {
+        alert("Some fields (Question, Question Type, Default Point Value, Chapter, Section, and Grading Instructions) are required.");
         return;
     }
 
@@ -1302,25 +1100,18 @@ function addQuestion(isbn, chapter, section) {
         comments: instcomm,
         prompts: prompts,
         options: options,
+        chapter: chapter,
+        section: section,
         tests: [],
         published: 0
     };
 
-    if (!masterQuestionList[isbn]) {
-        masterQuestionList[isbn] = {};
-    }
-    if (!masterQuestionList[isbn][chapter]) {
-        masterQuestionList[isbn][chapter] = {};
-    }
-    if (!masterQuestionList[isbn][chapter][section]) {
-        masterQuestionList[isbn][chapter][section] = {};
-    }
-    if (!masterQuestionList[isbn][chapter][section][type]) {
-        masterQuestionList[isbn][chapter][section][type] = [];
+    if (!masterQuestionList[courseID][type]) {
+        masterQuestionList[courseID][type] = [];
     }
 
-    masterQuestionList[isbn][chapter][section][type].push(question);
-    updateQuestionTabs(type, isbn, chapter, section);
+    masterQuestionList[courseID][type].push(question);
+    updateQuestionTabs(type, courseID);
     alert(`Added the ${type.toUpperCase()} Question: \n"${question.text}"\n (Worth ${question.score} points!)`);
 
     closeModal();
@@ -1335,14 +1126,14 @@ function addQuestion(isbn, chapter, section) {
  *       Let the teacher choose what type of question the bonus section should include
  *       Then update the section to have the appropriate syntax
 */
-function updateTestParts(isbn) {
+function updateTestParts(courseID) {
     const templateIndex = document.getElementById("templateSelector").value;
     if (!templateIndex) {
         alert("Please select a template first");
         return;
     }
     
-    const template = masterTemplateList[isbn][templateIndex];
+    const template = masterTemplateList[courseID][templateIndex];
     const partStructure = template.partStructure;
     
     let test = document.getElementById("testParts");
@@ -1374,7 +1165,7 @@ function updateTestParts(isbn) {
 
             sectionContainer.innerHTML = `
                 <h3>Section ${sectionNum}: ${questionType.toUpperCase()} Questions</h3>
-                <button class="add-btn" onclick="openQuestionModal('${isbn}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
+                <button class="add-btn" onclick="openQuestionModal('${courseID}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
                 <div class="selected-questions"></div>
             `;
 
@@ -1384,312 +1175,216 @@ function updateTestParts(isbn) {
         test.appendChild(partContainer);
     }
 
-    // Handle bonus section
-    // Add bonus part container regardless of whether bonus questions exist
-    const bonusPartContainer = document.createElement("div");
-    bonusPartContainer.style.padding = '5px';
-    bonusPartContainer.style.marginBottom = '8px';
-    bonusPartContainer.style.borderBottom = '1px solid #ccc';
-    bonusPartContainer.id = `part-bonus-container`;
+    // Add bonus part if it exists
+    if (template.bonusQuestions && template.bonusQuestions.length > 0) {
+        const bonusPartContainer = document.createElement("div");
+        bonusPartContainer.style.padding = '5px';
+        bonusPartContainer.style.marginBottom = '8px';
+        bonusPartContainer.style.borderBottom = '1px solid #ccc';
+        bonusPartContainer.id = `part-bonus-container`;
 
-    bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
+        bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
 
-    // Create a single bonus section container
-    const bonusSectionContainer = document.createElement('div');
-    bonusSectionContainer.style.padding = '5px';
-    bonusSectionContainer.style.marginBottom = '8px';
-    bonusSectionContainer.style.borderBottom = '1px solid #ccc';
-    bonusSectionContainer.style.backgroundColor = '#d3d3d3';
-    bonusSectionContainer.id = `bonus-section-container`;
+        const bonusSectionContainer = document.createElement('div');
+        bonusSectionContainer.style.padding = '5px';
+        bonusSectionContainer.style.marginBottom = '8px';
+        bonusSectionContainer.style.borderBottom = '1px solid #ccc';
+        bonusSectionContainer.style.backgroundColor = '#d3d3d3';
+        bonusSectionContainer.id = `bonus-container`;
 
-    // Add the header and button to choose bonus questions
-    bonusSectionContainer.innerHTML = `
-        <h3>Bonus Section: Bonus Questions</h3>
-        <button class="add-btn" onclick="openBonusQuestionModal('${isbn}')">Choose Bonus Questions</button>
-        <div class="selected-questions"></div>
-    `;
+        bonusSectionContainer.innerHTML = `
+            <h3>Bonus Section: Bonus Questions</h3>
+            <button class="add-btn" onclick="openBonusQuestionModal('${courseID}')">Choose Bonus Questions</button>
+            <div class="selected-questions"></div>
+        `;
 
-    // Only populate bonus questions if they exist in the template
-    if (template.bonusSection && Array.isArray(template.bonusQuestions) && template.bonusQuestions.length > 0) {
-        const selectedQuestionsDiv = bonusSectionContainer.querySelector('.selected-questions');
+        // Create selectedQuestionsDiv and add bonus questions to it
+        const selectedQuestionsDiv = document.createElement('div');
         
-        // Process each bonus question ID (format: type-index)
-        template.bonusQuestions.forEach((questionId, idx) => {
-            try {
-                const [type, index] = questionId.split('-');
-                if (!type || !index) {
-                    console.error(`Invalid bonus question ID format: ${questionId}`);
-                    return;
-                }
+        template.bonusQuestions.forEach((questionId, questionIndex) => {
+            const [type, index] = questionId.split('-');
+            const question = masterQuestionList[courseID][type][index];
+            
+            const questionElement = document.createElement("div");
+            questionElement.style.padding = "8px";
+            questionElement.style.margin = "5px 0";
+            questionElement.style.backgroundColor = "#f0f0f0";
+            questionElement.style.borderRadius = "4px";
+            questionElement.dataset.questionIndex = questionIndex; // Store original index
+            questionElement.dataset.questionId = questionId; // Store the question ID
 
-                // Correctly access the bonus question from masterQuestionList
-                // Assuming bonus questions are stored at chapter="bonus", section="1"
-                const chapter = "bonus";
-                const section = "1";
-                const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                
-                if (!questionList || !questionList[index]) {
-                    console.error(`Bonus question not found: Type=${type}, Index=${index}`);
-                    return;
-                }
-                
-                const question = questionList[index];
-                
-                // Create question element
-                const questionElement = document.createElement("div");
-                questionElement.style.padding = "8px";
-                questionElement.style.margin = "5px 0";
-                questionElement.style.backgroundColor = "#f0f0f0";
-                questionElement.style.borderRadius = "4px";
-                questionElement.dataset.questionIndex = index;
-                questionElement.dataset.chapter = chapter;
-                questionElement.dataset.section = section;
-                questionElement.dataset.type = type;
-                questionElement.dataset.bonusId = questionId;
-                
-                // Create question content
-                questionElement.innerHTML = `
-                    <p><strong>${type.toUpperCase()} Question ${index}</strong>: ${question.text}</p>
-                    <label>Points: </label>
-                    <input type="number" class="question-points" min="1" value="${question.score || 1}" style="width: 60px;">
-                    <button onclick="removeSelectedQuestion(this.parentNode)">Remove</button>
-                `;
-                
-                selectedQuestionsDiv.appendChild(questionElement);
-            } catch (error) {
-                console.error(`Error processing bonus question ${questionId}:`, error);
-            }
+            questionElement.innerHTML = `
+                <p>${question.text}</p>
+                <label>Points: </label>
+                <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
+            `;
+
+            selectedQuestionsDiv.appendChild(questionElement);
         });
-    }
-    
-    bonusPartContainer.appendChild(bonusSectionContainer);
-    test.appendChild(bonusPartContainer);
-}
 
+        // Find the selected-questions div and append our content
+        const selectedQuestionsContainer = bonusSectionContainer.querySelector('.selected-questions');
+        selectedQuestionsContainer.appendChild(selectedQuestionsDiv);
+
+        bonusPartContainer.appendChild(bonusSectionContainer);
+        test.appendChild(bonusPartContainer);
+    } else {
+        // Add a button to add bonus questions if none exist yet
+        const bonusPartContainer = document.createElement("div");
+        bonusPartContainer.style.padding = '5px';
+        bonusPartContainer.style.marginBottom = '8px';
+        bonusPartContainer.style.borderBottom = '1px solid #ccc';
+        bonusPartContainer.id = `part-bonus-container`;
+
+        bonusPartContainer.innerHTML = `
+            <h2>Bonus Part</h2>
+            <button class="add-btn" onclick="openBonusQuestionModal('${courseID}')">Add Bonus Questions</button>
+        `;
+
+        test.appendChild(bonusPartContainer);
+    }
+}
 
 /**
  * This rather involved function saves the test based on all the info in the test editor.
  * Preconditions: a valid courseID, one of two save buttons pressed, a test name, a valid template
  * Postconditions: saves the test as either a draft or published test.
 */
-function saveTest(isbn, isPublished, testIndex = null) {
-    try {
-        // Validate test name
-        const testName = document.getElementById("nameField").value.trim();
-        if (!testName) {
-            alert("Test Name is required.");
-            return;
-        }
+function saveTest(courseID, isPublished, testIndex = null) {
+    const testName = document.getElementById("nameField").value.trim();
+    if (!testName) {
+        alert("Test Name is required.");
+        return;
+    }
 
-        // Validate template selection
-        const templateIndex = document.getElementById("templateSelector").value;
-        if (!templateIndex) {
-            alert("Please select a template first");
-            return;
-        }
+    const templateIndex = document.getElementById("templateSelector").value;
+    if (!templateIndex) {
+        alert("Please select a template first");
+        return;
+    }
 
-        // Verify template exists
-        if (!masterTemplateList[isbn] || !masterTemplateList[isbn][templateIndex]) {
-            alert("Selected template not found. Please try again.");
-            return;
-        }
-        
-        const template = masterTemplateList[isbn][templateIndex];
-        
-        // Initialize test data structure
-        const testData = {
-            name: testName,
-            template: template,
-            templateName: template.name,
-            templateIndex: templateIndex,
-            parts: [],
-            feedback: []
+    const template = masterTemplateList[courseID][templateIndex];
+    
+    let usedQuestions = [];
+
+    const testData = {
+        name: testName,
+        template: template,
+        templateName: template.name,
+        templateIndex: templateIndex,
+        parts: [],
+        feedback: []
+    };
+
+    // Loop through all parts and sections rendered in the UI
+    const testParts = document.getElementById("testParts");
+    const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
+    let noquestions = true;
+    partContainers.forEach((partContainer, partIndex) => {
+        const partData = {
+            partNumber: partIndex + 1,
+            sections: []
         };
 
-        // Track used questions for later reference
-        const usedQuestions = [];
-        let hasQuestions = false;
+        // Find all section containers within this part
+        const sectionContainers = partContainer.querySelectorAll('[id^="part-' + partIndex + '-section-"]');
 
-        // Process test parts
-        const testParts = document.getElementById("testParts");
-        const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
-        
-        // Validate parts
-        for (let partIndex = 0; partIndex < partContainers.length; partIndex++) {
-            const partContainer = partContainers[partIndex];
-            const partData = {
-                partNumber: partIndex + 1,
-                sections: []
+        sectionContainers.forEach((sectionContainer, sectionIndex) => {
+            const questionType = template.partStructure[partIndex].sections[sectionIndex].questionType;
+            const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
+
+            // Skip sections with no questions
+            if (!selectedQuestionsDiv || !selectedQuestionsDiv.children.length) {
+                return;
+            }
+
+            const sectionData = {
+                sectionNumber: sectionIndex + 1,
+                questionType: questionType,
+                questions: []
             };
 
-            let partHasQuestions = false;
-            const sectionContainers = partContainer.querySelectorAll(`[id^="part-${partIndex}-section-"]`);
-            
-            // Process each section
-            for (let sectionIndex = 0; sectionIndex < sectionContainers.length; sectionIndex++) {
-                const sectionContainer = sectionContainers[sectionIndex];
-                
-                // Get question type from template
-                const questionType = template.partStructure[partIndex]?.sections[sectionIndex]?.questionType;
-                if (!questionType) {
-                    console.error(`Invalid question type for part ${partIndex}, section ${sectionIndex}`);
-                    continue; // Skip this section but continue with others
-                }
+            // Get all question divs (skip the first child which is the section points setter)
+            const questionDivs = selectedQuestionsDiv.querySelectorAll('div[style*="border-radius"]');
 
-                const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
-                if (!selectedQuestionsDiv || !selectedQuestionsDiv.children.length) {
-                    continue; // Skip this section if no questions are selected
-                }
+            questionDivs.forEach((questionDiv) => {
+                const questionIndex = questionDiv.dataset.questionIndex;
+                const pointsInput = questionDiv.querySelector('.question-points');
+                const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
 
-                const sectionData = {
-                    sectionNumber: sectionIndex + 1,
-                    questionType: questionType,
-                    questions: []
-                };
+                // Get the question from master list and clone it
+                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]));
 
-                const questionDivs = selectedQuestionsDiv.querySelectorAll('div[style*="border-radius"]');
-                if (!questionDivs.length) {
-                    continue; // Skip this section if no questions are found
-                }
-                
-                // Process each question in the section
-                let sectionHasQuestions = false;
-                for (const questionDiv of questionDivs) {
-                    const questionIndex = questionDiv.dataset.questionIndex;
-                    const chapter = questionDiv.dataset.chapter;
-                    const section = questionDiv.dataset.section;
-
-                    if (!questionIndex || isNaN(questionIndex) || !chapter || !section) {
-                        console.error(`Invalid question reference: Chapter=${chapter}, Section=${section}, Index=${questionIndex}`);
-                        continue; // Skip this question but continue with others
-                    }
-
-                    // Safely access the question list
-                    const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[questionType.toLowerCase()];
-                    if (!questionList || !questionList[questionIndex]) {
-                        console.error(`Question not found: ISBN=${isbn}, Chapter=${chapter}, Section=${section}, Type=${questionType.toLowerCase()}, Index=${questionIndex}`);
-                        continue;
-                    }
-
-                    const pointsInput = questionDiv.querySelector('.question-points');
-                    const points = pointsInput && !isNaN(parseInt(pointsInput.value)) ? 
-                                  parseInt(pointsInput.value) : 1;
-
-                    const question = structuredClone(questionList[questionIndex]) || 
-                                    JSON.parse(JSON.stringify(questionList[questionIndex]));
-                    question.score = points;
-                    usedQuestions.push(questionList[questionIndex]);
-
-                    sectionData.questions.push(question);
-                    sectionHasQuestions = true;
-                    hasQuestions = true;
-                    partHasQuestions = true;
-
-                    if (isPublished === 'true') {
-                        questionList[questionIndex].published = 1;
-                    }
-                }
-                
-                // Only add sections that have questions
-                if (sectionHasQuestions) {
-                    partData.sections.push(sectionData);
-                }
-            }
-
-            // Only add parts that have sections with questions
-            if (partHasQuestions) {
-                testData.parts.push(partData);
-            }
-        }
-
-        // Check if any questions were added
-        if (!hasQuestions) {
-            alert("Please select questions for at least one section");
-            return;
-        }
-
-        // Process bonus section if template has one
-        if (template.bonusSection && Array.isArray(template.bonusQuestions) && template.bonusQuestions.length > 0) {
-            const bonusQuestions = [];
-            
-            for (const q of template.bonusQuestions) {
-                const [type, index] = q.split('-');
-                if (!type || !index) continue;
-                
-                const chapter = "bonus";
-                const section = "1";
-
-                const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                if (!questionList || !questionList[index]) {
-                    console.error(`Bonus question not found: Type=${type}, Index=${index}`);
-                    continue;
-                }
-                
-                const bonusQuestion = structuredClone(questionList[index]) || 
-                                    JSON.parse(JSON.stringify(questionList[index]));
-                bonusQuestions.push(bonusQuestion);
-                
-                usedQuestions.push(questionList[index]);
-                
+                // Update points for this clone if they were changed
+                question.score = points;
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
+                // Add to the questions for this section
+                sectionData.questions.push(question);
+                noquestions=false;
+                // Set the published key to 1 if the test is published
                 if (isPublished === 'true') {
-                    questionList[index].published = 1;
+                    masterQuestionList[courseID][questionType.toLowerCase()][questionIndex].published = 1;
                 }
+            });
+            if(noquestions){
+                alert("Please select questions for each section");
+                return;
             }
-            
-            // Only add bonus part if it has questions
-            if (bonusQuestions.length > 0) {
-                testData.parts.push({
-                    partNumber: testData.parts.length + 1,
-                    sections: [{
-                        sectionNumber: 1,
-                        questionType: 'bonus',
-                        questions: bonusQuestions
-                    }]
-                });
-            }
-        }
+            partData.sections.push(sectionData);
+        });
 
-        // Initialize data structures if needed
-        if (!masterTestList[isbn]) {
-            masterTestList[isbn] = { drafts: [], published: [] };
-        }
+        testData.parts.push(partData);
+    });
 
-        // Save test to appropriate list
-        const targetList = isPublished === 'true' ? masterTestList[isbn].published : masterTestList[isbn].drafts;
-        if (testIndex !== null && testIndex >= 0 && testIndex < targetList.length) {
-            targetList[testIndex] = testData;
-        } else {
-            targetList.push(testData);
-        }
-
-        // Mark template and cover page as published if applicable
-        if (isPublished === 'true') {
-            if (masterTemplateList[isbn][templateIndex]) {
-                masterTemplateList[isbn][templateIndex].published = 1;
-            }
-            
-            const coverPageIndex = template.coverPageType;
-            if (coverPageIndex && masterCoverPageList[isbn]?.[coverPageIndex]) {
-                masterCoverPageList[isbn][coverPageIndex].published = 1;
-            }
-        }
-
-        // Update question references
-        for (const question of usedQuestions) {
-            if (!question.tests) question.tests = [];
-            if (!question.tests.includes(testData.name)) {
-                question.tests.push(testData.name);
-            }
-        }
-
-        alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
-        updateTestTabs(isbn);
-        closeModal();
-        
-    } catch (error) {
-        console.error("Error saving test:", error);
-        alert("An error occurred while saving the test. Please try again.");
+    if (template.bonusSection) {
+        const bonusPart = {
+            partNumber: testData.parts.length + 1,
+            sections: [{
+                sectionNumber: 1,
+                questionType: 'bonus',
+                questions: template.bonusQuestions.map(q => {
+                    const [type, index] = q.split('-');
+                    const question = masterQuestionList[courseID][type][index];
+                    if (isPublished === 'true') {
+                        question.published = 1;
+                    }
+                    return question;
+                })
+            }]
+        };
+        testData.parts.push(bonusPart);
     }
+
+    // Save the test data
+    if (!masterTestList[courseID]) {
+        masterTestList[courseID] = { drafts: [], published: [] };
+    }
+
+    const targetList = isPublished === 'true' ? masterTestList[courseID].published : masterTestList[courseID].drafts;
+    if (testIndex !== null) {
+        targetList[testIndex] = testData;
+    } else {
+        targetList.push(testData);
+    }
+    
+    // Set the published key for the template and cover page if the test is published
+    if (isPublished === 'true') {
+        masterTemplateList[courseID][templateIndex].published = 1;
+        const coverPageIndex = template.coverPageType;
+        if (masterCoverPageList[courseID][coverPageIndex]) {
+            masterCoverPageList[courseID][coverPageIndex].published = 1;
+        }
+    }
+
+    usedQuestions.forEach(question => {
+        question.tests.push(testData.name);
+        console.log("Updated question:", question);
+        console.log("Question published value:", question.published);
+    });
+
+    alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
+    updateTestTabs(courseID);
+    closeModal();
 }
 
 /**
@@ -1698,34 +1393,22 @@ function saveTest(isbn, isPublished, testIndex = null) {
  * Preconditions: openQuestionModal expects a valid courseID, part number, section number, and question type
  * Postconditions: opens up the question modal with questions of the appropriate type for the correct course
 */
-function openQuestionModal(isbn, partNum, sectionNum, type) {
+function openQuestionModal(courseID, partNum, sectionNum, type) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
     const modalBody = document.getElementById("questionModalBody");
-
-    // Gather all questions of the specified type across all chapters and sections
-    let questions = [];
-    for (const chapter in masterQuestionList[isbn]) {
-        for (const section in masterQuestionList[isbn][chapter]) {
-            if (masterQuestionList[isbn][chapter][section][type]) {
-                questions = questions.concat(
-                    masterQuestionList[isbn][chapter][section][type].map(q => ({
-                        ...q, chapter, section
-                    }))
-                );
-            }
-        }
-    }
-
-    if (questions.length === 0) {
-        alert(`No ${type.toUpperCase()} questions available!`);
+    
+    // Check if we have questions of this type
+    if (!masterQuestionList[courseID][type] || masterQuestionList[courseID][type].length === 0) {
+        alert("No questions available of this type!");
         return;
     }
 
+    const questions = masterQuestionList[courseID][type];
     modalBody.innerHTML = ""; // Clear existing content
 
-    // Store metadata for filters
-    modalBody.dataset.isbn = isbn;
+    // Store the part/section info in the modal for later use
+    modalBody.dataset.courseId = courseID;
     modalBody.dataset.partNum = partNum;
     modalBody.dataset.sectionNum = sectionNum;
     modalBody.dataset.questionType = type;
@@ -1735,7 +1418,7 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
     filterContainer.style.marginBottom = '8px';
     filterContainer.style.borderBottom = '1px solid #ccc';
 
-    // 🔹 Test Filter
+    // Filter by Test
     const testFilterLabel = document.createElement('label');
     testFilterLabel.textContent = 'Filter by Test:';
     filterContainer.appendChild(testFilterLabel);
@@ -1743,8 +1426,7 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
     const testFilterSelect = document.createElement('select');
     testFilterSelect.id = 'testFilterSelect';
     testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
-
-    const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
+    const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
     testList.forEach((test, index) => {
         const option = document.createElement('option');
         option.value = index;
@@ -1752,159 +1434,252 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
         testFilterSelect.appendChild(option);
     });
     filterContainer.appendChild(testFilterSelect);
+    filterContainer.appendChild(document.createElement('br'));
 
-    // 🔹 Chapter Filter
+    // Chapter Filter
     const chapterFilterLabel = document.createElement('label');
     chapterFilterLabel.textContent = 'Filter by Chapter:';
     filterContainer.appendChild(chapterFilterLabel);
 
     const chapterFilterSelect = document.createElement('select');
     chapterFilterSelect.id = 'chapterFilterSelect';
-    chapterFilterSelect.innerHTML = '<option value="" selected>All Chapters</option>';
-    for (const chapter in masterQuestionList[isbn]) {
-        if (!isNaN(chapter)) { // ✅ Ensures only actual chapters are listed
-            const option = document.createElement('option');
-            option.value = chapter;
-            option.textContent = `Chapter ${chapter}`;
-            chapterFilterSelect.appendChild(option);
-        }
-    }
+    
+    // Add "All Chapters" option
+    const allChaptersOption = document.createElement('option');
+    allChaptersOption.value = "all";
+    allChaptersOption.textContent = "All Chapters";
+    chapterFilterSelect.appendChild(allChaptersOption);
+    
+    // Get unique chapters from questions
+    const chapters = [...new Set(questions.map(q => q.chapter))].sort((a, b) => a - b);
+    chapters.forEach(chapter => {
+        const option = document.createElement('option');
+        option.value = chapter;
+        option.textContent = `Chapter ${chapter}`;
+        chapterFilterSelect.appendChild(option);
+    });
     filterContainer.appendChild(chapterFilterSelect);
-
-    // 🔹 Section Filter (Updated When Chapter Changes)
+    filterContainer.appendChild(document.createElement('br'));
+    
+    // Section Filter (initially hidden)
+    const sectionFilterContainer = document.createElement('div');
+    sectionFilterContainer.id = 'sectionFilterContainer';
+    sectionFilterContainer.style.display = 'none';
+    sectionFilterContainer.style.marginTop = '5px';
+    
     const sectionFilterLabel = document.createElement('label');
     sectionFilterLabel.textContent = 'Filter by Section:';
-    filterContainer.appendChild(sectionFilterLabel);
-
+    sectionFilterContainer.appendChild(sectionFilterLabel);
+    
     const sectionFilterSelect = document.createElement('select');
     sectionFilterSelect.id = 'sectionFilterSelect';
-    sectionFilterSelect.innerHTML = '<option value="" selected>All Sections</option>';
-    filterContainer.appendChild(sectionFilterSelect);
-
+    sectionFilterContainer.appendChild(sectionFilterSelect);
+    
+    filterContainer.appendChild(sectionFilterContainer);
     modalBody.appendChild(filterContainer);
 
     const questionContainer = document.createElement('div');
-    questionContainer.id = "questionContainer";
+    questionContainer.id = 'questionContainer';
     questionContainer.style.padding = '5px';
     questionContainer.style.marginBottom = '8px';
     questionContainer.style.borderBottom = '1px solid #ccc';
 
+    // Display all questions initially
+    renderQuestions(questions, questionContainer);
+
     const submitButton = document.createElement('button');
     submitButton.className = 'add-btn';
     submitButton.textContent = 'Add Selected Questions';
-    submitButton.onclick = function () {
+    submitButton.onclick = function() {
         addSelectedQuestions();
     };
-    questionContainer.appendChild(submitButton);
+    
+    modalBody.appendChild(questionContainer);
+    modalBody.appendChild(submitButton);
 
     modalTitle.innerText = `Select ${type.toUpperCase()} Questions`;
-    modalBody.appendChild(questionContainer);
 
     modal.style.display = "flex";
     setTimeout(() => {
         modal.style.opacity = "1";
     }, 10);
 
-    // ✅ Ensure questions update **immediately** when chapter changes
-    chapterFilterSelect.addEventListener('change', () => {
-        updateSectionFilter(isbn, type);
-        filterQuestions(isbn, type);
-    });
-
-    sectionFilterSelect.addEventListener('change', () => filterQuestions(isbn, type));
-    testFilterSelect.addEventListener('change', () => filterQuestions(isbn, type)); // ✅ Test filter event
-
-    // ✅ Initially display all questions
-    displayFilteredQuestions(isbn, type, "", "", "");
-}
-
-
-
-
-function updateSectionFilter(isbn, type) {
-    const chapterFilterSelect = document.getElementById('chapterFilterSelect');
-    const selectedChapter = chapterFilterSelect.value;
-    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
-
-    sectionFilterSelect.innerHTML = '<option value="" selected>All Sections</option>';
-
-    if (selectedChapter) {
-        for (const section in masterQuestionList[isbn][selectedChapter]) {
-            if (!isNaN(section)) {  // ✅ Ensures only actual sections are shown
+    // Add event listeners for filters
+    testFilterSelect.addEventListener('change', () => filterQuestions(courseID, type));
+    
+    // Chapter filter change event
+    chapterFilterSelect.addEventListener('change', function() {
+        const selectedChapter = this.value;
+        const sectionContainer = document.getElementById('sectionFilterContainer');
+        const sectionSelect = document.getElementById('sectionFilterSelect');
+        
+        // Clear and hide section filter if "All Chapters" is selected
+        if (selectedChapter === "all") {
+            sectionContainer.style.display = 'none';
+            sectionSelect.innerHTML = '';
+        } else {
+            // Show section filter and populate with sections from selected chapter
+            sectionContainer.style.display = 'block';
+            
+            // Clear existing options
+            sectionSelect.innerHTML = '';
+            
+            // Add "All Sections" option
+            const allSectionsOption = document.createElement('option');
+            allSectionsOption.value = "all";
+            allSectionsOption.textContent = "All Sections";
+            sectionSelect.appendChild(allSectionsOption);
+            
+            // Get unique sections for the selected chapter
+            const sectionsInChapter = [...new Set(
+                questions
+                .filter(q => q.chapter == selectedChapter)
+                .map(q => q.section)
+            )].sort((a, b) => a - b);
+            
+            sectionsInChapter.forEach(section => {
                 const option = document.createElement('option');
                 option.value = section;
                 option.textContent = `Section ${section}`;
-                sectionFilterSelect.appendChild(option);
-            }
+                sectionSelect.appendChild(option);
+            });
         }
-    }
-
-    // ✅ Update questions immediately on chapter change
-    filterQuestions(isbn, type);
+        
+        // Apply filters
+        filterQuestions(courseID, type);
+    });
+    
+    // Section filter change event
+    document.getElementById('sectionFilterSelect').addEventListener('change', () => {
+        filterQuestions(courseID, type);
+    });
 }
 
-
-function filterQuestions(isbn, type) {
-    const testFilterSelect = document.getElementById('testFilterSelect');
-    const chapterFilterSelect = document.getElementById('chapterFilterSelect');
-    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
-    const selectedTestIndex = testFilterSelect.value;
-    const selectedChapter = chapterFilterSelect.value;
-    const selectedSection = sectionFilterSelect.value;
-
-    displayFilteredQuestions(isbn, type, selectedTestIndex, selectedChapter, selectedSection);
-}
-
-function displayFilteredQuestions(isbn, type, selectedTestIndex, selectedChapter, selectedSection) {
-    const questionContainer = document.getElementById("questionContainer");
+// Helper function to render questions
+function renderQuestions(questions, container) {
+    container.innerHTML = '';
     
-    // ✅ Keep the submit button if it exists
-    let submitButton = questionContainer.querySelector(".add-btn");
-    if (!submitButton) {
-        submitButton = document.createElement('button');
-        submitButton.className = 'add-btn';
-        submitButton.textContent = 'Add Selected Questions';
-        submitButton.onclick = function () {
-            addSelectedQuestions();
-        };
-    }
-
-    // ✅ Clear only the questions, NOT the button
-    questionContainer.innerHTML = "";
-    
-    let filteredQuestions = [];
-
-    for (const chapter in masterQuestionList[isbn]) {
-        if (selectedChapter && chapter !== selectedChapter) continue;
-
-        for (const section in masterQuestionList[isbn][chapter]) {
-            if (selectedSection && section !== selectedSection) continue;
-
-            if (masterQuestionList[isbn][chapter][section][type]) {
-                filteredQuestions = filteredQuestions.concat(
-                    masterQuestionList[isbn][chapter][section][type].map(q => ({
-                        ...q, chapter, section
-                    }))
-                );
-            }
-        }
-    }
-
-    // ✅ Filter by Test
-    if (selectedTestIndex !== '') {
-        const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
-        const selectedTest = testList[selectedTestIndex];
-        filteredQuestions = selectedTest.parts.flatMap(part => 
-            part.sections.flatMap(section => section.questions)
-        ).filter(q => q.qtype === type);
-    }
-
-    if (filteredQuestions.length === 0) {
-        questionContainer.innerHTML = `<p>No ${type.toUpperCase()} questions available.</p>`;
-        // ✅ Append the submit button even if no questions exist
-        questionContainer.appendChild(submitButton);
+    if (questions.length === 0) {
+        const noQuestionsMsg = document.createElement('p');
+        noQuestionsMsg.textContent = 'No questions match the selected filters.';
+        container.appendChild(noQuestionsMsg);
         return;
     }
+    
+    questions.forEach((question, index) => {
+        const element = document.createElement("div");
+        element.style.padding = '8px';
+        element.style.margin = '5px 0';
+        element.style.backgroundColor = '#f0f0f0';
+        element.style.borderRadius = '4px';
+        element.innerHTML = `
+            <input type="checkbox" id="q-${index}" value="${index}">
+            <label for="q-${index}">${question.text} (${question.score} Points) - Ch.${question.chapter}, Sec.${question.section}</label>
+        `;   
+        container.appendChild(element);
+    });
+}
+
+// Function to filter questions based on selected filters
+function filterQuestions(courseID, type) {
+    const questions = masterQuestionList[courseID][type];
+    const testFilterValue = document.getElementById('testFilterSelect').value;
+    const chapterFilterValue = document.getElementById('chapterFilterSelect').value;
+    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
+    const sectionFilterValue = sectionFilterSelect && sectionFilterSelect.style.display !== 'none' ? 
+                               sectionFilterSelect.value : "all";
+    
+    // Create a filtered index map to maintain original indices
+    const filteredIndices = [];
+    const filteredQuestions = [];
+    
+    questions.forEach((question, index) => {
+        let includeQuestion = true;
+        
+        // Apply test filter if selected
+        if (testFilterValue !== "") {
+            const testIndex = parseInt(testFilterValue);
+            const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
+            const testQuestionIds = testList[testIndex].questions.map(q => q.id);
+            if (!testQuestionIds.includes(question.id)) {
+                includeQuestion = false;
+            }
+        }
+        
+        // Apply chapter filter if selected
+        if (chapterFilterValue !== "all" && question.chapter != chapterFilterValue) {
+            includeQuestion = false;
+        }
+        
+        // Apply section filter if visible and selected
+        if (chapterFilterValue !== "all" && sectionFilterValue !== "all" && 
+            question.section != sectionFilterValue) {
+            includeQuestion = false;
+        }
+        
+        if (includeQuestion) {
+            filteredIndices.push(index);
+            filteredQuestions.push(question);
+        }
+    });
+    
+    // Render filtered questions while preserving original indices
+    const questionContainer = document.getElementById('questionContainer');
+    questionContainer.innerHTML = '';
+    
+    if (filteredQuestions.length === 0) {
+        const noQuestionsMsg = document.createElement('p');
+        noQuestionsMsg.textContent = 'No questions match the selected filters.';
+        questionContainer.appendChild(noQuestionsMsg);
+        return;
+    }
+    
+    filteredQuestions.forEach((question, i) => {
+        const originalIndex = filteredIndices[i];
+        const element = document.createElement("div");
+        element.style.padding = '8px';
+        element.style.margin = '5px 0';
+        element.style.backgroundColor = '#f0f0f0';
+        element.style.borderRadius = '4px';
+        element.innerHTML = `
+            <input type="checkbox" id="q-${originalIndex}" value="${originalIndex}">
+            <label for="q-${originalIndex}">${question.text} (${question.score} Points) - Ch.${question.chapter}, Sec.${question.section}</label>
+        `;   
+        questionContainer.appendChild(element);
+    });
+}
+
+/**
+ * Filters the type of questions that are selectable in the menu for the test editor
+ * Preconditions: valid courseID, type
+ * Postconditions: filters the questions by test and/or textbook chapter/section
+ * TODO: Complete textbook support
+
+function filterQuestions(courseID, type) {
+    const testFilterSelect = document.getElementById('testFilterSelect');
+    // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
+    const selectedTestIndex = testFilterSelect.value;
+    // const selectedChapterIndex = textbookFilterSelect.value; // Uncomment when implementing textbook filter
+
+    const questions = masterQuestionList[courseID][type];
+    const questionContainer = document.querySelector('#questionModalBody > div:nth-child(2)');
+    questionContainer.innerHTML = ''; // Clear existing content
+
+    let filteredQuestions = questions;
+
+    // Filter by Test
+    if (selectedTestIndex !== '') {
+        const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
+        const selectedTest = testList[selectedTestIndex];
+        filteredQuestions = selectedTest.parts.flatMap(part => part.sections.flatMap(section => section.questions)).filter(q => q.qtype === type);
+    }
+
+    // Filter by Textbook (commented form)
+    
+    if (selectedChapterIndex !== '') {
+        filteredQuestions = filteredQuestions.filter(q => q.chapter === parseInt(selectedChapterIndex));
+    }
+    
 
     filteredQuestions.forEach((question, index) => {
         const element = document.createElement("div");
@@ -1915,15 +1690,19 @@ function displayFilteredQuestions(isbn, type, selectedTestIndex, selectedChapter
         element.innerHTML = `
             <input type="checkbox" id="q-${index}" value="${index}">
             <label for="q-${index}">${question.text} (${question.score} Points)</label>
-        `;
+        `;   
         questionContainer.appendChild(element);
     });
 
-    // ✅ Re-append the submit button after all questions
+    const submitButton = document.createElement('button');
+    submitButton.className = 'add-btn';
+    submitButton.textContent = 'Add Selected Questions';
+    submitButton.onclick = function() {
+        addSelectedQuestions();
+    };
     questionContainer.appendChild(submitButton);
 }
-
-
+    */
 
 /**
  * This adds the questions selected in the questionModal to the test editor.
@@ -1933,12 +1712,14 @@ function displayFilteredQuestions(isbn, type, selectedTestIndex, selectedChapter
 */
 function addSelectedQuestions() {
     const modalBody = document.getElementById("questionModalBody");
-    const isbn = modalBody.dataset.isbn;
+    const courseID = modalBody.dataset.courseId;
     const partNum = parseInt(modalBody.dataset.partNum);
     const sectionNum = parseInt(modalBody.dataset.sectionNum);
     const type = modalBody.dataset.questionType;
     
+    //find all of the checkbox type inputs in the questionModalBody element and selected by the user
     const checkboxes = document.querySelectorAll('#questionModalBody input[type="checkbox"]:checked');
+    //returns an array of selected question IDs
     
     if (checkboxes.length === 0) {
         alert("Please select at least one question.");
@@ -1946,29 +1727,14 @@ function addSelectedQuestions() {
     }
     
     const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
-    let questions = [];
+    const questions = selectedIndices.map(index => masterQuestionList[courseID][type][index]);
     
-    for (const chapter in masterQuestionList[isbn]) {
-        for (const section in masterQuestionList[isbn][chapter]) {
-            if (masterQuestionList[isbn][chapter][section][type]) {
-                questions = questions.concat(
-                    masterQuestionList[isbn][chapter][section][type].map((q, index) => ({
-                        ...q, 
-                        chapter, 
-                        section,
-                        questionIndex: index  // ✅ Store original index reference
-                    }))
-                );
-            }
-        }
-    }
-    
-    const selectedQuestions = selectedIndices.map(index => questions[index]);
-
+    // Update the test part on screen
     const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
     const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
     selectedQuestionsDiv.innerHTML = '';
     
+    // Create a section-wide point value input
     const sectionPointsDiv = document.createElement("div");
     sectionPointsDiv.innerHTML = `
         <label>Set All Points for This Section: </label>
@@ -1978,21 +1744,14 @@ function addSelectedQuestions() {
     `;
     selectedQuestionsDiv.appendChild(sectionPointsDiv);
 
-    selectedQuestions.forEach((question, index) => {
+    // Add each selected question to the section
+    questions.forEach((question, index) => {
         const questionElement = document.createElement("div");
         questionElement.style.padding = "8px";
         questionElement.style.margin = "5px 0";
         questionElement.style.backgroundColor = "#f0f0f0";
         questionElement.style.borderRadius = "4px";
-        questionElement.classList.add('context-menu-target');
-
-        // ✅ Store full reference instead of just questionIndex
-        questionElement.dataset.itemType = 'question';
-        questionElement.dataset.isbn = isbn;
-        questionElement.dataset.chapter = question.chapter;
-        questionElement.dataset.section = question.section;
-        questionElement.dataset.questionType = type;
-        questionElement.dataset.questionIndex = question.questionIndex; 
+        questionElement.dataset.questionIndex = selectedIndices[index]; // Store original index
 
         questionElement.innerHTML = `
             <p>${question.text}</p>
@@ -2003,7 +1762,21 @@ function addSelectedQuestions() {
         selectedQuestionsDiv.appendChild(questionElement);
     });
 
-    alert(`Added ${selectedQuestions.length} questions to Part ${partNum + 1}, Section ${sectionNum + 1}`);
+    const randomizer = document.createElement("button");
+    randomizer.className = "add-btn";
+    randomizer.textContent = "Randomize Question Order";
+    randomizer.onclick = function() {
+        const questionElements = Array.from(selectedQuestionsDiv.children).slice(1); // Skip the first child
+        ShuffleArray(questionElements);
+        selectedQuestionsDiv.innerHTML = ''; 
+        selectedQuestionsDiv.appendChild(sectionPointsDiv);
+        questionElements.forEach((element, index) => {
+            selectedQuestionsDiv.appendChild(element);
+        });
+    };
+    selectedQuestionsDiv.appendChild(randomizer);
+
+    alert(`Added ${questions.length} questions to Part ${partNum + 1}, Section ${sectionNum + 1}`);
 
     closeQuestionModal();
 }
@@ -2043,7 +1816,6 @@ function updateSectionPoints(partNum, sectionNum) {
 
     alert(`Updated all questions in Part ${partNum + 1}, Section ${sectionNum + 1} to ${newPointValue} points each.`);
 }
-
 
 
 
@@ -2092,13 +1864,12 @@ document.addEventListener('contextmenu', function (event) {
         contextMenu.style.left = `${event.clientX}px`;
         contextMenu.style.display = 'block';
 
+        // Store the relevant data in the context menu for later use
         contextMenu.dataset.itemType = target.dataset.itemType;
         contextMenu.dataset.itemIndex = target.dataset.itemIndex;
-        contextMenu.dataset.isbn = target.dataset.isbn;
+        contextMenu.dataset.courseID = target.dataset.courseID;
         contextMenu.dataset.questionType = target.dataset.questionType;
         contextMenu.dataset.testType = target.dataset.testType;
-        contextMenu.dataset.chapter = target.dataset.chapter;
-        contextMenu.dataset.section = target.dataset.section;
 
         console.log(`Context menu opened for target:`, target);
     } else {
@@ -2127,30 +1898,28 @@ function editItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
-    const chapter = contextMenu.dataset.chapter;
-    const section = contextMenu.dataset.section;
 
     switch (itemType) {
         case 'question':
-            editQuestion(isbn, chapter, section, questionType, itemIndex);
+            editQuestion(courseID, questionType, itemIndex);
             break;
         case 'coverPage':
-            editCoverPage(isbn, itemIndex);
+            editCoverPage(courseID, itemIndex);
             break;
         case 'template':
-            editTemplate(isbn, itemIndex);
+            editTemplate(courseID, itemIndex);
             break;
         case 'test':
-            if (contextMenu.dataset.testType === 'published') {
+            if(contextMenu.dataset.testType === 'published'){
                 alert("You cannot edit published tests.");
                 return;
             }
-            editTest(isbn, itemIndex);
+            editTest(courseID, itemIndex);
             break;
         case 'attachment':
-            editAttachment(isbn, itemIndex);
+            editAttachment(courseID, itemIndex);
             break;
         default:
             console.error('Unknown item type:', itemType);
@@ -2167,28 +1936,28 @@ function deleteItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     switch (itemType) {
         case 'question':
-            deleteQuestion(isbn, questionType, itemIndex);
+            deleteQuestion(courseID, questionType, itemIndex);
             break;
         case 'coverPage':
-            deleteCoverPage(isbn, itemIndex);
+            deleteCoverPage(courseID, itemIndex);
             break;
         case 'template':
-            deleteTemplate(isbn, itemIndex);
+            deleteTemplate(courseID, itemIndex);
             break;
         case 'test':
             if(contextMenu.dataset.testType === 'published'){
                 alert("You cannot delete published tests.");
                 return;
             }
-            deleteTest(isbn, itemIndex);
+            deleteTest(courseID, itemIndex);
             break;
         case 'attachment':
-            deleteAttachment(isbn, itemIndex);
+            deleteAttachment(courseID, itemIndex);
             break;
         default:
             console.error('Unknown item type:', itemType);
@@ -2201,14 +1970,15 @@ function deleteItem() {
  * Precondition: context menu is open, edit button is clicked
  * Postcondition: edit modal is opened with the appropriate question data
 */
-function editQuestion(isbn, chapter, section, questionType, questionIndex) {
-    const question = masterQuestionList[isbn]?.[chapter]?.[section]?.[questionType]?.[questionIndex];
-
-    if (!question) {
-        alert("Error: Question not found.");
-        return;
+function editQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
+        if(!confirm("This question is published. Are you sure you want to edit it?")){
+           return;
+        }
     }
+    const question = masterQuestionList[courseID][questionType][questionIndex];
 
+    // Open the edit modal and populate it with the question data
     const modal = document.getElementById('editModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
@@ -2277,6 +2047,10 @@ function editQuestion(isbn, chapter, section, questionType, questionIndex) {
     formContent += `
         <label>Point Value:</label><br/>
         <input type="number" id="editPointValueField" min="1" value="${question.score}"><br><br>
+        <label>Chapter: </label><br/>  
+        <input type="number" id="editChapterField" min="1" value="${question.chapter}"><br><br>
+        <label>Section: </label><br/>
+        <input type="number" id="editSectionField" min="1" value="${question.section}"><br><br>
         <label>Estimated Time:</label><br/>
         <input type="number" id="editTimeField" min="1" value="${question.eta}"><br><br>
         <label>Reference Text:</label><br/>
@@ -2293,7 +2067,7 @@ function editQuestion(isbn, chapter, section, questionType, questionIndex) {
         <textarea id="editInstructorCommentField" rows="4">${question.comments}</textarea><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructionField" rows="6">${question.directions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditQuestion('${isbn}', '${questionType}', ${questionIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditQuestion('${courseID}', '${questionType}', ${questionIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -2302,9 +2076,9 @@ function editQuestion(isbn, chapter, section, questionType, questionIndex) {
         modal.style.opacity = '1';
     }, 10);
 
-    updateEditGraphicSelectors(isbn, question);
+    // Populate the graphic selectors
+    updateEditGraphicSelectors(courseID, question);
 }
-
 
 /**
  * This function updates the graphics fields in the editor modal with the available graphics for the course.
@@ -2312,19 +2086,19 @@ function editQuestion(isbn, chapter, section, questionType, questionIndex) {
  * Precondition: valid courseID and question, attachments exist in the course attachment list
  * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateEditGraphicSelectors(isbn, question) {
+function updateEditGraphicSelectors(courseID, question) {
     const qGraphicField = document.getElementById('editGraphicField');
     const ansGraphicField = document.getElementById('editAnsGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
         alert("No attachments available for this course!");
         return;
     }
 
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name;
         option.textContent = attachment.name;
@@ -2347,19 +2121,19 @@ function updateEditGraphicSelectors(isbn, question) {
  * Precondition: valid courseID, attachments exist in the course attachment list
  * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateGraphicSelectors(isbn) {
+function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
         alert("No attachments available for this course!");
         return;
     }
 
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name;
         option.textContent = attachment.name;
@@ -2443,7 +2217,7 @@ function toggleEditFormulaInput() {
  * Postcondition: question is updated in the master question list or a clone is created
  * RECENTLY EDITED
 */
-function submitEditQuestion(isbn, questionType, questionIndex) {
+function submitEditQuestion(courseID, questionType, questionIndex) {
     const text = document.getElementById('editQuestionField').value.trim();
     const score = document.getElementById('editPointValueField').value.trim();
     const reference = document.getElementById('editRefField').value.trim();
@@ -2452,9 +2226,11 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
     const ansGraphic = document.getElementById('editAnsGraphicField').value;
     const comments = document.getElementById('editInstructorCommentField').value.trim();
     const directions = document.getElementById('editInstructionField').value.trim();
+    const chapter = document.getElementById('editChapterField').value.trim();
+    const section = document.getElementById('editSectionField').value.trim();   
 
-    if (!text || !score || !directions) {
-        alert("Some fields are required.");
+    if (!text || !score || !directions || !time || !chapter || !section) {
+        alert("Some fields are required. (Prompt, Point Value, Directions, Time, Chapter, Section)");
         return;
     }
 
@@ -2502,9 +2278,10 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
         }
     }
 
-    const question = masterQuestionList[isbn][questionType][questionIndex];
-    if (question.published === 1) {
-        if (confirm("Are you sure you want to edit a published question? If you would rather clone this question, click okay.")) {
+    
+    const question = masterQuestionList[courseID][questionType][questionIndex];
+    if(question.published===1){
+        if(confirm("Are you sure you want to edit a published question? If you would rather clone this question, click okay.")){
             let clone = {
                 text: text,
                 answer: answer,
@@ -2516,14 +2293,16 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
                 ansGraphic: ansGraphic,
                 comments: comments,
                 options: options,
+                chapter: chapter,
+                section: section,
                 published: 0
             }
-            masterQuestionList[isbn][questionType].push(clone);
-            updateQuestionTabs(questionType, isbn, chapter, section);
+            masterQuestionList[courseID][questionType].push(clone);
+            updateQuestionTabs(questionType, courseID);
             closeModal();
             alert("Question cloned successfully!");
             return;
-        } else if (confirm("Are you sure you want to edit a published question?")) {
+        }else if (confirm("Are you sure you want to edit a published question?")){
             question.text = text;
             question.answer = answer;
             question.score = score;
@@ -2534,24 +2313,16 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
             question.ansGraphic = ansGraphic;
             question.comments = comments;
             question.options = options;
-        } else {
+            question.chapter = chapter;
+            question.section = section;
+        }else{
             alert("Question not edited.");
             return;
         }
-    } else {
-        question.text = text;
-        question.answer = answer;
-        question.score = score;
-        question.directions = directions;
-        question.time = time;
-        question.reference = reference;
-        question.graphic = graphic;
-        question.ansGraphic = ansGraphic;
-        question.comments = comments;
-        question.options = options;
     }
+    
 
-    updateQuestionTabs(questionType, isbn, chapter, section);
+    updateQuestionTabs(questionType, courseID);
     closeModal();
     alert("Question edited successfully!");
 }
@@ -2561,14 +2332,14 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
  * Precondition: valid courseID
  * Postcondition: test content is updated in the test containers    
 */
-function updateTestTabs(isbn) {
-    const draftsContainer = document.getElementById(`drafts-${isbn}`);
-    const publishedContainer = document.getElementById(`published-${isbn}`);
+function updateTestTabs(courseID) {
+    const draftsContainer = document.getElementById(`drafts-${courseID}`);
+    const publishedContainer = document.getElementById(`published-${courseID}`);
     draftsContainer.innerHTML = ''; // Clear existing content
     publishedContainer.innerHTML = ''; // Clear existing content
 
-    const drafts = masterTestList[isbn].drafts;
-    const published = masterTestList[isbn].published;
+    const drafts = masterTestList[courseID].drafts;
+    const published = masterTestList[courseID].published;
 
     if (drafts.length === 0) {
         draftsContainer.innerHTML = '<p>No drafts available...</p>';
@@ -2582,7 +2353,7 @@ function updateTestTabs(isbn) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemIndex = index;
-            testDiv.dataset.isbn = isbn;
+            testDiv.dataset.courseID = courseID;
             testDiv.dataset.testType = 'draft';
 
             testDiv.innerHTML = `
@@ -2607,7 +2378,7 @@ function updateTestTabs(isbn) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemIndex = index;
-            testDiv.dataset.isbn = isbn;
+            testDiv.dataset.courseID = courseID;
             testDiv.dataset.testType = 'published';
 
             testDiv.innerHTML = `
@@ -2626,11 +2397,11 @@ function updateTestTabs(isbn) {
  * Precondition: valid questionType, courseID
  * Postcondition: question content is updated in the question containers
 */
-function updateQuestionTabs(questionType, isbn, chapter, section) {
-    const tabContent = document.getElementById(`${questionType}-${isbn}-${chapter}-${section}`);
+function updateQuestionTabs(questionType, courseID) {
+    const tabContent = document.getElementById(`${questionType}-${courseID}`);
     tabContent.innerHTML = ''; // Clear existing content
 
-    const questions = masterQuestionList[isbn][chapter][section][questionType];
+    const questions = masterQuestionList[courseID][questionType];
 
     if (questions.length === 0) {
         tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
@@ -2644,9 +2415,7 @@ function updateQuestionTabs(questionType, isbn, chapter, section) {
             questionDiv.classList.add('context-menu-target');
             questionDiv.dataset.itemType = 'question';
             questionDiv.dataset.itemIndex = index;
-            questionDiv.dataset.isbn = isbn;
-            questionDiv.dataset.chapter = chapter;
-            questionDiv.dataset.section = section;
+            questionDiv.dataset.courseID = courseID;
             questionDiv.dataset.questionType = questionType;
 
             questionDiv.innerHTML = `
@@ -2665,14 +2434,14 @@ function updateQuestionTabs(questionType, isbn, chapter, section) {
  * Precondition: valid courseID, questionType, questionIndex, not published
  * Postcondition: question is deleted from the master list
 */
-function deleteQuestion(isbn, questionType, questionIndex) {
-    if(masterQuestionList[isbn][questionType][questionIndex].published === 1){
+function deleteQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         alert("This question is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
-        masterQuestionList[isbn][questionType].splice(questionIndex, 1);
-        updateQuestionTabs(questionType, isbn);
+        masterQuestionList[courseID][questionType].splice(questionIndex, 1);
+        updateQuestionTabs(questionType, courseID);
         alert("Question deleted successfully!");
     }
 }
@@ -2682,8 +2451,8 @@ function deleteQuestion(isbn, questionType, questionIndex) {
  * Precondition: valid courseID, pageIndex
  * Postcondition: cover page is edited and republished in the master list
 */
-function editCoverPage(isbn, pageIndex) {
-    const coverPage = masterCoverPageList[isbn][pageIndex];
+function editCoverPage(courseID, pageIndex) {
+    const coverPage = masterCoverPageList[courseID][pageIndex];
 
     // Open the edit modal and populate it with the cover page data
     const modal = document.getElementById('editModal');
@@ -2711,7 +2480,7 @@ function editCoverPage(isbn, pageIndex) {
         </select><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructions" rows="6">${coverPage.instructions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditCoverPage('${isbn}', ${pageIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditCoverPage('${courseID}', ${pageIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -2726,14 +2495,14 @@ function editCoverPage(isbn, pageIndex) {
  * Precondition: valid courseID, pageIndex, not published
  * Postcondition: cover page is deleted from the master list
 */
-function deleteCoverPage(isbn, pageIndex) {
-    if(masterCoverPageList[isbn][pageIndex].published === 1){
+function deleteCoverPage(courseID, pageIndex) {
+    if(masterCoverPageList[courseID][pageIndex].published === 1){
         alert("This cover page is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this cover page? This action cannot be undone.")) {
-        masterCoverPageList[isbn].splice(pageIndex, 1);
-        updateCoverPages(isbn);
+        masterCoverPageList[courseID].splice(pageIndex, 1);
+        updateCoverPages(courseID);
         alert("Cover page deleted successfully!");
     }
 }
@@ -2743,16 +2512,16 @@ function deleteCoverPage(isbn, pageIndex) {
  * Precondition: valid courseID
  * Postcondition: cover page options are updated in the template editor
 */
-function updateCoverPages(isbn) {
-    const coverPageContainer = document.getElementById(`coverpages-${isbn}`);
+function updateCoverPages(courseID) {
+    const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterCoverPageList[isbn] || masterCoverPageList[isbn].length === 0) {
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
         coverPageContainer.innerHTML = '<p>You have not added any cover pages yet...</p>';
         return;
     }
 
-    masterCoverPageList[isbn].forEach((coverPage, index) => {
+    masterCoverPageList[courseID].forEach((coverPage, index) => {
         const coverPageDiv = document.createElement('div');
         coverPageDiv.style.backgroundColor = '#d0d0d0';
         coverPageDiv.style.padding = '5px';
@@ -2761,7 +2530,7 @@ function updateCoverPages(isbn) {
         coverPageDiv.classList.add('context-menu-target');
         coverPageDiv.dataset.itemType = 'coverPage';
         coverPageDiv.dataset.itemIndex = index;
-        coverPageDiv.dataset.isbn = isbn;
+        coverPageDiv.dataset.courseID = courseID;
 
         coverPageDiv.innerHTML = `
             <p><strong>${coverPage.name}</strong> (Test Number: ${coverPage.testNum}, Date: ${coverPage.date})</p>
@@ -2778,16 +2547,16 @@ function updateCoverPages(isbn) {
  * Precondition: valid courseID
  * Postcondition: templates are updated in the template container
 */
-function updateTemplates(isbn) {
-    const templateContainer = document.getElementById(`templates-${isbn}`);
+function updateTemplates(courseID) {
+    const templateContainer = document.getElementById(`templates-${courseID}`);
     templateContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterTemplateList[isbn] || masterTemplateList[isbn].length === 0) {
+    if (!masterTemplateList[courseID] || masterTemplateList[courseID].length === 0) {
         templateContainer.innerHTML = '<p>You have not added any templates yet...</p>';
         return;
     }
 
-    masterTemplateList[isbn].forEach((template, index) => {
+    masterTemplateList[courseID].forEach((template, index) => {
         const templateDiv = document.createElement('div');
         templateDiv.style.backgroundColor = '#d0d0d0';
         templateDiv.style.padding = '5px';
@@ -2796,7 +2565,7 @@ function updateTemplates(isbn) {
         templateDiv.classList.add('context-menu-target');
         templateDiv.dataset.itemType = 'template';
         templateDiv.dataset.itemIndex = index;
-        templateDiv.dataset.isbn = isbn;
+        templateDiv.dataset.courseID = courseID;
 
         templateDiv.innerHTML = `
             <p><strong>${template.name}</strong></p>
@@ -2811,8 +2580,8 @@ function updateTemplates(isbn) {
  * Precondition: valid courseID, templateIndex, not published
  * Postcondition: template is edited and saved in the master list
 */
-function editTemplate(isbn, templateIndex) {
-    const template = masterTemplateList[isbn][templateIndex];
+function editTemplate(courseID, templateIndex) {
+    const template = masterTemplateList[courseID][templateIndex];
 
     // Open the edit modal and populate it with the template data
     const modal = document.getElementById('editModal');
@@ -2902,19 +2671,19 @@ function editTemplate(isbn, templateIndex) {
             <div style="background:#d0d0d0;padding:20px" id="partsContainer"></div>
 
             <h1>Bonus Question Section Toggle</h1>
-            <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${isbn}')">
+            <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
                 <option value="True" ${template.bonusSection ? 'selected' : ''}>Bonus Section</option>
                 <option value="False" ${!template.bonusSection ? 'selected' : ''}>No Bonus Section</option>
             </select><br/><br/>
-            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${isbn}')">Select Bonus Questions</button>
-            <button class="add-btn" onclick="submitEditTemplate('${isbn}', ${templateIndex})">Submit Template</button>
+            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
+            <button class="add-btn" onclick="submitEditTemplate('${courseID}', ${templateIndex})">Submit Template</button>
         </div>
     `;
 
     modalBody.innerHTML = formContent;
 
     // Populate the cover page selector
-    updatePageSelection(isbn);
+    updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
     pageSelector.value = coverPageType;
     
@@ -2944,7 +2713,7 @@ function editTemplate(isbn, templateIndex) {
  * Precondition: valid courseID, templateIndex
  * Postcondition: template is edited and saved in the master list
 */
-function submitEditTemplate(isbn, templateIndex) {
+function submitEditTemplate(courseID, templateIndex) {
     const templateName = document.getElementById('tempTestName').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
 
@@ -2986,24 +2755,24 @@ function submitEditTemplate(isbn, templateIndex) {
     }
 
     if(bonusSection){
-        if(masterTemplateList[isbn].bonusQuestions.length>0){
-            masterTemplateList[isbn][templateIndex].bonusQuestions = masterTemplateList[isbn].bonusQuestions;   
-        } else if (masterTemplateList[isbn][templateIndex].bonusQuestions.length>0){
-            masterTemplateList[isbn][templateIndex].bonusQuestions = masterTemplateList[isbn][templateIndex].bonusQuestions;
+        if(masterTemplateList[courseID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
+        } else if (masterTemplateList[courseID][templateIndex].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID][templateIndex].bonusQuestions;
         } else {
             alert("No bonus questions selected!");
             return;
         }
-        console.log("Bonus Questions:", masterTemplateList[isbn][templateIndex].bonusQuestions);
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
     }else{
         alert("no bonus questions!");
-        masterTemplateList[isbn][templateIndex].bonusQuestions = [];
-        console.log("Bonus Questions:", masterTemplateList[isbn][templateIndex].bonusQuestions);
+        masterTemplateList[courseID][templateIndex].bonusQuestions = [];
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
     }
-    if (bonusSection && !masterTemplateList[isbn].bonusQuestions) {
+    if (bonusSection && !masterTemplateList[courseID].bonusQuestions) {
         alert("Bonus questions failed to add to course");
         return;
-    }else if(bonusSection && (masterTemplateList[isbn][templateIndex].bonusQuestions.length === 0)){
+    }else if(bonusSection && (masterTemplateList[courseID][templateIndex].bonusQuestions.length === 0)){
         alert("Bonus questions failed to add to template");
         return;
     }
@@ -3023,17 +2792,17 @@ function submitEditTemplate(isbn, templateIndex) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[isbn].bonusQuestions || [],
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
         feedback: []
     };
 
-    masterTemplateList[isbn][templateIndex] = templateData;
-    masterTemplateList[isbn].bonusQuestions = [];
+    masterTemplateList[courseID][templateIndex] = templateData;
+    masterTemplateList[courseID].bonusQuestions = [];
 
     alert("Template edited successfully!");
     console.log("Edited Template:", templateData);
 
-    updateTemplates(isbn);
+    updateTemplates(courseID);
     closeModal();
 }
 
@@ -3042,14 +2811,14 @@ function submitEditTemplate(isbn, templateIndex) {
  * Precondition: valid courseID, templateIndex, not published
  * Postcondition: template is deleted from the master list
 */
-function deleteTemplate(isbn, templateIndex) {
-    if(masterTemplateList[isbn][templateIndex].published === 1){
+function deleteTemplate(courseID, templateIndex) {
+    if(masterTemplateList[courseID][templateIndex].published === 1){
         alert("This template is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
-        masterTemplateList[isbn].splice(templateIndex, 1);
-        updateTemplates(isbn);
+        masterTemplateList[courseID].splice(templateIndex, 1);
+        updateTemplates(courseID);
         alert("Template deleted successfully!");
     }
 }
@@ -3059,8 +2828,8 @@ function deleteTemplate(isbn, templateIndex) {
  * Precondition: valid courseID, testIndex, not published
  * Postcondition: test is edited and saved in the master list
 */
-function editTest(isbn, testIndex) {
-    const test = masterTestList[isbn]['drafts'][testIndex];
+function editTest(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex];
 
     // Open the edit modal and populate it with the test data
     const modal = document.getElementById('editModal');
@@ -3072,31 +2841,31 @@ function editTest(isbn, testIndex) {
     const formContent = `
         <div style="background:#e0e0e0;padding:20px;" id="testEditor">
             <label>Test Name:</label><br/>
-            <input type="text" id="nameField" value="${test.name}" data-isbn="${isbn}"><br><br>
+            <input type="text" id="nameField" value="${test.name}"><br><br>
             <p>Choose a Template!</p><br/>
             <div id="templateSelectorPane">
                 <select id="templateSelector">
                     <option value="" disabled>Please Select a Template</option>
                 </select> 
-                <button id="templateSelection" onclick="updateTestParts('${isbn}')">Select This One!</button>
+                <button id="templateSelection" onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <button class="add-btn" id="testDraftButton" onclick="submitEditedTest('${isbn}', '${false}', ${testIndex})">Save as Draft</button>
-            <button class="add-btn" id="testPublishButton" onclick="submitEditedTest('${isbn}', '${true}', ${testIndex})">Publish Test</button>
+            <button class="add-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testIndex})">Save as Draft</button>
+            <button class="add-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testIndex})">Publish Test</button>
         </div>
     `;
 
     modalBody.innerHTML = formContent;
 
     // Populate the template selector
-    updateTemplateSelection(isbn);
+    updateTemplateSelection(courseID);
 
     // Set the selected template
     const templateSelector = document.getElementById('templateSelector');
     templateSelector.value = test.templateIndex;
 
     // Populate the test parts
-    updateTestParts(isbn);
+    updateTestParts(courseID);
 
     // Populate the parts and sections with existing test data
     test.parts.forEach((part, partIndex) => {
@@ -3156,71 +2925,58 @@ function editTest(isbn, testIndex) {
         });
     });
 
-    // Check if bonus questions exist and display them
-    if (test.bonusQuestions && test.bonusQuestions.length > 0) {
-        // Find the bonus section container that was created by updateTestParts
-        const bonusSectionContainer = document.getElementById("bonus-section-container");
-        if (!bonusSectionContainer) {
-            console.error("Bonus section container not found");
+    // Add bonus part if it exists
+    if (test.template && test.template.bonusQuestions && test.template.bonusQuestions.length > 0) {
+        const testPartsContainer = document.getElementById("testParts");
+        if (!testPartsContainer) {
+            console.error("Test parts container not found");
             return;
         }
 
-        // Find the selected-questions div within the bonus section container
-        const selectedQuestionsDiv = bonusSectionContainer.querySelector('.selected-questions');
-        if (!selectedQuestionsDiv) {
-            console.error("Selected questions div not found in bonus section");
-            return;
-        }
+        const bonusPartContainer = document.createElement("div");
+        bonusPartContainer.style.padding = '5px';
+        bonusPartContainer.style.marginBottom = '8px';
+        bonusPartContainer.style.borderBottom = '1px solid #ccc';
+        bonusPartContainer.id = `part-bonus-container`;
 
-        // Clear any existing content
-        selectedQuestionsDiv.innerHTML = "";
+        bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
+
+        const bonusSectionContainer = document.createElement('div');
+        bonusSectionContainer.style.padding = '5px';
+        bonusSectionContainer.style.marginBottom = '8px';
+        bonusSectionContainer.style.borderBottom = '1px solid #ccc';
+        bonusSectionContainer.style.backgroundColor = '#d3d3d3';
+        bonusSectionContainer.id = `bonus-container`;
+
+        bonusSectionContainer.innerHTML = `
+            <h3>Bonus Section: Bonus Questions</h3>
+        `;
+
+        const selectedQuestionsDiv = document.createElement('div');
+        selectedQuestionsDiv.className = 'selected-questions';
         
-        // Add each bonus question to the section
-        test.bonusQuestions.forEach((questionId) => {
-            try {
-                const [type, index] = questionId.split('-');
-                if (!type || !index) {
-                    console.error(`Invalid bonus question ID format: ${questionId}`);
-                    return;
-                }
-                
-                // Correctly access the bonus question from masterQuestionList
-                const chapter = "bonus";
-                const section = "1";
-                const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                
-                if (!questionList || !questionList[index]) {
-                    console.error(`Bonus question not found: Type=${type}, Index=${index}`);
-                    return;
-                }
-                
-                const question = questionList[index];
-                
-                // Create question element
-                const questionElement = document.createElement("div");
-                questionElement.style.padding = "8px";
-                questionElement.style.margin = "5px 0";
-                questionElement.style.backgroundColor = "#f0f0f0";
-                questionElement.style.borderRadius = "4px";
-                questionElement.dataset.questionIndex = index;
-                questionElement.dataset.chapter = chapter;
-                questionElement.dataset.section = section;
-                questionElement.dataset.type = type;
-                questionElement.dataset.bonusId = questionId;
-                
-                // Create question content with remove button
-                questionElement.innerHTML = `
-                    <p><strong>${type.toUpperCase()} Question ${index}</strong>: ${question.text}</p>
-                    <label>Points: </label>
-                    <input type="number" class="question-points" min="1" value="${question.score || 1}" style="width: 60px;">
-                    <button onclick="removeSelectedQuestion(this.parentNode)">Remove</button>
-                `;
-                
-                selectedQuestionsDiv.appendChild(questionElement);
-            } catch (error) {
-                console.error(`Error processing bonus question ${questionId}:`, error);
-            }
+        test.template.bonusQuestions.forEach((questionId, questionIndex) => {
+            const [type, index] = questionId.split('-');
+            const question = masterQuestionList[courseID][type][index];
+            const questionElement = document.createElement("div");
+            questionElement.style.padding = "8px";
+            questionElement.style.margin = "5px 0";
+            questionElement.style.backgroundColor = "#f0f0f0";
+            questionElement.style.borderRadius = "4px";
+            questionElement.dataset.questionIndex = questionIndex; // Store original index
+
+            questionElement.innerHTML = `
+                <p>${question.text}</p>
+                <label>Points: </label>
+                <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
+            `;
+
+            selectedQuestionsDiv.appendChild(questionElement);
         });
+
+        bonusSectionContainer.appendChild(selectedQuestionsDiv);
+        bonusPartContainer.appendChild(bonusSectionContainer);
+        testPartsContainer.appendChild(bonusPartContainer);
     }
 
     modal.style.display = 'flex';
@@ -3229,22 +2985,21 @@ function editTest(isbn, testIndex) {
     }, 10);
 }
 
-
 /**
  * This function is called to delete a test from the master test list
  * Precondition: valid courseID, testIndex, not published
  * Postcondition: test is deleted from the master list
 */
-function deleteTest(isbn, testIndex) {
-    if(masterTestList[isbn]['drafts'][testIndex].published === 1){
+function deleteTest(courseID, testIndex) {
+    if(masterTestList[courseID]['drafts'][testIndex].published === 1){
         alert("This test is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this test? This action cannot be undone.")) {
-        const isDraft = masterTestList[isbn]['drafts'][testIndex] !== undefined;
-        const targetList = isDraft ? masterTestList[isbn]['drafts'] : masterTestList[isbn]['published'];
+        const isDraft = masterTestList[courseID]['drafts'][testIndex] !== undefined;
+        const targetList = isDraft ? masterTestList[courseID]['drafts'] : masterTestList[courseID]['published'];
         targetList.splice(testIndex, 1);
-        updateTestTabs(isbn);
+        updateTestTabs(courseID);
         alert("Test deleted successfully!");
     }
 }
@@ -3254,7 +3009,7 @@ function deleteTest(isbn, testIndex) {
  * Precondition: valid courseID
  * Postcondition: bonus questions are toggled on or off in the template editor
 */
-function toggleBonusQuestionSelection(isbn) {
+function toggleBonusQuestionSelection(courseID) {
     const bonusToggle = document.getElementById('bonusToggle').value;
     const selectBonusQuestionsBtn = document.getElementById('selectBonusQuestionsBtn');
     if (bonusToggle === 'True') {
@@ -3269,421 +3024,73 @@ function toggleBonusQuestionSelection(isbn) {
  * Precondition: valid courseID
  * Postcondition: bonus question modal is opened
 */
-function openBonusQuestionModal(isbn) {
+function openBonusQuestionModal(courseID) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
     const modalBody = document.getElementById("questionModalBody");
 
     modalBody.innerHTML = ""; // Clear existing content
-
-    // Store the part/section info in the modal for later use
-    modalBody.dataset.isbn = isbn;
-    modalBody.dataset.partNum = "bonus";
-    modalBody.dataset.sectionNum = "bonus";
-    modalBody.dataset.questionType = "all";
-
-    // Create a structure to store all questions with their metadata
-    let allQuestions = [];
-
-    // Gather all questions across all chapters, sections, and types
-    for (const chapter in masterQuestionList[isbn]) {
-        for (const section in masterQuestionList[isbn][chapter]) {
-            for (const type in masterQuestionList[isbn][chapter][section]) {
-                const questionsOfType = masterQuestionList[isbn][chapter][section][type];
-                
-                // Add each question with its location info
-                for (const index in questionsOfType) {
-                    allQuestions.push({
-                        question: questionsOfType[index],
-                        chapter: chapter,
-                        section: section,
-                        type: type,
-                        index: index
-                    });
-                }
-            }
-        }
-    }
-
-    if (allQuestions.length === 0) {
-        alert("No questions available!");
-        return;
-    }
-
-    // Create filter container
-    const filterContainer = document.createElement('div');
-    filterContainer.style.padding = '5px';
-    filterContainer.style.marginBottom = '8px';
-    filterContainer.style.borderBottom = '1px solid #ccc';
-
-    // Filter by Test
-    const testFilterLabel = document.createElement('label');
-    testFilterLabel.textContent = 'Filter by Test: ';
-    filterContainer.appendChild(testFilterLabel);
-
-    const testFilterSelect = document.createElement('select');
-    testFilterSelect.id = 'testFilterSelect';
-    testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
     
-    // Add test options if they exist
-    if (masterTestList[isbn]) {
-        const testList = [];
-        if (masterTestList[isbn]['drafts']) testList.push(...masterTestList[isbn]['drafts']);
-        if (masterTestList[isbn]['published']) testList.push(...masterTestList[isbn]['published']);
-        
-        testList.forEach((test, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = test.name;
-            testFilterSelect.appendChild(option);
-        });
-    }
-    filterContainer.appendChild(testFilterSelect);
-    filterContainer.appendChild(document.createElement('br'));
+    // Store the relevant data in the modal for later use
+    modalBody.dataset.courseId = courseID;
+    modalBody.dataset.questionType = 'bonus';
 
-    // Filter by Chapter
-    const chapterFilterLabel = document.createElement('label');
-    chapterFilterLabel.textContent = 'Filter by Chapter: ';
-    filterContainer.appendChild(chapterFilterLabel);
-
-    const chapterFilterSelect = document.createElement('select');
-    chapterFilterSelect.id = 'chapterFilterSelect';
-    chapterFilterSelect.innerHTML = '<option value="" selected>All Chapters</option>';
-    
-    // Get unique chapters
-    const chapters = [...new Set(allQuestions.map(q => q.chapter))].sort();
-    chapters.forEach(chapter => {
-        const option = document.createElement('option');
-        option.value = chapter;
-        option.textContent = `Chapter ${chapter}`;
-        chapterFilterSelect.appendChild(option);
-    });
-    filterContainer.appendChild(chapterFilterSelect);
-    filterContainer.appendChild(document.createElement('br'));
-
-    // Filter by Section
-    const sectionFilterLabel = document.createElement('label');
-    sectionFilterLabel.textContent = 'Filter by Section: ';
-    filterContainer.appendChild(sectionFilterLabel);
-
-    const sectionFilterSelect = document.createElement('select');
-    sectionFilterSelect.id = 'sectionFilterSelect';
-    sectionFilterSelect.innerHTML = '<option value="" selected>All Sections</option>';
-    filterContainer.appendChild(sectionFilterSelect);
-    filterContainer.appendChild(document.createElement('br'));
-    
-    // Filter by Type
-    const typeFilterLabel = document.createElement('label');
-    typeFilterLabel.textContent = 'Filter by Type: ';
-    filterContainer.appendChild(typeFilterLabel);
-
-    const typeFilterSelect = document.createElement('select');
-    typeFilterSelect.id = 'typeFilterSelect';
-    typeFilterSelect.innerHTML = '<option value="" selected>All Types</option>';
-    
-    // Get unique question types
-    const types = [...new Set(allQuestions.map(q => q.type))].sort();
-    types.forEach(type => {
-        const option = document.createElement('option');
-        option.value = type;
-        option.textContent = type.toUpperCase();
-        typeFilterSelect.appendChild(option);
-    });
-    filterContainer.appendChild(typeFilterSelect);
-
-    modalBody.appendChild(filterContainer);
-
-    // Create question container
     const questionContainer = document.createElement('div');
-    questionContainer.id = 'questionListContainer';
     questionContainer.style.padding = '5px';
     questionContainer.style.marginBottom = '8px';
-    questionContainer.style.maxHeight = '400px';
-    questionContainer.style.overflowY = 'auto';
-    
-    // Display all questions initially
-    displayBonusQuestions(allQuestions, questionContainer);
-    
-    modalBody.appendChild(questionContainer);
-    
-    // Add submit button
-    const submitContainer = document.createElement('div');
-    submitContainer.style.textAlign = 'center';
-    submitContainer.style.marginTop = '10px';
-    
+    questionContainer.style.borderBottom = '1px solid #ccc';
+
+    Object.keys(masterQuestionList[courseID]).forEach(type => {
+        const questions = masterQuestionList[courseID][type];
+        questions.forEach((question, index) => {
+            const element = document.createElement("div");
+            element.style.padding = '8px';
+            element.style.margin = '5px 0';
+            element.style.backgroundColor = '#f0f0f0';
+            element.style.borderRadius = '4px';
+            element.innerHTML = `
+                <input type="checkbox" id="q-${type}-${index}" value="${type}-${index}">
+                <label for="q-${type}-${index}">${question.text} (${question.score} Points)</label>
+            `;   
+            questionContainer.appendChild(element);
+        });
+    });
+
     const submitButton = document.createElement('button');
     submitButton.className = 'add-btn';
     submitButton.textContent = 'Add Selected Questions';
     submitButton.onclick = function() {
-        addSelectedBonusQuestions(allQuestions);
+        addSelectedBonusQuestions(courseID);
     };
-    submitContainer.appendChild(submitButton);
-    modalBody.appendChild(submitContainer);
+    questionContainer.appendChild(submitButton);
 
     modalTitle.innerText = `Select Bonus Questions`;
+    modalBody.appendChild(questionContainer);
 
-    // Show modal
     modal.style.display = "flex";
     setTimeout(() => {
         modal.style.opacity = "1";
     }, 10);
-
-    // Add event listeners for filters
-    testFilterSelect.addEventListener('change', () => updateFilters(isbn, allQuestions));
-    chapterFilterSelect.addEventListener('change', () => {
-        updateSectionFilter(isbn, allQuestions);
-        updateFilters(isbn, allQuestions);
-    });
-    sectionFilterSelect.addEventListener('change', () => updateFilters(isbn, allQuestions));
-    typeFilterSelect.addEventListener('change', () => updateFilters(isbn, allQuestions));
 }
 
-function displayBonusQuestions(questionsList, container) {
-    container.innerHTML = ''; // Clear existing content
-    
-    if (questionsList.length === 0) {
-        container.innerHTML = '<p>No questions match the selected filters.</p>';
-        return;
-    }
-    
-    questionsList.forEach((item, index) => {
-        const { question, chapter, section, type, index: questionIndex } = item;
-        
-        const element = document.createElement("div");
-        element.style.padding = '8px';
-        element.style.margin = '5px 0';
-        element.style.backgroundColor = '#f0f0f0';
-        element.style.borderRadius = '4px';
-        
-        // Create identifier string for the question (format: type-index)
-        const questionId = `${type}-${questionIndex}`;
-        
-        element.innerHTML = `
-            <input type="checkbox" id="q-${index}" value="${index}" data-id="${questionId}">
-            <label for="q-${index}">
-                <strong>${type.toUpperCase()}</strong> - Ch. ${chapter}, Sec. ${section}, #${questionIndex}: 
-                ${question.text} (${question.score || 1} Points)
-            </label>
-        `;
-        container.appendChild(element);
-    });
-}
-
-function updateSectionFilter(isbn, allQuestions) {
-    const chapterFilterSelect = document.getElementById('chapterFilterSelect');
-    const selectedChapter = chapterFilterSelect.value;
-    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
-
-    sectionFilterSelect.innerHTML = '<option value="" selected>All Sections</option>';
-
-    if (selectedChapter) {
-        // Get unique sections for the selected chapter
-        const sections = [...new Set(
-            allQuestions
-                .filter(q => q.chapter === selectedChapter)
-                .map(q => q.section)
-        )].sort();
-        
-        sections.forEach(section => {
-            const option = document.createElement('option');
-            option.value = section;
-            option.textContent = `Section ${section}`;
-            sectionFilterSelect.appendChild(option);
-        });
-    }
-}
-
-function updateFilters(isbn, allQuestions) {
-    const testFilterSelect = document.getElementById('testFilterSelect');
-    const chapterFilterSelect = document.getElementById('chapterFilterSelect');
-    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
-    const typeFilterSelect = document.getElementById('typeFilterSelect');
-    
-    const selectedTestIndex = testFilterSelect.value;
-    const selectedChapter = chapterFilterSelect.value;
-    const selectedSection = sectionFilterSelect.value;
-    const selectedType = typeFilterSelect.value;
-
-    // Filter questions based on selections
-    let filteredQuestions = [...allQuestions];
-
-    // Filter by Test
-    if (selectedTestIndex !== '') {
-        const testList = [];
-        if (masterTestList[isbn]['drafts']) testList.push(...masterTestList[isbn]['drafts']);
-        if (masterTestList[isbn]['published']) testList.push(...masterTestList[isbn]['published']);
-        
-        const selectedTest = testList[selectedTestIndex];
-        if (selectedTest) {
-            // Extract all question IDs from the test
-            const testQuestionIds = [];
-            selectedTest.parts.forEach(part => {
-                part.sections.forEach(section => {
-                    section.questions.forEach(question => {
-                        // Assuming questions have some identifier properties
-                        if (question.chapter && question.section && question.type && question.index) {
-                            testQuestionIds.push(`${question.type}-${question.index}`);
-                        }
-                    });
-                });
-            });
-            
-            // Filter questions that are in this test
-            filteredQuestions = filteredQuestions.filter(item => {
-                const questionId = `${item.type}-${item.index}`;
-                return testQuestionIds.includes(questionId);
-            });
-        }
-    }
-
-    // Filter by Chapter
-    if (selectedChapter !== '') {
-        filteredQuestions = filteredQuestions.filter(item => item.chapter === selectedChapter);
-    }
-
-    // Filter by Section
-    if (selectedSection !== '') {
-        filteredQuestions = filteredQuestions.filter(item => item.section === selectedSection);
-    }
-    
-    // Filter by Type
-    if (selectedType !== '') {
-        filteredQuestions = filteredQuestions.filter(item => item.type === selectedType);
-    }
-
-    // Update displayed questions
-    const questionContainer = document.getElementById('questionListContainer');
-    displayBonusQuestions(filteredQuestions, questionContainer);
-}
-
-function addSelectedBonusQuestions(allQuestions) {
+/**
+ * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open
+ * Precondition: valid courseID, bonus questions selected
+ * Postcondition: bonus questions are added to the template or test
+*/
+function addSelectedBonusQuestions(courseID) {
     const modalBody = document.getElementById("questionModalBody");
-    const isbn = modalBody.dataset.isbn;
-    
-    const checkboxes = document.querySelectorAll('#questionModalBody input[type="checkbox"]:checked');
-    
-    if (checkboxes.length === 0) {
+    const checkboxes = modalBody.querySelectorAll('input[type="checkbox"]:checked');
+    const selectedQuestions = Array.from(checkboxes).map(cb => cb.value);
+
+    if (selectedQuestions.length === 0) {
         alert("Please select at least one question.");
         return;
     }
-    
-    // Get the question IDs from the selected checkboxes
-    const selectedQuestionIds = Array.from(checkboxes).map(cb => cb.dataset.id);
-    
-    // Find the bonus section container - use the correct ID based on your HTML structure
-    const bonusSectionContainer = document.getElementById(`bonus-section-container`);
-    if (!bonusSectionContainer) {
-        alert("Error: Could not find the bonus section container.");
-        return;
-    }
-    
-    const selectedQuestionsDiv = bonusSectionContainer.querySelector('.selected-questions');
-    if (!selectedQuestionsDiv) {
-        alert("Error: Could not find the selected questions container.");
-        return;
-    }
-    
-    // Clear existing questions if needed or append to existing
-    // selectedQuestionsDiv.innerHTML = '';
-    
-    // Add selected questions to the UI
-    selectedQuestionIds.forEach(questionId => {
-        const [type, index] = questionId.split('-');
-        
-        // Find the question in masterQuestionList
-        let question = null;
-        let chapter = null;
-        let section = null;
-        
-        // Find the first matching question
-        for (const ch in masterQuestionList[isbn]) {
-            for (const sec in masterQuestionList[isbn][ch]) {
-                if (masterQuestionList[isbn][ch][sec][type] && 
-                    masterQuestionList[isbn][ch][sec][type][index]) {
-                    question = masterQuestionList[isbn][ch][sec][type][index];
-                    chapter = ch;
-                    section = sec;
-                    break;
-                }
-            }
-            if (question) break;
-        }
-        
-        if (!question) {
-            console.error(`Question not found: ${questionId}`);
-            return;
-        }
-        
-        // Create question element
-        const questionElement = document.createElement("div");
-        questionElement.style.padding = "8px";
-        questionElement.style.margin = "5px 0";
-        questionElement.style.backgroundColor = "#f0f0f0";
-        questionElement.style.borderRadius = "4px";
-        
-        // Set data attributes for later use
-        questionElement.dataset.questionIndex = index;
-        questionElement.dataset.chapter = chapter;
-        questionElement.dataset.section = section;
-        questionElement.dataset.type = type;
-        questionElement.dataset.bonusId = questionId;
-        
-        questionElement.innerHTML = `
-            <p><strong>${type.toUpperCase()} Question ${index}</strong>: ${question.text}</p>
-            <label>Points: </label>
-            <input type="number" class="question-points" min="1" value="${question.score || 1}" style="width: 60px;">
-            <button onclick="removeSelectedQuestion(this.parentNode)">Remove</button>
-        `;
-        
-        selectedQuestionsDiv.appendChild(questionElement);
-    });
-    
-    // Update template bonus questions
-    const templateIndex = document.getElementById("templateSelector").value;
-    if (templateIndex && masterTemplateList[isbn][templateIndex]) {
-        // Initialize bonus section if needed
-        if (!masterTemplateList[isbn][templateIndex].bonusSection) {
-            masterTemplateList[isbn][templateIndex].bonusSection = true;
-        }
-        
-        // Initialize bonus questions array if needed
-        if (!masterTemplateList[isbn][templateIndex].bonusQuestions) {
-            masterTemplateList[isbn][templateIndex].bonusQuestions = [];
-        }
-        
-        // Add selected question IDs
-        selectedQuestionIds.forEach(questionId => {
-            if (!masterTemplateList[isbn][templateIndex].bonusQuestions.includes(questionId)) {
-                masterTemplateList[isbn][templateIndex].bonusQuestions.push(questionId);
-            }
-        });
-    }
 
-    alert(`Added ${selectedQuestionIds.length} bonus questions`);
+    masterTemplateList[courseID].bonusQuestions = selectedQuestions;
     closeQuestionModal();
-}
-
-function removeSelectedQuestion(questionElement) {
-    // Get the question identifier from the data attributes
-    const questionId = questionElement.dataset.bonusId;
-    const isbn = document.getElementById("questionModalBody").dataset.isbn || 
-                 document.getElementById("nameField").dataset.isbn;
-    
-    // Remove the question from the UI
-    questionElement.parentNode.removeChild(questionElement);
-    
-    // Get the current template index
-    const templateIndex = document.getElementById("templateSelector").value;
-    
-    console.log(`Removed bonus question ID: ${questionId} from UI`);
-    
-    const bonusSectionContainer = document.getElementById('bonus-section-container');
-    if (bonusSectionContainer) {
-        const selectedQuestionsDiv = bonusSectionContainer.querySelector('.selected-questions');
-        if (selectedQuestionsDiv && selectedQuestionsDiv.children.length === 0) {
-            selectedQuestionsDiv.innerHTML = '<p style="font-style: italic; color: #888;">No bonus questions selected</p>';
-        }
-    }
+    alert(`Added ${selectedQuestions.length} bonus questions.`);
 }
 
 /**
@@ -3691,8 +3098,8 @@ function removeSelectedQuestion(questionElement) {
  * Precondition: valid attachmentIndex and courseID
  * Postcondition: the attachment editer is opened
 */
-function editAttachment(isbn, attachmentIndex) {
-    const attachment = masterAttachmentList[isbn][attachmentIndex];
+function editAttachment(courseID, attachmentIndex) {
+    const attachment = masterAttachmentList[courseID][attachmentIndex];
 
     // Open the edit modal and populate it with the attachment data
     const modal = document.getElementById('editModal');
@@ -3704,7 +3111,7 @@ function editAttachment(isbn, attachmentIndex) {
     const formContent = `
         <label>Attachment Name:</label><br/>
         <input type="text" id="editAttachmentName" value="${attachment.name}"><br><br>
-        <button class="add-btn" onclick="submitEditAttachment('${isbn}', ${attachmentIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditAttachment('${courseID}', ${attachmentIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -3719,7 +3126,7 @@ function editAttachment(isbn, attachmentIndex) {
  * Precondition: valid courseID, attachmentIndex
  * Postcondition: attachment is renamed
 */
-function submitEditAttachment(isbn, attachmentIndex) {
+function submitEditAttachment(courseID, attachmentIndex) {
     const newName = document.getElementById('editAttachmentName').value.trim();
 
     if (!newName) {
@@ -3727,8 +3134,8 @@ function submitEditAttachment(isbn, attachmentIndex) {
         return;
     }
 
-    masterAttachmentList[isbn][attachmentIndex].name = newName;
-    updateAttachments(isbn);
+    masterAttachmentList[courseID][attachmentIndex].name = newName;
+    updateAttachments(courseID);
     closeModal();
     alert("Attachment renamed successfully!");
 }
@@ -3739,10 +3146,10 @@ function submitEditAttachment(isbn, attachmentIndex) {
  * Postcondition: attachment is deleted from the master list
  * TODO: Prohibit deletion of published attachments, track published attachments using ID or hash
 */
-function deleteAttachment(isbn, attachmentIndex) {
+function deleteAttachment(courseID, attachmentIndex) {
     if (confirm("Are you sure you want to delete this attachment? This action cannot be undone.")) {
-        masterAttachmentList[isbn].splice(attachmentIndex, 1);
-        updateAttachments(isbn);
+        masterAttachmentList[courseID].splice(attachmentIndex, 1);
+        updateAttachments(courseID);
         alert("Attachment deleted successfully!");
     }
 }
@@ -3752,325 +3159,148 @@ function deleteAttachment(isbn, attachmentIndex) {
  * Precondition: valid courseID, isPublished, testIndex
  * Postcondition: test is edited and saved in the master list
 */
-function submitEditedTest(isbn, isPublished, testIndex) {
-    try {
-        // Validate test name
-        const testName = document.getElementById("nameField").value.trim();
-        if (!testName) {
-            alert("Test Name is required.");
-            return;
-        }
+function submitEditedTest(courseID, isPublished, testIndex) {
+    const testName = document.getElementById("nameField").value.trim();
+    if (!testName) {
+        alert("Test Name is required.");
+        return;
+    }
 
-        // Validate template selection
-        const templateIndex = document.getElementById("templateSelector").value;
-        if (!templateIndex) {
-            alert("Please select a template first");
-            return;
-        }
+    const templateIndex = document.getElementById("templateSelector").value;
+    if (!templateIndex) {
+        alert("Please select a template first");
+        return;
+    }
 
-        // Verify template exists
-        if (!masterTemplateList[isbn] || !masterTemplateList[isbn][templateIndex]) {
-            alert("Selected template not found. Please try again.");
-            return;
-        }
-        
-        const template = masterTemplateList[isbn][templateIndex];
-        
-        // Initialize test data structure
-        const testData = {
-            name: testName,
-            template: template,
-            templateName: template.name,
-            templateIndex: templateIndex,
-            parts: [],
-            bonusQuestions: [], // Added to match editTest functionality
-            feedback: []
+    const template = masterTemplateList[courseID][templateIndex];
+    
+    let usedQuestions = [];
+
+    const testData = {
+        name: testName,
+        template: template,
+        templateName: template.name,
+        templateIndex: templateIndex,
+        parts: [],
+        feedback: []
+    };
+
+    // Loop through all parts and sections rendered in the UI
+    const testParts = document.getElementById("testParts");
+    const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
+    let noquestions = true;
+    partContainers.forEach((partContainer, partIndex) => {
+        const partData = {
+            partNumber: partIndex + 1,
+            sections: []
         };
 
-        // Track used questions for later reference
-        const usedQuestions = [];
-        let hasQuestions = false;
+        // Find all section containers within this part
+        const sectionContainers = partContainer.querySelectorAll('[id^="part-' + partIndex + '-section-"]');
 
-        // Process test parts
-        const testParts = document.getElementById("testParts");
-        const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
-        
-        // Validate structure matches template
-        if (!template.partStructure || partContainers.length !== template.partStructure.length) {
-            alert("Test structure doesn't match the selected template. Please recreate the test.");
-            return;
-        }
+        sectionContainers.forEach((sectionContainer, sectionIndex) => {
+            const questionType = template.partStructure[partIndex].sections[sectionIndex].questionType;
+            const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
 
-        // Process each part
-        for (let partIndex = 0; partIndex < partContainers.length; partIndex++) {
-            const partContainer = partContainers[partIndex];
-            const partData = {
-                partNumber: partIndex + 1,
-                sections: []
-            };
-
-            const sectionContainers = partContainer.querySelectorAll(`[id^="part-${partIndex}-section-"][id$="-container"]`);
-            
-            // Check if sections match template
-            if (!template.partStructure[partIndex].sections || 
-                sectionContainers.length !== template.partStructure[partIndex].sections.length) {
-                alert(`Part ${partIndex + 1} structure doesn't match the template. Please recreate the test.`);
+            // Skip sections with no questions
+            if (!selectedQuestionsDiv || !selectedQuestionsDiv.children.length) {
                 return;
             }
 
-            // Process each section
-            for (let sectionIndex = 0; sectionIndex < sectionContainers.length; sectionIndex++) {
-                const sectionContainer = sectionContainers[sectionIndex];
-                
-                // Get question type from template
-                const questionType = template.partStructure[partIndex]?.sections[sectionIndex]?.questionType;
-                if (!questionType) {
-                    alert(`Invalid question type for part ${partIndex + 1}, section ${sectionIndex + 1}`);
-                    return;
+            const sectionData = {
+                sectionNumber: sectionIndex + 1,
+                questionType: questionType,
+                questions: []
+            };
+
+            // Get all question divs (skip the first child which is the section points setter)
+            const questionDivs = selectedQuestionsDiv.querySelectorAll('div[style*="border-radius"]');
+
+            questionDivs.forEach((questionDiv) => {
+                const questionIndex = questionDiv.dataset.questionIndex;
+                const pointsInput = questionDiv.querySelector('.question-points');
+                const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
+
+                // Get the question from master list and clone it
+                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]));
+
+                // Update points for this clone if they were changed
+                question.score = points;
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
+                // Add to the questions for this section
+                sectionData.questions.push(question);
+                noquestions=false;
+                // Set the published key to 1 if the test is published
+                if (isPublished === 'true') {
+                    masterQuestionList[courseID][questionType.toLowerCase()][questionIndex].published = 1;
                 }
+            });
+            if(noquestions){
+                alert("Please select questions for each section");
+                return;
+            }
+            partData.sections.push(sectionData);
+        });
 
-                const sectionData = {
-                    sectionNumber: sectionIndex + 1,
-                    questionType: questionType,
-                    questions: []
-                };
+        testData.parts.push(partData);
+    });
 
-                // Find selected questions for this section
-                const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
-                
-                // If no questions are displayed, check if we're editing an existing test
-                if (!selectedQuestionsDiv || selectedQuestionsDiv.children.length === 0) {
-                    if (testIndex !== undefined && 
-                        masterTestList[isbn]?.['drafts']?.[testIndex]?.parts?.[partIndex]?.sections?.[sectionIndex]) {
-                        
-                        // Copy existing questions from the draft
-                        const existingQuestions = masterTestList[isbn]['drafts'][testIndex].parts[partIndex].
-                                                sections[sectionIndex].questions;
-                        
-                        sectionData.questions = existingQuestions.map(q => {
-                            // Create a proper deep copy
-                            const question = structuredClone(q) || JSON.parse(JSON.stringify(q));
-                            usedQuestions.push({
-                                question: q,
-                                path: {
-                                    chapter: q.chapter || "unknown",
-                                    section: q.section || "unknown",
-                                    type: questionType.toLowerCase(),
-                                    index: q.index || 0
-                                }
-                            });
-                            return question;
-                        });
-                        
-                        hasQuestions = hasQuestions || existingQuestions.length > 0;
-                    } else {
-                        alert(`Please select questions for part ${partIndex + 1}, section ${sectionIndex + 1}`);
-                        return;
+    if (template.bonusSection) {
+        const bonusPart = {
+            partNumber: testData.parts.length + 1,
+            sections: [{
+                sectionNumber: 1,
+                questionType: 'bonus',
+                questions: template.bonusQuestions.map(q => {
+                    const [type, index] = q.split('-');
+                    const question = masterQuestionList[courseID][type][index];
+                    if (isPublished === 'true') {
+                        question.published = 1;
                     }
-                } else {
-                    // Process newly selected questions
-                    const questionDivs = selectedQuestionsDiv.querySelectorAll('div[style*="background-color"]');
-                    
-                    if (questionDivs.length === 0) {
-                        alert(`Please select questions for part ${partIndex + 1}, section ${sectionIndex + 1}`);
-                        return;
-                    }
-                    
-                    for (const questionDiv of questionDivs) {
-                        const questionIndex = questionDiv.dataset.questionIndex;
-                        const chapter = questionDiv.dataset.chapter || 
-                                        template.partStructure[partIndex].sections[sectionIndex].chapter;
-                        const section = questionDiv.dataset.section || 
-                                        template.partStructure[partIndex].sections[sectionIndex].section;
-                        const type = questionDiv.dataset.type || questionType.toLowerCase();
-
-                        if (!questionIndex) {
-                            alert(`Invalid question reference found. Please recreate the selection.`);
-                            return;
-                        }
-
-                        // Get the source question
-                        const sourceQuestionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                        if (!sourceQuestionList) {
-                            alert(`Cannot find questions of type ${type} in chapter ${chapter}, section ${section}`);
-                            return;
-                        }
-                        
-                        const originalQuestion = sourceQuestionList[questionIndex];
-                        if (!originalQuestion) {
-                            alert(`Question index ${questionIndex} not found in ${type} list`);
-                            return;
-                        }
-
-                        // Get points for the question
-                        const pointsInput = questionDiv.querySelector('.question-points');
-                        const points = pointsInput && !isNaN(parseInt(pointsInput.value)) ? 
-                                      parseInt(pointsInput.value) : 1;
-
-                        // Create a deep copy of the question
-                        const question = structuredClone(originalQuestion) || 
-                                        JSON.parse(JSON.stringify(originalQuestion));
-                        
-                        // Add necessary metadata
-                        question.score = points;
-                        question.chapter = chapter;
-                        question.section = section;
-                        question.type = type;
-                        question.index = questionIndex;
-                        
-                        // Track for later reference
-                        usedQuestions.push({
-                            question: originalQuestion,
-                            path: {
-                                chapter,
-                                section,
-                                type,
-                                index: questionIndex
-                            }
-                        });
-
-                        sectionData.questions.push(question);
-                        hasQuestions = true;
-                    }
-                }
-
-                partData.sections.push(sectionData);
-            }
-
-            testData.parts.push(partData);
-        }
-
-        // Validate that questions were selected
-        if (!hasQuestions) {
-            alert("Please select at least one question for the test");
-            return;
-        }
-
-        // Process bonus questions
-        const bonusSectionContainer = document.getElementById("bonus-section-container");
-        if (bonusSectionContainer) {
-            const selectedBonusQuestionsDiv = bonusSectionContainer.querySelector('.selected-questions');
-            if (selectedBonusQuestionsDiv) {
-                const bonusQuestionDivs = selectedBonusQuestionsDiv.querySelectorAll('div[style*="background-color"]');
-                
-                for (const questionDiv of bonusQuestionDivs) {
-                    const bonusId = questionDiv.dataset.bonusId;
-                    if (bonusId) {
-                        testData.bonusQuestions.push(bonusId);
-                        
-                        // Add to used questions list
-                        const [type, index] = bonusId.split('-');
-                        if (type && index) {
-                            const chapter = "bonus";
-                            const section = "1";
-                            
-                            const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                            if (questionList && questionList[index]) {
-                                usedQuestions.push({
-                                    question: questionList[index],
-                                    path: {
-                                        chapter,
-                                        section,
-                                        type,
-                                        index
-                                    }
-                                });
-                            }
-                        }
-                    }
-                }
-            } else if (testIndex !== undefined && masterTestList[isbn]?.['drafts']?.[testIndex]?.bonusQuestions) {
-                // Use existing bonus questions if editing
-                testData.bonusQuestions = [...masterTestList[isbn]['drafts'][testIndex].bonusQuestions];
-                
-                // Add to used questions list
-                for (const bonusId of testData.bonusQuestions) {
-                    const [type, index] = bonusId.split('-');
-                    if (type && index) {
-                        const chapter = "bonus";
-                        const section = "1";
-                        
-                        const questionList = masterQuestionList[isbn]?.[chapter]?.[section]?.[type];
-                        if (questionList && questionList[index]) {
-                            usedQuestions.push({
-                                question: questionList[index],
-                                path: {
-                                    chapter,
-                                    section,
-                                    type,
-                                    index
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Initialize data structures if needed
-        if (!masterTestList[isbn]) {
-            masterTestList[isbn] = { drafts: [], published: [] };
-        }
-
-        const draftsList = masterTestList[isbn].drafts;
-        const publishedList = masterTestList[isbn].published;
-
-        // Handle publishing logic
-        const isBeingPublished = isPublished === 'true';
-        if (isBeingPublished) {
-            // Remove from drafts if it exists
-            if (testIndex !== undefined && testIndex >= 0 && testIndex < draftsList.length) {
-                draftsList.splice(testIndex, 1);
-            }
-            testData.published = 1;
-            publishedList.push(testData);
-            
-            // Mark template as published
-            if (masterTemplateList[isbn][templateIndex]) {
-                masterTemplateList[isbn][templateIndex].published = 1;
-            }
-            
-            // Mark cover page as published if it exists
-            const coverPageIndex = template.coverPageType;
-            if (coverPageIndex && masterCoverPageList[isbn]?.[coverPageIndex]) {
-                masterCoverPageList[isbn][coverPageIndex].published = 1;
-            }
-        } else {
-            // Update or add draft test
-            if (testIndex !== undefined && testIndex >= 0 && testIndex < draftsList.length) {
-                draftsList[testIndex] = testData;
-            } else {
-                draftsList.push(testData);
-            }
-        }
-
-        // Update question references
-        for (const {question, path} of usedQuestions) {
-            if (!question.tests) question.tests = [];
-            if (!question.tests.includes(testData.name)) {
-                question.tests.push(testData.name);
-            }
-            
-            // Mark as published if needed
-            if (isBeingPublished) {
-                // Get the actual source question and mark it published
-                const sourceQuestionList = masterQuestionList[isbn]?.[path.chapter]?.[path.section]?.[path.type];
-                if (sourceQuestionList && sourceQuestionList[path.index]) {
-                    sourceQuestionList[path.index].published = 1;
-                }
-            }
-        }
-
-        alert(`Test "${testName}" saved successfully as ${isBeingPublished ? "Published" : "Draft"}!`);
-        updateTestTabs(isbn);
-        closeModal();
-        
-    } catch (error) {
-        console.error("Error saving test:", error);
-        alert("An error occurred while saving the test. Please try again.");
+                    return question;
+                })
+            }]
+        };
+        testData.parts.push(bonusPart);
     }
-}
 
+    // Save the test data
+    if (!masterTestList[courseID]) {
+        masterTestList[courseID] = { drafts: [], published: [] };
+    }
+
+    const draftsList = masterTestList[courseID].drafts;
+    const publishedList = masterTestList[courseID].published;
+
+    if (isPublished === 'true') {
+        // Remove from drafts and add to published
+        draftsList.splice(testIndex, 1);
+        testData.published = 1;
+        publishedList.push(testData);
+    } else {
+        // Update the draft test
+        draftsList[testIndex] = testData;
+    }
+
+    // Set the published key for the template and cover page if the test is published
+    if (isPublished === 'true') {
+        masterTemplateList[courseID][templateIndex].published = 1;
+        const coverPageIndex = template.coverPageType;
+        if (masterCoverPageList[courseID][coverPageIndex]) {
+            masterCoverPageList[courseID][coverPageIndex].published = 1;
+        }
+    }
+
+    usedQuestions.forEach(question => {
+        question.tests.push(testData.name);
+        console.log("Updated question:", question);
+        console.log("Question published value:", question.published);
+    });
+
+    alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
+    updateTestTabs(courseID);
+    closeModal();
+}
 
 /**
  * This function opens up the modal to produce a feedback form
@@ -4083,11 +3313,11 @@ function addFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     if (itemType === 'question') {
-        const question = masterQuestionList[isbn][questionType][itemIndex];
+        const question = masterQuestionList[courseID][questionType][itemIndex];
 
         // Open the feedback modal and populate it with the feedback form
         const modal = document.getElementById('editModal');
@@ -4103,7 +3333,7 @@ function addFeedback() {
             <input type="number" id="feedbackAverageScore" min="0"><br><br>
             <label>Comments:</label><br/>
             <textarea id="feedbackComments" rows="4"></textarea><br><br>
-            <button class="add-btn" onclick="submitFeedback('${isbn}', '${questionType}', ${itemIndex})">Submit Feedback</button>
+            <button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemIndex})">Submit Feedback</button>
         `;
 
         modalBody.innerHTML = formContent;
@@ -4112,7 +3342,7 @@ function addFeedback() {
             modal.style.opacity = '1';
         }, 10);
     } else if (itemType === 'test') {
-        const test = masterTestList[isbn]['drafts'][itemIndex] || masterTestList[isbn]['published'][itemIndex];
+        const test = masterTestList[courseID]['drafts'][itemIndex] || masterTestList[courseID]['published'][itemIndex];
 
         // Open the feedback modal and populate it with the feedback form
         const modal = document.getElementById('editModal');
@@ -4128,7 +3358,7 @@ function addFeedback() {
             <input type="number" id="feedbackAverageScore" min="0"><br><br>
             <label>Comments:</label><br/>
             <textarea id="feedbackComments" rows="4"></textarea><br><br>
-            <button class="add-btn" onclick="submitTestFeedback('${isbn}', ${itemIndex})">Submit Feedback</button>
+            <button class="add-btn" onclick="submitTestFeedback('${courseID}', ${itemIndex})">Submit Feedback</button>
         `;
 
         modalBody.innerHTML = formContent;
@@ -4146,7 +3376,7 @@ function addFeedback() {
  * Precondition: valid courseID, questionType, questionIndex
  * Postcondition: feedback is submitted and saved in the master list
 */
-function submitFeedback(isbn, questionType, questionIndex) {
+function submitFeedback(courseID, questionType, questionIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -4165,7 +3395,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
     }
 
     const feedback = {
-        username: isbn, // Using courseID as the username for now
+        username: courseID, // Using courseID as the username for now
         rating: rating,
         averageScore: averageScore,
         comments: comments,
@@ -4173,7 +3403,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
         responses: []
     };
 
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     if (!question.feedback) {
         question.feedback = [];
     }
@@ -4181,7 +3411,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
 
     alert("Feedback submitted successfully!");
     closeModal();
-    viewQuestionFeedback(isbn, questionType, questionIndex);
+    viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
 /**
@@ -4189,7 +3419,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
  * Precondition: valid courseID, testIndex
  * Postcondition: feedback is submitted and saved in the master list
 */
-function submitTestFeedback(isbn, testIndex) {
+function submitTestFeedback(courseID, testIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -4208,7 +3438,7 @@ function submitTestFeedback(isbn, testIndex) {
     }
 
     const feedback = {
-        username: isbn, // Using courseID as the username for now
+        username: courseID, // Using courseID as the username for now
         rating: rating,
         averageScore: averageScore,
         comments: comments,
@@ -4216,7 +3446,7 @@ function submitTestFeedback(isbn, testIndex) {
         responses: []
     };
 
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
     if (!test.feedback) {
         test.feedback = [];
     }
@@ -4224,7 +3454,7 @@ function submitTestFeedback(isbn, testIndex) {
 
     alert("Feedback submitted successfully!");
     closeModal();
-    viewTestFeedback(isbn, testIndex);
+    viewTestFeedback(courseID, testIndex);
 }
 
 /**
@@ -4237,13 +3467,13 @@ function viewFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     if (itemType === 'question') {
-        viewQuestionFeedback(isbn, questionType, itemIndex);
+        viewQuestionFeedback(courseID, questionType, itemIndex);
     } else if (itemType === 'test') {
-        viewTestFeedback(isbn, itemIndex);
+        viewTestFeedback(courseID, itemIndex);
     } else {
         alert("Feedback can only be viewed for questions and tests.");
     }
@@ -4254,8 +3484,8 @@ function viewFeedback() {
  * Precondition: valid courseID, questionType, questionIndex
  * Postcondition: feedback is displayed in the modal
 */
-function viewQuestionFeedback(isbn, questionType, questionIndex) {
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+function viewQuestionFeedback(courseID, questionType, questionIndex) {
+    const question = masterQuestionList[courseID][questionType][questionIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -4284,7 +3514,7 @@ function viewQuestionFeedback(isbn, questionType, questionIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitResponse('${isbn}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitResponse('${courseID}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -4302,8 +3532,8 @@ function viewQuestionFeedback(isbn, questionType, questionIndex) {
  * Precondition: valid courseID, testIndex
  * Postcondition: feedback is displayed in the modal
 */
-function viewTestFeedback(isbn, testIndex) {
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+function viewTestFeedback(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -4332,7 +3562,7 @@ function viewTestFeedback(isbn, testIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitTestResponse('${isbn}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitTestResponse('${courseID}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -4350,7 +3580,7 @@ function viewTestFeedback(isbn, testIndex) {
  * Precondition: valid courseID, questionType, questionIndex, feedbackIndex
  * Postcondition: response is submitted and saved in the master list, displayed on the review page
 */
-function submitResponse(isbn, questionType, questionIndex, feedbackIndex) {
+function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -4359,16 +3589,16 @@ function submitResponse(isbn, questionType, questionIndex, feedbackIndex) {
     }
 
     const response = {
-        username: isbn, // Using courseID as the username for now
+        username: courseID, // Using courseID as the username for now
         text: responseText,
         date: new Date().toLocaleString()
     };
 
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
 
     alert("Response submitted successfully!");
-    viewQuestionFeedback(isbn, questionType, questionIndex);
+    viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
 /**
@@ -4376,7 +3606,7 @@ function submitResponse(isbn, questionType, questionIndex, feedbackIndex) {
  * Precondition: valid courseID, testIndex, feedbackIndex
  * Postcondition: response is submitted and saved in the master list, displayed on the review page
 */
-function submitTestResponse(isbn, testIndex, feedbackIndex) {
+function submitTestResponse(courseID, testIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -4385,16 +3615,16 @@ function submitTestResponse(isbn, testIndex, feedbackIndex) {
     }
 
     const response = {
-        username: isbn, // Using courseID as the username for now
+        username: courseID, // Using courseID as the username for now
         text: responseText,
         date: new Date().toLocaleString()
     };
 
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
     test.feedback[feedbackIndex].responses.push(response);
 
     alert("Response submitted successfully!");
-    viewTestFeedback(isbn, testIndex);
+    viewTestFeedback(courseID, testIndex);
 }
 
 /**
