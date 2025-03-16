@@ -439,19 +439,19 @@ from django.shortcuts import render
 
 #each of these functions renders a different html file
 def home(request):  
-    return render(request, 'quiz/home.html')
+    return render(request, 'welcome/home.html')
 
 def login_view(request):
-    return render(request, 'quiz/login.html')
+    return render(request, 'welcome/login.html')
 
 def signup_view(request):
-    return render(request, 'quiz/signup.html')
+    return render(request, 'welcome/signup.html')
 
 def teacher_dashboard(request):
-    return render(request, 'quiz/SBteacher.htm')
+    return render(request, 'welcome/SBteacher.htm')
 
 def publisher_dashboard(request):
-    return render(request, 'quiz/SBpublisher.htm')
+    return render(request, 'welcome/SBpublisher.htm')
 
 def login_view(request):
     return render(request, 'welcome/login.html')

@@ -30,8 +30,41 @@ font-family: Garamond, serif;
 			<label for="publisher">I am a publisher</label><br><br>
 			<input type="submit" value="Sign Up"><br/><br/>
 		</form>
-		<button onclick="location.href={% url 'home' %}">Back to Home</button>
+		<button onclick="location.href='{% url 'home' %}'">Back to Home</button>
+
 </div>
+	<script>
+    // Wait until the DOM is fully loaded.
+    document.addEventListener("DOMContentLoaded", function() {
+      // Attach click event to the "Back to Home" button.
+      document.getElementById('backHome').addEventListener('click', function() {
+        window.location.href = "{% url 'home' %}";
+      });
+
+      // Listen for the signup form submission.
+      document.getElementById('signupForm').addEventListener('submit', function(e) {
+        // Get the selected role radio button.
+        var roleRadio = document.querySelector('input[name="role"]:checked');
+
+        if (roleRadio) {
+          // Change the form's action based on the role.
+
+          if (roleRadio.value === "Teacher") {
+            this.action = "SBteacher.html"; // redirect to teacher page
+
+          } else if (roleRadio.value === "Publisher") {
+            this.action = "SBpublisher.html"; // redirect to publisher page
+          }
+            
+        } else {
+          // If no role is selected, you might want to prevent form submission and alert the user.
+          e.preventDefault();
+          alert("Please select a role: Teacher or Publisher.");
+        }
+      });
+    });
+  </script>
+
 
 </body>
 </html>
