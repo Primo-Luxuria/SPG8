@@ -1033,8 +1033,8 @@ function addQuestion(isbn) {
     const graphic = document.getElementById("qGraphicField").value;
     const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
-    const chapter = document.getElementById("qChapter").value;
-    const section = document.getElementById("qSection").value;
+    const chapter = document.getElementById("qChapter").value.trim();
+    const section = document.getElementById("qSection").value.trim();
 
     if (!text || !type || !points || !instructions || !time || !chapter || !section) {
         alert("Some fields (Question, Question Type, Default Point Value, Chapter, Section, and Grading Instructions) are required.");

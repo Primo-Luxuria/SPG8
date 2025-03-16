@@ -399,7 +399,7 @@ function openEditor(type, courseID) {
 
             <label>Point Value:</label><br/>
             <input type="number" id="pointValueField" min="1"><br><br>
-            
+
             <label for="qChapter" >Chapter:</label><br/>    
             <input type="number" id="qChapter" min="1"><br><br>
 
@@ -654,11 +654,6 @@ function updateGraphicSelectors(courseID) {
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
-
-    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
-        alert("No attachments available for this course!");
-        return;
-    }
 
     masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
@@ -1071,11 +1066,11 @@ function addQuestion(courseID) {
     const graphic = document.getElementById("qGraphicField").value;
     const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
-    const chapter = document.getElementById("qChapter").value;
-    const section = document.getElementById("qSection").value;
+    const chapter = document.getElementById("qChapter").value.trim();
+    const section = document.getElementById("qSection").value.trim();
 
-    if (!text || !type || !points || !instructions || !time) {
-        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required.");
+    if (!text || !type || !points || !instructions || !time || !chapter || !section) {
+        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
         return;
     }
 
@@ -1137,9 +1132,9 @@ function addQuestion(courseID) {
         comments: instcomm,
         prompts: prompts,
         options: options,
-        chapter: chapter || 0,
-        section: section || 0,
         tests: [],
+        chapter: chapter,
+        section: section,
         published: 0
     };
 
@@ -1445,7 +1440,7 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     modalBody.innerHTML = ""; // Clear existing content
 
     // Store the part/section info in the modal for later use
-    modalBody.dataset.isbn = courseID;
+    modalBody.dataset.courseID = courseID;
     modalBody.dataset.partNum = partNum;
     modalBody.dataset.sectionNum = sectionNum;
     modalBody.dataset.questionType = type;
@@ -1455,8 +1450,9 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     filterContainer.style.marginBottom = '8px';
     filterContainer.style.borderBottom = '1px solid #ccc';
 
-    // Filter by Test
-    const testFilterLabel = document.createElement('label');
+    
+// Filter by Test
+const testFilterLabel = document.createElement('label');
     testFilterLabel.textContent = 'Filter by Test:';
     filterContainer.appendChild(testFilterLabel);
 
@@ -1592,7 +1588,6 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     });
 }
 
-// Helper function to render questions
 function renderQuestions(questions, container) {
     container.innerHTML = '';
     
@@ -1617,7 +1612,14 @@ function renderQuestions(questions, container) {
     });
 }
 
-// Function to filter questions based on selected filters
+
+
+/**
+ * Filters the type of questions that are selectable in the menu for the test editor
+ * Preconditions: valid courseID, type
+ * Postconditions: filters the questions by test and/or textbook chapter/section
+ * TODO: Complete textbook support
+*/
 function filterQuestions(courseID, type) {
     const questions = masterQuestionList[courseID][type];
     const testFilterValue = document.getElementById('testFilterSelect').value;
@@ -1686,6 +1688,7 @@ function filterQuestions(courseID, type) {
     });
 }
 
+
 /**
  * This adds the questions selected in the questionModal to the test editor.
  * It uses data included in the modalBody using the dataset property from HTMLElement
@@ -1694,7 +1697,7 @@ function filterQuestions(courseID, type) {
 */
 function addSelectedQuestions() {
     const modalBody = document.getElementById("questionModalBody");
-    const courseID = modalBody.dataset.courseId;
+    const courseID = modalBody.dataset.courseID;
     const partNum = parseInt(modalBody.dataset.partNum);
     const sectionNum = parseInt(modalBody.dataset.sectionNum);
     const type = modalBody.dataset.questionType;
@@ -1762,6 +1765,7 @@ function addSelectedQuestions() {
 
     closeQuestionModal();
 }
+
 
 function ShuffleArray(questionElements){
     for (let i = questionElements.length - 2; i > 0; i--) {
@@ -3120,7 +3124,6 @@ function openBonusQuestionModal(courseID) {
         modal.style.opacity = "1";
     }, 10);
 }
-
 
 /**
  * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open
