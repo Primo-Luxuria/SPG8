@@ -21,7 +21,11 @@ from django.urls import include, path
 from django.http import HttpResponse
 from django.shortcuts import render
 
+from welcome import views
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('welcome.urls')),
+    path("teacher/", views.teacher_view, name="teacher_view"),  # Load the HTM page
+    path('parse_qti_xml/', views.parse_qti_xml, name='parse_qti_xml'), # Process file (AJAX)
 ]
