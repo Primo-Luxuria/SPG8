@@ -35,11 +35,8 @@
     <div style="background:#e0e0e0;padding:20px;" id="userLookup">
         <h3>Choose your Search Query</h3>
         <select id="searchSelector">
-            <option value="Q">Search for Question</option>
-            <option value="U">Search for User</option>
-            <option value="C">Search for Cover Page</option>
-            <option value="T">Search for Template</option>
-            <option value="S">Search for Test</option>
+            <option value="UN">Search by Username</option>
+            <option value="ID">Search for User ID</option>
         </select>
         <button onclick="filterSearch()">Filter</button>
         <div id="searchContent"></div>
@@ -48,23 +45,8 @@
 <script>
     var userList = {};
 
-    function filterSearch(filter){
-        filter = document.getElementById("searchSelector").value().trim();
-        searchzone = document.getElementById("searchContent");
-        searchzone.InnerHTML = "";
-        switch(filter){
-            case Q:
-                break;
-            case U:
-                break;
-            case C: 
-                break;
-            
-            default:
-                alert("Invalid filter");
-                return;
-        }
-            
+    function filterSearch(){
+        
     }
 </script>
 </body>
