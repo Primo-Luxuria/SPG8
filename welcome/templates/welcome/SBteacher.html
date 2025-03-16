@@ -399,6 +399,12 @@ function openEditor(type, courseID) {
 
             <label>Point Value:</label><br/>
             <input type="number" id="pointValueField" min="1"><br><br>
+            
+            <label for="qChapter" >Chapter:</label><br/>    
+            <input type="number" id="qChapter" min="1"><br><br>
+
+            <label for="qSection" >Section:</label><br/> 
+            <input type="number" id="qSection" min="1"><br><br>
 
             <label>Estimated Time to Solve (Minutes):</label><br/>
             <input type="number" id="qTimeField" min="1"><br><br>
@@ -1065,6 +1071,8 @@ function addQuestion(courseID) {
     const graphic = document.getElementById("qGraphicField").value;
     const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
+    const chapter = document.getElementById("qChapter").value;
+    const section = document.getElementById("qSection").value;
 
     if (!text || !type || !points || !instructions || !time) {
         alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required.");
@@ -1129,6 +1137,8 @@ function addQuestion(courseID) {
         comments: instcomm,
         prompts: prompts,
         options: options,
+        chapter: chapter || 0,
+        section: section || 0,
         tests: [],
         published: 0
     };
@@ -1435,7 +1445,7 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     modalBody.innerHTML = ""; // Clear existing content
 
     // Store the part/section info in the modal for later use
-    modalBody.dataset.courseId = courseID;
+    modalBody.dataset.isbn = courseID;
     modalBody.dataset.partNum = partNum;
     modalBody.dataset.sectionNum = sectionNum;
     modalBody.dataset.questionType = type;
@@ -1461,45 +1471,58 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
         testFilterSelect.appendChild(option);
     });
     filterContainer.appendChild(testFilterSelect);
+    filterContainer.appendChild(document.createElement('br'));
 
-    // Filter by Textbook (commented form)
-    /*
-    const textbookFilterLabel = document.createElement('label');
-    textbookFilterLabel.textContent = 'Filter by Textbook Chapter:';
-    filterContainer.appendChild(textbookFilterLabel);
+    // Chapter Filter
+    const chapterFilterLabel = document.createElement('label');
+    chapterFilterLabel.textContent = 'Filter by Chapter:';
+    filterContainer.appendChild(chapterFilterLabel);
 
-    const textbookFilterSelect = document.createElement('select');
-    textbookFilterSelect.id = 'textbookFilterSelect';
-    textbookFilterSelect.innerHTML = '<option value="" selected>All Chapters</option>';
-    const textbook = courseList[courseID].textbook;
-    textbook.chapters.forEach((chapter, index) => {
+    const chapterFilterSelect = document.createElement('select');
+    chapterFilterSelect.id = 'chapterFilterSelect';
+    
+    // Add "All Chapters" option
+    const allChaptersOption = document.createElement('option');
+    allChaptersOption.value = "all";
+    allChaptersOption.textContent = "All Chapters";
+    chapterFilterSelect.appendChild(allChaptersOption);
+    
+    // Get unique chapters from questions
+    const chapters = [...new Set(questions.map(q => q.chapter))].sort((a, b) => a - b);
+    chapters.forEach(chapter => {
         const option = document.createElement('option');
-        option.value = index;
-        option.textContent = `Chapter ${index + 1}`;
-        textbookFilterSelect.appendChild(option);
+        option.value = chapter;
+        option.textContent = `Chapter ${chapter}`;
+        chapterFilterSelect.appendChild(option);
     });
-    filterContainer.appendChild(textbookFilterSelect);
-    */
-
+    filterContainer.appendChild(chapterFilterSelect);
+    filterContainer.appendChild(document.createElement('br'));
+    
+    // Section Filter (initially hidden)
+    const sectionFilterContainer = document.createElement('div');
+    sectionFilterContainer.id = 'sectionFilterContainer';
+    sectionFilterContainer.style.display = 'none';
+    sectionFilterContainer.style.marginTop = '5px';
+    
+    const sectionFilterLabel = document.createElement('label');
+    sectionFilterLabel.textContent = 'Filter by Section:';
+    sectionFilterContainer.appendChild(sectionFilterLabel);
+    
+    const sectionFilterSelect = document.createElement('select');
+    sectionFilterSelect.id = 'sectionFilterSelect';
+    sectionFilterContainer.appendChild(sectionFilterSelect);
+    
+    filterContainer.appendChild(sectionFilterContainer);
     modalBody.appendChild(filterContainer);
 
     const questionContainer = document.createElement('div');
+    questionContainer.id = 'questionContainer';
     questionContainer.style.padding = '5px';
     questionContainer.style.marginBottom = '8px';
     questionContainer.style.borderBottom = '1px solid #ccc';
 
-    questions.forEach((question, index) => {
-        const element = document.createElement("div");
-        element.style.padding = '8px';
-        element.style.margin = '5px 0';
-        element.style.backgroundColor = '#f0f0f0';
-        element.style.borderRadius = '4px';
-        element.innerHTML = `
-            <input type="checkbox" id="q-${index}" value="${index}">
-            <label for="q-${index}">${question.text} (${question.score} Points)</label>
-        `;   
-        questionContainer.appendChild(element);
-    });
+    // Display all questions initially
+    renderQuestions(questions, questionContainer);
 
     const submitButton = document.createElement('button');
     submitButton.className = 'add-btn';
@@ -1507,10 +1530,11 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
     submitButton.onclick = function() {
         addSelectedQuestions();
     };
-    questionContainer.appendChild(submitButton);
+    
+    modalBody.appendChild(questionContainer);
+    modalBody.appendChild(submitButton);
 
     modalTitle.innerText = `Select ${type.toUpperCase()} Questions`;
-    modalBody.appendChild(questionContainer);
 
     modal.style.display = "flex";
     setTimeout(() => {
@@ -1519,42 +1543,67 @@ function openQuestionModal(courseID, partNum, sectionNum, type) {
 
     // Add event listeners for filters
     testFilterSelect.addEventListener('change', () => filterQuestions(courseID, type));
-    // textbookFilterSelect.addEventListener('change', () => filterQuestions(courseID, type)); // Uncomment when implementing textbook filter
+    
+    // Chapter filter change event
+    chapterFilterSelect.addEventListener('change', function() {
+        const selectedChapter = this.value;
+        const sectionContainer = document.getElementById('sectionFilterContainer');
+        const sectionSelect = document.getElementById('sectionFilterSelect');
+        
+        // Clear and hide section filter if "All Chapters" is selected
+        if (selectedChapter === "all") {
+            sectionContainer.style.display = 'none';
+            sectionSelect.innerHTML = '';
+        } else {
+            // Show section filter and populate with sections from selected chapter
+            sectionContainer.style.display = 'block';
+            
+            // Clear existing options
+            sectionSelect.innerHTML = '';
+            
+            // Add "All Sections" option
+            const allSectionsOption = document.createElement('option');
+            allSectionsOption.value = "all";
+            allSectionsOption.textContent = "All Sections";
+            sectionSelect.appendChild(allSectionsOption);
+            
+            // Get unique sections for the selected chapter
+            const sectionsInChapter = [...new Set(
+                questions
+                .filter(q => q.chapter == selectedChapter)
+                .map(q => q.section)
+            )].sort((a, b) => a - b);
+            
+            sectionsInChapter.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = `Section ${section}`;
+                sectionSelect.appendChild(option);
+            });
+        }
+        
+        // Apply filters
+        filterQuestions(courseID, type);
+    });
+    
+    // Section filter change event
+    document.getElementById('sectionFilterSelect').addEventListener('change', () => {
+        filterQuestions(courseID, type);
+    });
 }
 
-/**
- * Filters the type of questions that are selectable in the menu for the test editor
- * Preconditions: valid courseID, type
- * Postconditions: filters the questions by test and/or textbook chapter/section
- * TODO: Complete textbook support
-*/
-function filterQuestions(courseID, type) {
-    const testFilterSelect = document.getElementById('testFilterSelect');
-    // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
-    const selectedTestIndex = testFilterSelect.value;
-    // const selectedChapterIndex = textbookFilterSelect.value; // Uncomment when implementing textbook filter
-
-    const questions = masterQuestionList[courseID][type];
-    const questionContainer = document.querySelector('#questionModalBody > div:nth-child(2)');
-    questionContainer.innerHTML = ''; // Clear existing content
-
-    let filteredQuestions = questions;
-
-    // Filter by Test
-    if (selectedTestIndex !== '') {
-        const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
-        const selectedTest = testList[selectedTestIndex];
-        filteredQuestions = selectedTest.parts.flatMap(part => part.sections.flatMap(section => section.questions)).filter(q => q.qtype === type);
+// Helper function to render questions
+function renderQuestions(questions, container) {
+    container.innerHTML = '';
+    
+    if (questions.length === 0) {
+        const noQuestionsMsg = document.createElement('p');
+        noQuestionsMsg.textContent = 'No questions match the selected filters.';
+        container.appendChild(noQuestionsMsg);
+        return;
     }
-
-    // Filter by Textbook (commented form)
-    /*
-    if (selectedChapterIndex !== '') {
-        filteredQuestions = filteredQuestions.filter(q => q.chapter === parseInt(selectedChapterIndex));
-    }
-    */
-
-    filteredQuestions.forEach((question, index) => {
+    
+    questions.forEach((question, index) => {
         const element = document.createElement("div");
         element.style.padding = '8px';
         element.style.margin = '5px 0';
@@ -1562,18 +1611,79 @@ function filterQuestions(courseID, type) {
         element.style.borderRadius = '4px';
         element.innerHTML = `
             <input type="checkbox" id="q-${index}" value="${index}">
-            <label for="q-${index}">${question.text} (${question.score} Points)</label>
+            <label for="q-${index}">${question.text} (${question.score} Points) - Ch.${question.chapter}, Sec.${question.section}</label>
+        `;   
+        container.appendChild(element);
+    });
+}
+
+// Function to filter questions based on selected filters
+function filterQuestions(courseID, type) {
+    const questions = masterQuestionList[courseID][type];
+    const testFilterValue = document.getElementById('testFilterSelect').value;
+    const chapterFilterValue = document.getElementById('chapterFilterSelect').value;
+    const sectionFilterSelect = document.getElementById('sectionFilterSelect');
+    const sectionFilterValue = sectionFilterSelect && sectionFilterSelect.style.display !== 'none' ? 
+                               sectionFilterSelect.value : "all";
+    
+    // Create a filtered index map to maintain original indices
+    const filteredIndices = [];
+    const filteredQuestions = [];
+    
+    questions.forEach((question, index) => {
+        let includeQuestion = true;
+        
+        // Apply test filter if selected
+        if (testFilterValue !== "") {
+            const testIndex = parseInt(testFilterValue);
+            const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
+            const testQuestionIds = testList[testIndex].questions.map(q => q.id);
+            if (!testQuestionIds.includes(question.id)) {
+                includeQuestion = false;
+            }
+        }
+        
+        // Apply chapter filter if selected
+        if (chapterFilterValue !== "all" && question.chapter != chapterFilterValue) {
+            includeQuestion = false;
+        }
+        
+        // Apply section filter if visible and selected
+        if (chapterFilterValue !== "all" && sectionFilterValue !== "all" && 
+            question.section != sectionFilterValue) {
+            includeQuestion = false;
+        }
+        
+        if (includeQuestion) {
+            filteredIndices.push(index);
+            filteredQuestions.push(question);
+        }
+    });
+    
+    // Render filtered questions while preserving original indices
+    const questionContainer = document.getElementById('questionContainer');
+    questionContainer.innerHTML = '';
+    
+    if (filteredQuestions.length === 0) {
+        const noQuestionsMsg = document.createElement('p');
+        noQuestionsMsg.textContent = 'No questions match the selected filters.';
+        questionContainer.appendChild(noQuestionsMsg);
+        return;
+    }
+    
+    filteredQuestions.forEach((question, i) => {
+        const originalIndex = filteredIndices[i];
+        const element = document.createElement("div");
+        element.style.padding = '8px';
+        element.style.margin = '5px 0';
+        element.style.backgroundColor = '#f0f0f0';
+        element.style.borderRadius = '4px';
+        element.innerHTML = `
+            <input type="checkbox" id="q-${originalIndex}" value="${originalIndex}">
+            <label for="q-${originalIndex}">${question.text} (${question.score} Points) - Ch.${question.chapter}, Sec.${question.section}</label>
         `;   
         questionContainer.appendChild(element);
     });
-
-    const submitButton = document.createElement('button');
-    submitButton.className = 'add-btn';
-    submitButton.textContent = 'Add Selected Questions';
-    submitButton.onclick = function() {
-        addSelectedQuestions();
-    };
-    questionContainer.appendChild(submitButton);
 }
 
 /**
@@ -1985,6 +2095,10 @@ function editQuestion(courseID, questionType, questionIndex) {
     formContent += `
         <label>Point Value:</label><br/>
         <input type="number" id="editPointValueField" min="1" value="${question.score}"><br><br>
+        <label>Chapter: </label><br/>  
+        <input type="number" id="editChapterField" min="1" value="${question.chapter}"><br><br>
+        <label>Section: </label><br/>
+        <input type="number" id="editSectionField" min="1" value="${question.section}"><br><br>
         <label>Estimated Time:</label><br/>
         <input type="number" id="editTimeField" min="1" value="${question.eta}"><br><br>
         <label>Reference Text:</label><br/>
@@ -2160,9 +2274,11 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     const ansGraphic = document.getElementById('editAnsGraphicField').value;
     const comments = document.getElementById('editInstructorCommentField').value.trim();
     const directions = document.getElementById('editInstructionField').value.trim();
+    const chapter = document.getElementById('editChapterField').value.trim();
+    const section = document.getElementById('editSectionField').value.trim();
 
-    if (!text || !score || !directions) {
-        alert("Some fields are required.");
+    if (!text || !score || !directions || !time || !chapter || !section) {
+        alert("Some fields are required. (Prompt, Point Value, Directions, Time, Chapter, Section)");
         return;
     }
 
@@ -2225,6 +2341,8 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
                 ansGraphic: ansGraphic,
                 comments: comments,
                 options: options,
+                chapter: chapter,
+                section: section,
                 published: 0
             }
             masterQuestionList[courseID][questionType].push(clone);
@@ -2243,6 +2361,8 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
             question.ansGraphic = ansGraphic;
             question.comments = comments;
             question.options = options;
+            question.chapter = chapter;
+            question.section = section;
         }else{
             alert("Question not edited.");
             return;
@@ -2960,7 +3080,7 @@ function openBonusQuestionModal(courseID) {
     modalBody.innerHTML = ""; // Clear existing content
     
     // Store the relevant data in the modal for later use
-    modalBody.dataset.courseId = courseID;
+    modalBody.dataset.courseID = courseID;
     modalBody.dataset.questionType = 'bonus';
 
     const questionContainer = document.createElement('div');
@@ -3000,6 +3120,7 @@ function openBonusQuestionModal(courseID) {
         modal.style.opacity = "1";
     }, 10);
 }
+
 
 /**
  * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open

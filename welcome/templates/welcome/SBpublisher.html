@@ -1649,61 +1649,6 @@ function filterQuestions(isbn, type) {
 }
 
 /**
- * Filters the type of questions that are selectable in the menu for the test editor
- * Preconditions: valid isbn, type
- * Postconditions: filters the questions by test and/or textbook chapter/section
- * TODO: Complete textbook support
-
-function filterQuestions(isbn, type) {
-    const testFilterSelect = document.getElementById('testFilterSelect');
-    // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
-    const selectedTestIndex = testFilterSelect.value;
-    // const selectedChapterIndex = textbookFilterSelect.value; // Uncomment when implementing textbook filter
-
-    const questions = masterQuestionList[isbn][type];
-    const questionContainer = document.querySelector('#questionModalBody > div:nth-child(2)');
-    questionContainer.innerHTML = ''; // Clear existing content
-
-    let filteredQuestions = questions;
-
-    // Filter by Test
-    if (selectedTestIndex !== '') {
-        const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
-        const selectedTest = testList[selectedTestIndex];
-        filteredQuestions = selectedTest.parts.flatMap(part => part.sections.flatMap(section => section.questions)).filter(q => q.qtype === type);
-    }
-
-    // Filter by Textbook (commented form)
-    
-    if (selectedChapterIndex !== '') {
-        filteredQuestions = filteredQuestions.filter(q => q.chapter === parseInt(selectedChapterIndex));
-    }
-    
-
-    filteredQuestions.forEach((question, index) => {
-        const element = document.createElement("div");
-        element.style.padding = '8px';
-        element.style.margin = '5px 0';
-        element.style.backgroundColor = '#f0f0f0';
-        element.style.borderRadius = '4px';
-        element.innerHTML = `
-            <input type="checkbox" id="q-${index}" value="${index}">
-            <label for="q-${index}">${question.text} (${question.score} Points)</label>
-        `;   
-        questionContainer.appendChild(element);
-    });
-
-    const submitButton = document.createElement('button');
-    submitButton.className = 'add-btn';
-    submitButton.textContent = 'Add Selected Questions';
-    submitButton.onclick = function() {
-        addSelectedQuestions();
-    };
-    questionContainer.appendChild(submitButton);
-}
-    */
-
-/**
  * This adds the questions selected in the questionModal to the test editor.
  * It uses data included in the modalBody using the dataset property from HTMLElement
  * Preconditions: all data requested from dataset is entered in the modalBody
