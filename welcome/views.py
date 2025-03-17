@@ -5,7 +5,11 @@ import zipfile
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.middleware.csrf import get_token
+from django.contrib.auth.models import User
+from django.contrib import messages
 
 from welcome.models import *
 
@@ -13,63 +17,76 @@ from welcome.models import *
 def home(request):
     return render(request, 'welcome/home.html')
 
-
-def login(request):
-    return render(request, 'welcome/login.html')
-
-
-def signup(request):
-    return render(request, 'welcome/signup.html')
-
-
-"""
 def signup_handler(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        password_confirm = request.POST.get('passwordconfirm')
-        role = request.POST.get('role')
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        passwordconfirm = request.POST.get("passwordconfirm")
+        role = request.POST.get("role")
 
-        # Validation
-        if not all([username, password, password_confirm, role]):
-            messages.error(request, 'All fields are required.')
-            return render(request, 'welcome/signup.html')
+        # Check if passwords match
+        if password != passwordconfirm:
+            messages.error(request, "Passwords do not match.")
+            return redirect("signup")  # Changed to redirect to view, not handler
 
-        if password != password_confirm:
-            messages.error(request, 'Passwords do not match.')
-            return render(request, 'welcome/signup.html')
+        # Check if the username already exists
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return redirect("signup")  # Changed to redirect to view, not handler
 
-        if CustomUser.objects.filter(username=username).exists():
-            messages.error(request, 'Username already exists. Please choose a different username.')
-            return render(request, 'welcome/signup.html')
+        # Create new user
+        user = User.objects.create_user(username=username, password=password)
 
-        # Ensure role is valid (no admin from signup)
-        if role not in ['student', 'teacher']:
-            messages.error(request, 'Invalid role selected.')
-            return render(request, 'welcome/signup.html')
+        # Create and save user profile with the selected role
+        user_profile = UserProfile(user=user, role=role)
+        user_profile.save()  # Save the profile after setting the role
 
-        # Create user
-        try:
-            user = CustomUser.objects.create_user(
-                username=username,
-                password=password,
-                role=role
-            )
-            login(request, user)
-            messages.success(request, 'Sign-up successful! You are now logged in.')
-            return redirect('home')
-        except Exception as e:
-            messages.error(request, str(e))
+        messages.success(request, "Account created successfully!")
 
-    return render(request, 'welcome/signup.html')
+        # Redirect based on role
+        if role == "teacher":
+            return redirect("teacher_dashboard")
+        elif role == "publisher":
+            return redirect("publisher_dashboard")
+        else:
+            return redirect("webmaster_dashboard")  # Add a case for 'webmaster' if needed
 
-def back_to_home(request):
-    return redirect('home')
-"""
+    return render(request, "welcome/signup.html")
 
 
-def teacher_view(request):
-    return render(request, "welcome/SBteacher.htm")
+
+def login_handler(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        if not username or not password:
+            messages.error(request, "Username and password are required.")
+            return redirect("login")
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)  # Log the user in
+            
+            # Get role from UserProfile
+            try:
+                role = user.userprofile.role
+            except:
+                role = "user"  # Default fallback
+            
+            # Redirect based on role
+            if role == "teacher":
+                return redirect("teacher_dashboard")
+            elif role == "publisher":
+                return redirect("publisher_dashboard")
+            else:
+                return redirect("home")  # Default fallback
+        else:
+            messages.error(request, "Invalid username or password")
+            return redirect("login")
+    
+    return redirect("login")  # Redirect if not POST
 
 
 def parse_qti_xml(request):
@@ -435,11 +452,9 @@ def parse_qti_xml(request):
 
 
 # testing connecting the html files
-from django.shortcuts import render
+
 
 #each of these functions renders a different html file
-def home(request):  
-    return render(request, 'welcome/home.html')
 
 def login_view(request):
     return render(request, 'welcome/login.html')
@@ -448,10 +463,7 @@ def signup_view(request):
     return render(request, 'welcome/signup.html')
 
 def teacher_dashboard(request):
-    return render(request, 'welcome/SBteacher.htm')
+    return render(request, 'welcome/SBteacher.html')
 
 def publisher_dashboard(request):
-    return render(request, 'welcome/SBpublisher.htm')
-
-def login_view(request):
-    return render(request, 'welcome/login.html')
+    return render(request, 'welcome/SBpublisher.html')
