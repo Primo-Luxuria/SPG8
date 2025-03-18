@@ -467,3 +467,43 @@ def teacher_dashboard(request):
 
 def publisher_dashboard(request):
     return render(request, 'welcome/SBpublisher.html')
+
+
+
+
+"""
+Beginning to test the frontend to the backend connection
+"""
+from welcome.models import *
+
+# function to handle the signup form
+def signup_handler(request):
+
+    # 
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        passwordconfirm = request.POST.get('passwordconfirm')
+        role = request.POST.get('role')
+        
+        # Check if passwords match
+        if password != passwordconfirm:
+            messages.error(request, "Passwords do not match.")
+            return redirect('signup')  # Assumes you have a URL named 'signup' for the signup page
+
+        try:
+            # Create the new user
+            user = User.objects.create_user(username=username, password=password)
+            user.save()
+            
+            # Create the user profile with the role chosen
+            profile = UserProfile.objects.create(user=user, role=role)
+            profile.save()
+            return redirect('home')  # Redirect to the home page or another page of your choice
+        except Exception as e:
+            messages.error(request, f"An error occurred: {e}")
+            return redirect('signup')
+    else:
+        # For a GET request, simply render the signup form
+        return render(request, 'signup.html')
+
