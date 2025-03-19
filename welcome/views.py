@@ -308,3 +308,10 @@ def teacher_view(request):
 
 
 
+
+from welcome.query import get_visible_questions_for_teacher
+
+def teacher_dashboard(request):
+    teacher_username = request.user.username
+    questions = get_visible_questions_for_teacher(teacher_username)
+    return render(request, 'teacher_dashboard.html', {'questions': questions})
