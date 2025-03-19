@@ -128,6 +128,36 @@ class Course(models.Model):
         return Question.objects.none()
 
 
+class QuestionQuerySet(models.QuerySet):
+    def visible_to_teacher(self, teacher_username):
+        teacher_book_ids = self.model._default_manager.filter(
+            course__teachers__username=teacher_username
+        ).values_list('course__book_id', flat=True).distinct()
+        
+        return self.filter(
+            Q(owner__username=teacher_username, course__isnull=False) |
+            Q(owner__userprofile__role='publisher', book_id__in=teacher_book_ids)
+        )
+
+
+def get_visible_questions_for_teacher(teacher_username):
+    teacher_book_ids = Course.objects.filter(
+        teachers__username=teacher_username
+    ).values_list('book_id', flat=True).distinct()
+
+    questions = Question.objects.filter(
+        Q(owner__username=teacher_username, course__isnull=False) |
+        Q(owner__userprofile__role='publisher', book_id__in=teacher_book_ids)
+    )
+    return questions
+
+def teacher_dashboard(request):
+    # assuming request.user is a teacher
+    teacher_username = request.user.username
+    questions = get_visible_questions_for_teacher(teacher_username)
+    return render(request, 'teacher_dashboard.html', {'questions': questions})
+
+
 """
 QUESTION MODEL
 This model stores various types of questions. It supports multiple question types:
@@ -197,6 +227,8 @@ class Question(models.Model):
         if self.owner and hasattr(self.owner, 'userprofile'):
             if self.owner.userprofile.role == 'publisher' and self.chapter == 0:
                 raise ValidationError("Publisher-created questions must include a chapter number (non-zero).")
+            
+
 
     def __str__(self):
         return f"[{self.get_question_type_display()}] {self.question_text[:50]}"
@@ -211,6 +243,7 @@ class Question(models.Model):
             avg = self.feedbacks.aggregate(Avg('rating'))['rating__avg']
             return avg
         return None
+    objects = QuestionQuerySet.as_manager()
 
 
 """
@@ -465,23 +498,23 @@ Stores feedback for questions and tests.
 The rating is on a scale from 1 to 10.
 """
 class Feedback(models.Model):
-    RATING_CHOICES = [(i, str(i)) for i in range(1, 11)]
+    # Existing fields
     question = models.ForeignKey(
-        Question,
+        'Question',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="feedbacks"
     )
     test = models.ForeignKey(
-        Test,
+        'Test',
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="feedbacks"
     )
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    rating = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
+    rating = models.IntegerField(choices=[(i, str(i)) for i in range(1, 11)], null=True, blank=True)
     comments = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -491,3 +524,22 @@ class Feedback(models.Model):
         elif self.test:
             return f"Feedback on Test {self.test.title}"
         return "General Feedback"
+
+class FeedbackResponse(models.Model):
+    # Each response is linked to one feedback instance.
+    feedback = models.OneToOneField(
+        Feedback,
+        on_delete=models.CASCADE,
+        related_name="response"
+    )
+    # The publisher responding; limit choices if desired.
+    publisher = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={'userprofile__role': 'publisher'}
+    )
+    response_text = models.TextField(help_text="Publisher response to the feedback.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Response to Feedback {self.feedback.id} by {self.publisher.username}"
