@@ -514,9 +514,6 @@ def signup_handler(request):
 
 
 
-"""
-The teacher view
-"""
 @login_required
 @csrf_exempt
 def teacher_view(request):
@@ -546,18 +543,18 @@ def teacher_view(request):
 
         # Use get_or_create to either retrieve or create a new Course.
         course, created = Course.objects.get_or_create(
-        course_code=course_id,
-        user=current_user,
-        defaults={
-            "course_name": course_info.get("name", "Untitled Course"),
-            "course_crn": course_info.get("crn", 0),
-            "textbook_title": textbook_data.get("title", ""),
-            "textbook_author": textbook_data.get("author", ""),
-            "textbook_version": textbook_data.get("version", ""),
-            "textbook_isbn": textbook_data.get("isbn", ""),
-            "textbook_link": textbook_data.get("link", ""),
-        }
-    )
+            course_code=course_id,
+            user=current_user,
+            defaults={
+                "course_name": course_info.get("name", "Untitled Course"),
+                "course_crn": course_info.get("crn", 0),
+                "textbook_title": textbook_data.get("title", ""),
+                "textbook_author": textbook_data.get("author", ""),
+                "textbook_version": textbook_data.get("version", ""),
+                "textbook_isbn": textbook_data.get("isbn", ""),
+                "textbook_link": textbook_data.get("link", ""),
+            }
+        )
 
         if created:
             print(f"Created course: {course.course_code}")
@@ -610,6 +607,123 @@ def teacher_view(request):
                 print(f"Updated course: {course.course_code}")
             else:
                 print(f"No update needed for course: {course.course_code}")
+    
+    # Query updated courses for the teacher.
+    user_courses = list(Course.objects.filter(user=current_user).values(
+        "course_code", "course_name", "course_crn", "textbook_title",
+        "textbook_author", "textbook_version", "textbook_isbn", "textbook_link"
+    ))
 
-    # Send back a success response.
-    return JsonResponse({"status": "Data inserted successfully"})
+    # Send back a success response with courses data.
+    return JsonResponse({
+        "status": "Data inserted successfully",
+        "courses": user_courses
+    })
+
+
+# filepath: /Users/reecemilligan/Desktop/SPG8-1/welcome/views.py
+@login_required
+@csrf_exempt
+def teacher_view(request):
+    # Only process POST requests.
+    if request.method != "POST":
+        return JsonResponse({"error": "POST request required."}, status=405)
+
+    try:
+        # Load the JSON data from the request body.
+        data = json.loads(request.body)
+        print("Received data:", data)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    # Get the logged-in user.
+    current_user = request.user if request.user.is_authenticated else None
+
+    # Extract the 'courses' object from the JSON data.
+    courses = data.get("courses", {})
+
+    # Loop over each course in the courses dictionary.
+    for course_id, course_info in courses.items():
+        print(f"Processing course_id: {course_id} with data: {course_info}")
+        
+        # Extract the textbook information (nested dictionary) if it exists.
+        textbook_data = course_info.get("textbook", {})
+
+        # Use get_or_create to either retrieve or create a new Course.
+        course, created = Course.objects.get_or_create(
+            course_code=course_id,
+            user=current_user,
+            defaults={
+                "course_name": course_info.get("name", "Untitled Course"),
+                "course_crn": course_info.get("crn", 0),
+                "textbook_title": textbook_data.get("title", ""),
+                "textbook_author": textbook_data.get("author", ""),
+                "textbook_version": textbook_data.get("version", ""),
+                "textbook_isbn": textbook_data.get("isbn", ""),
+                "textbook_link": textbook_data.get("link", ""),
+            }
+        )
+
+        if created:
+            print(f"Created course: {course.course_code}")
+        else:
+            # For an existing course, update textbook fields if incoming data is provided.
+            updated = False
+
+            # Update textbook_title if needed.
+            incoming_title = textbook_data.get("title", "")
+            if incoming_title and course.textbook_title != incoming_title:
+                print(f"Updating textbook_title: DB='{course.textbook_title}' vs Incoming='{incoming_title}'")
+                course.textbook_title = incoming_title
+                updated = True
+
+            # Update textbook_author if needed.
+            incoming_author = textbook_data.get("author", "")
+            if incoming_author and course.textbook_author != incoming_author:
+                print(f"Updating textbook_author: DB='{course.textbook_author}' vs Incoming='{incoming_author}'")
+                course.textbook_author = incoming_author
+                updated = True
+
+            # Update textbook_version if needed.
+            incoming_version = textbook_data.get("version", "")
+            if incoming_version and course.textbook_version != incoming_version:
+                print(f"Updating textbook_version: DB='{course.textbook_version}' vs Incoming='{incoming_version}'")
+                course.textbook_version = incoming_version
+                updated = True
+
+            # Update textbook_isbn if needed.
+            incoming_isbn = textbook_data.get("isbn", "")
+            if incoming_isbn and course.textbook_isbn != incoming_isbn:
+                print(f"Updating textbook_isbn: DB='{course.textbook_isbn}' vs Incoming='{incoming_isbn}'")
+                course.textbook_isbn = incoming_isbn
+                updated = True
+
+            # Update textbook_link if needed.
+            incoming_link = textbook_data.get("link", "")
+            if incoming_link and course.textbook_link != incoming_link:
+                print(f"Updating textbook_link: DB='{course.textbook_link}' vs Incoming='{incoming_link}'")
+                course.textbook_link = incoming_link
+                updated = True
+
+            # Optionally, update the user if none is set.
+            if course.user is None and current_user:
+                course.user = current_user
+                updated = True
+
+            if updated:
+                course.save()  # Save changes if any field was updated.
+                print(f"Updated course: {course.course_code}")
+            else:
+                print(f"No update needed for course: {course.course_code}")
+    
+    # Query updated courses for the teacher.
+    user_courses = list(Course.objects.filter(user=current_user).values(
+        "course_code", "course_name", "course_crn", "textbook_title",
+        "textbook_author", "textbook_version", "textbook_isbn", "textbook_link"
+    ))
+
+    # Send back a success response with courses data.
+    return JsonResponse({
+        "status": "Data inserted successfully",
+        "courses": user_courses
+    })
