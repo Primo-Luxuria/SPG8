@@ -47,7 +47,6 @@ class Course(models.Model):
     # course ID
     course_code = models.CharField(
         max_length=50,
-        unique=True,
         help_text='e.g: CS499',
         default='CS499'
     )

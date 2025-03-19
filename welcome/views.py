@@ -514,7 +514,9 @@ def signup_handler(request):
 
 
 
-
+"""
+The teacher view
+"""
 @login_required
 @csrf_exempt
 def teacher_view(request):
@@ -544,19 +546,18 @@ def teacher_view(request):
 
         # Use get_or_create to either retrieve or create a new Course.
         course, created = Course.objects.get_or_create(
-            course_code=course_id,
-            defaults={
-                "course_name": course_info.get("name", "Untitled Course"),
-                "course_crn": course_info.get("crn", 0),
-                # Use the nested textbook data.
-                "textbook_title": textbook_data.get("title", ""),
-                "textbook_author": textbook_data.get("author", ""),
-                "textbook_version": textbook_data.get("version", ""),
-                "textbook_isbn": textbook_data.get("isbn", ""),
-                "textbook_link": textbook_data.get("link", ""),
-                "user": current_user,  # Set the current teacher as creator on new records.
-            }
-        )
+        course_code=course_id,
+        user=current_user,
+        defaults={
+            "course_name": course_info.get("name", "Untitled Course"),
+            "course_crn": course_info.get("crn", 0),
+            "textbook_title": textbook_data.get("title", ""),
+            "textbook_author": textbook_data.get("author", ""),
+            "textbook_version": textbook_data.get("version", ""),
+            "textbook_isbn": textbook_data.get("isbn", ""),
+            "textbook_link": textbook_data.get("link", ""),
+        }
+    )
 
         if created:
             print(f"Created course: {course.course_code}")
