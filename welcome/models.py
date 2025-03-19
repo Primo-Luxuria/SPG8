@@ -7,6 +7,7 @@ from django.db import models
 from django.contrib.auth.models import User  # provides user_id, username, email, etc.
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.conf import settings # for AUTH_USER_MODEL
 
 """
 USER / ROLES TABLE 
@@ -36,6 +37,14 @@ COURSE TABLE
 
 
 class Course(models.Model):
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True)
+
+    # course ID
     course_code = models.CharField(
         max_length=50,
         unique=True,
@@ -47,9 +56,21 @@ class Course(models.Model):
         help_text='e.g: SR PROJ:TEAM SOFTWARE DESIGN',
         default='Untitled Course'
     )
+    course_crn = models.CharField(
+        max_length=50,
+        help_text='e.g: 54352',
+        default='0000'
+    )
+
+    course_semester = models.CharField(
+        max_length=50,
+        help_text='e.g: Fall 2021',
+        default='Fall 2021'
+    )
     # Textbook information
     textbook_title = models.CharField(max_length=300, blank=True, null=True)
     textbook_author = models.CharField(max_length=300, blank=True, null=True)
+    textbook_version = models.CharField(max_length=300, blank=True, null=True)
     textbook_isbn = models.CharField(max_length=300, blank=True, null=True)
     textbook_link = models.CharField(max_length=300, blank=True, null=True)
 

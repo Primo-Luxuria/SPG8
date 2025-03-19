@@ -3609,6 +3609,37 @@ function updateOptions(type) {
     }
 }
 
+function saveDataToDatabase() {
+    const data = {
+        masterQuestionList,
+        masterTestList,
+        masterTemplateList,
+        masterAttachmentList,
+        courseList,
+        masterCoverPageList,
+        masterTextbookList
+    };
+
+    fetch('/save-data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('Data saved successfully!');
+        } else {
+            alert('Failed to save data.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving data.');
+    });
+}
+
 
 </script>
 </body>

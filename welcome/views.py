@@ -507,3 +507,50 @@ def signup_handler(request):
         # For a GET request, simply render the signup form
         return render(request, 'signup.html')
 
+
+import json
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from .models import Course  # Import additional models as needed
+
+
+# filepath: /Users/reecemilligan/Desktop/SPG8-1/welcome/views.py
+@login_required
+@csrf_exempt
+def teacher_view(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST request required."}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        print("Received data:", data)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    current_user = request.user if request.user.is_authenticated else None
+
+    courses = data.get("courses", {})
+    for course_id, course_info in courses.items():
+        course, created = Course.objects.get_or_create(
+            course_code=course_id,
+            defaults={
+                "course_name": course_info.get("name", "Untitled Course"),
+                "course_crn": course_info.get("crn", 0),
+                "textbook_title": course_info.get("textbookTitle", ""),
+                "textbook_author": course_info.get("textbookAuthor", ""),
+                "textbook_version": course_info.get("textbookVersion", ""),
+                "textbook_isbn": course_info.get("textbookISBN", ""),
+                "textbook_link": course_info.get("textbookLink", ""),
+                "user": current_user,  # This sets the user only on creation.
+            }
+        )
+        # Ensure the teacher is associated on every fetch, even if the course exists.
+        if current_user and current_user not in course.teachers.all():
+            course.teachers.add(current_user)
+
+        if created:
+            print(f"Created course: {course.course_code}")
+        else:
+            print(f"Course already exists: {course.course_code}")
+
+    return JsonResponse({"status": "Data inserted successfully"})
