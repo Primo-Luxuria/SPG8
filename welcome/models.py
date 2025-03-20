@@ -16,6 +16,13 @@ class Book(models.Model):
     version = models.CharField(max_length=300, blank=True, null=True)
     isbn = models.CharField(max_length=300, blank=True, null=True)
     link = models.URLField(blank=True, null=True)
+    publisher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    
 
     def __str__(self):
         return self.title
