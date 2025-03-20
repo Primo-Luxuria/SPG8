@@ -3727,85 +3727,350 @@ function updateOptions(type) {
 }
 
 
-function sendDataToDB() {
-    // Prepare data for sending
-    const allData = {};
+// api.js - Create this file to handle API interactions
+
+// Function to send all course data to the database
+async function sendDataToDB() {
+    const courseIds = Object.keys(courseList);
     
-    // Add courses with their IDs for existing courses
-    allData.courses = {};
-    for (const courseId in courseList) {
-        const course = courseList[courseId];
+    for (const courseId of courseIds) {
+        const courseData = prepareCourseData(courseId);
         
-        // Add questions to the course data with their IDs
-        course.questions = {};
-        for (const qType in masterQuestionList[courseId]) {
-            course.questions[qType] = masterQuestionList[courseId][qType].map(q => {
-                // Include the database ID if it exists
-                if (q.dbId) {
-                    return { ...q, id: q.dbId };
-                }
-                return q;
+        try {
+            const response = await fetch('/api/sync/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')  // Django CSRF token
+                },
+                body: JSON.stringify(courseData)
             });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Error syncing data:', errorData);
+                showNotification('Error saving data: ' + (errorData.error || 'Unknown error'));
+            } else {
+                showNotification('Data saved successfully!');
+            }
+        } catch (error) {
+            console.error('API Error:', error);
+            showNotification('Network error: Could not save data');
         }
-        
-        // Add tests, templates, etc. with their IDs
-        // Similar approach as questions
-        
-        allData.courses[courseId] = course;
     }
-    
-    // Send data to Django backend
-    fetch('/api/import-course-data/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken()
-        },
-        body: JSON.stringify(allData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            console.log(`Course ${data.message}`);
-            
-            // Update local data with IDs from the server
-            updateLocalDataWithServerIds(data.idsMap);
-            
-            // Optional: Show success message to user
-            alert(`Course ${data.message} successfully`);
-        } else {
-            console.error('Error saving data:', data.errors || data.message);
-            alert('Error saving data to database. See console for details.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error saving data to database');
-    });
 }
 
-// Update local JavaScript objects with IDs from the server
-function updateLocalDataWithServerIds(idsMap) {
-    if (!idsMap) return;
+// Function to prepare course data for API submission
+function prepareCourseData(courseId) {
+    const course = courseList[courseId];
     
-    // Update question IDs
-    if (idsMap.questions) {
-        for (const [tempId, dbId] of Object.entries(idsMap.questions)) {
-            // Find and update the question with tempId
-            for (const courseId in masterQuestionList) {
-                for (const qType in masterQuestionList[courseId]) {
-                    const questions = masterQuestionList[courseId][qType];
-                    const question = questions.find(q => q.tempId === tempId);
-                    if (question) {
-                        question.dbId = dbId;
-                        break;
-                    }
-                }
+    // Prepare textbook data
+    const textbook = {
+        title: course.textbook.title,
+        author: course.textbook.author,
+        version: course.textbook.version,
+        isbn: course.textbook.isbn,
+        link: course.textbook.link
+    };
+    
+    // Prepare questions data
+    const questions = [];
+    const questionTypes = ['tf', 'mc', 'sa', 'es', 'ma', 'ms', 'fb'];
+    
+    for (const type of questionTypes) {
+        for (const question of masterQuestionList[courseId][type]) {
+            const questionData = {
+                id: question.id || null,
+                question_type: questionTypeMap[type],
+                question_text: question.text,
+                default_points: question.points,
+                estimated_time: question.time || 1,
+                chapter: question.chapter || 0,
+                section: question.section || 0,
+                correct_answer: question.answer || '',
+                instructions_for_grading: question.instructions || '',
+                include_formula: question.includeFormula || false
+            };
+            
+            // Add answer options for multiple choice or multiple selection
+            if (type === 'mc' || type === 'ms') {
+                questionData.answer_options = question.options.map(opt => ({
+                    text: opt.text,
+                    is_correct: opt.isCorrect,
+                    response_feedback_text: opt.feedback || ''
+                }));
+            }
+            
+            // Add matching options for matching questions
+            if (type === 'ma') {
+                questionData.matching_options = question.pairs.map(pair => ({
+                    option_text: pair.left,
+                    match_text: pair.right
+                }));
+            }
+            
+            questions.push(questionData);
+        }
+    }
+    
+    // Prepare tests data
+    const tests = [];
+    
+    for (const status of ['drafts', 'published']) {
+        for (const test of masterTestList[courseId][status]) {
+            const testData = {
+                id: test.id || null,
+                title: test.title,
+                date: test.date,
+                is_final: status === 'published',
+                template: test.templateId,
+                test_number: test.testNumber,
+                cover_instructions: test.instructions || '',
+                test_questions: test.questions.map((q, index) => ({
+                    question_id: q.id,
+                    assigned_points: q.points,
+                    order: index + 1,
+                    randomize: q.randomize || false,
+                    special_instructions: q.specialInstructions || ''
+                }))
+            };
+            
+            tests.push(testData);
+        }
+    }
+    
+    // Prepare templates data
+    const templates = masterTemplateList[courseId].map(template => ({
+        id: template.id || null,
+        name: template.name,
+        font_name: template.bodyFont,
+        font_size: template.bodyFontSize,
+        header_text: template.headerText || '',
+        footer_text: template.footerText || ''
+    }));
+    
+    // Prepare cover pages data
+    const coverPages = masterCoverPageList[courseId].map(cp => ({
+        id: cp.id || null,
+        cover_page_name: cp.name,
+        test_number: cp.testNum,
+        test_date: cp.date,
+        test_filename: cp.file,
+        filename_present: cp.showFilename,
+        student_name_location: studentNameLocationMap[cp.blank] || 'top_left',
+        grading_instructions_for_key: cp.instructions || ''
+    }));
+    
+    // Prepare attachments data
+    const attachments = masterAttachmentList[courseId].map(att => ({
+        id: att.id || null,
+        file: att.file  // Note: Will need to handle file uploads separately
+    }));
+    
+    return {
+        course_id: courseId,
+        course: {
+            course_code: course.id,
+            course_name: course.name,
+            course_crn: course.crn,
+            course_semester: course.sem
+        },
+        book: textbook,
+        questions: questions,
+        tests: tests,
+        templates: templates,
+        cover_pages: coverPages,
+        attachments: attachments
+    };
+}
+
+// Function to fetch course data from the database
+async function loadDataFromDB() {
+    try {
+        const response = await fetch('/api/courses/');
+        if (!response.ok) {
+            throw new Error('Failed to fetch courses');
+        }
+        
+        const courses = await response.json();
+        
+        // Clear existing data
+        masterQuestionList = {};
+        masterTestList = {};
+        masterTemplateList = {};
+        masterAttachmentList = {};
+        courseList = {};
+        masterCoverPageList = {};
+        masterTextbookList = {};
+        
+        document.getElementById('courseList').innerHTML = '';
+        
+        // Load each course
+        for (const course of courses) {
+            await loadCourseData(course.id);
+        }
+        
+        showNotification('Data loaded successfully!');
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showNotification('Error loading data: ' + error.message);
+    }
+}
+
+// Function to load data for a specific course
+async function loadCourseData(courseId) {
+    try {
+        const response = await fetch(`/api/courses/${courseId}/full_data/`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch course data');
+        }
+        
+        const data = await response.json();
+        
+        // Process course data
+        const course = data.course;
+        const book = data.book;
+        
+        // Add course to UI
+        addCourseToUI(course, book);
+        
+        // Process questions
+        processQuestions(courseId, data.questions);
+        
+        // Process tests
+        processTests(courseId, data.tests);
+        
+        // Process templates
+        processTemplates(courseId, data.templates);
+        
+        // Process cover pages
+        processCoverPages(courseId, data.cover_pages);
+        
+        // Process attachments
+        processAttachments(courseId, data.attachments);
+        
+    } catch (error) {
+        console.error(`Error loading course ${courseId}:`, error);
+        showNotification(`Error loading course ${courseId}: ` + error.message);
+    }
+}
+
+function addCourseToUI(course, book) {
+    
+    // Initialize data structures
+    masterQuestionList[course.id] = {
+        'tf': [], 'mc': [], 'sa': [], 'es': [], 'ma': [], 'ms': [], 'fb': []
+    };
+    masterTestList[course.id] = {
+        'drafts': [], 'published': []
+    };
+    masterTemplateList[course.id] = [];
+    masterCoverPageList[course.id] = [];
+    masterAttachmentList[course.id] = [];
+    
+    // Add textbook to master list
+    if (book) {
+        masterTextbookList[book.isbn] = {
+            chapters: [[]],
+            title: book.title,
+            author: book.author,
+            version: book.version,
+            isbn: book.isbn,
+            link: book.link
+        };
+    }
+    
+    // Add course to course list
+    courseList[course.id] = {
+        id: course.course_code,
+        name: course.course_name,
+        crn: course.course_crn,
+        sem: course.course_semester,
+        published: 1,
+        textbook: book ? masterTextbookList[book.isbn] : null
+    };
+}
+
+function processQuestions(courseId, questions) {
+    // Map question types to your local format
+    const typeMap = {
+        'TF': 'tf',
+        'MC': 'mc',
+        'SA': 'sa',
+        'ES': 'es',
+        'MA': 'ma',
+        'MS': 'ms',
+        'FB': 'fb'
+    };
+    
+    for (const q of questions) {
+        const type = typeMap[q.question_type];
+        if (!type) continue;
+        
+        // Convert to local question format
+        const question = {
+            id: q.id,
+            text: q.question_text,
+            points: q.default_points,
+            time: q.estimated_time,
+            chapter: q.chapter,
+            section: q.section,
+            answer: q.correct_answer,
+            instructions: q.instructions_for_grading,
+            includeFormula: q.include_formula
+        };
+        
+        // Add type-specific data
+        if (type === 'mc' || type === 'ms') {
+            question.options = q.answer_options.map(opt => ({
+                text: opt.text,
+                isCorrect: opt.is_correct,
+                feedback: opt.response_feedback_text
+            }));
+        } else if (type === 'ma') {
+            question.pairs = q.matching_options.map(pair => ({
+                left: pair.option_text,
+                right: pair.match_text
+            }));
+        }
+        
+        masterQuestionList[courseId][type].push(question);
+    }
+    
+    // Update UI to show questions
+    updateQuestionUI(courseId);
+}
+
+// Similar functions for processTests, processTemplates, processCoverPages, processAttachments...
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
         }
     }
+    return cookieValue;
+}
+
+// Function to show notification
+function showNotification(message) {
+    // Create and show a notification element
+    const notification = document.createElement('div');
+    notification.classList.add('notification');
+    notification.textContent = message;
+    document.body.appendChild(notification);
     
-    // Update test IDs, template IDs, etc. in a similar way
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 
 

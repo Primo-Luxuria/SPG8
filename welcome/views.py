@@ -517,9 +517,6 @@ def signup_handler(request):
 """
 The teacher view
 """
-
-# views.py
-# api/views.py
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
