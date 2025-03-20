@@ -517,3 +517,7 @@ def signup_handler(request):
 """
 The teacher view
 """
+from django.shortcuts import render
+
+def teacher_view(request):
+    return render(request, 'SBteacher.html')
