@@ -42,7 +42,6 @@
     <input type="text" id="version" placeholder="Enter Textbook Version" required>
     <input type="text" id="isbn" placeholder="Enter Textbook ISBN" required>
     <input type="text" id="link" placeholder="Enter Textbook Website Link" required>
-    <input type="number" id="chapters" min="1" placeholder="Enter Number of Chapters" required><br/><br/>
     
     <button onclick="addTextbook()">Add Textbook</button>
     </div>
@@ -99,10 +98,9 @@ function addTextbook() {
     const version = document.getElementById('version').value.trim();
     const isbn = document.getElementById('isbn').value.trim();
     const link = document.getElementById('link').value.trim();
-    const chapters = document.getElementById('chapters').value.trim();
 
-    if (!title || !author || !version || !isbn || !link || !chapters) {
-        alert("All fields (Title, Author, Version, ISBN, Link, and Number of Chapters) are required.");
+    if (!title || !author || !version || !isbn || !link) {
+        alert("All fields (Title, Author, Version, ISBN, Link are required.");
         return;
     }   
 
@@ -182,7 +180,6 @@ function addTextbook() {
     document.getElementById('version').value = "";
     document.getElementById('isbn').value = "";
     document.getElementById('link').value = "";
-    document.getElementById('chapters').value = "";
 
     const questionList = {
         'tf': [],

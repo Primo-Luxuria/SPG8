@@ -1,5 +1,10 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
+
+router = DefaultRouter()
+router.register(r'courses', views.CourseViewSet)
+
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -10,4 +15,6 @@ urlpatterns = [
     path('login-handler/', views.login_handler, name='login_handler'),
     path('signup-handler/', views.signup_handler, name='signup_handler'),
     path('teacher_view', views.teacher_view, name="teacher_view"),
+    path('', include(router.urls)),
+    path('sync/', views.sync_course_data, name='sync-course-data'),
 ]

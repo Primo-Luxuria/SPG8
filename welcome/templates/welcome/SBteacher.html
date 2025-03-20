@@ -185,7 +185,7 @@ function addCourse() {
                 <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
                 <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, ${courseID})">Remove Course</button>
         </details>
     `;
 
@@ -324,11 +324,12 @@ function addCourse() {
         name: courseName,
         crn: courseCRN,
         sem: courseSemester,
+        published: 0,
         textbook: masterTextbookList[textbookISBN]
     };
     courseList[courseID] = thisCourse;
 
-    sendDataToDB();   // call the function that turns the masterQuestionList into a JSON string and sends it to the database
+    sendDataToDB();   
 }
 
 /**
@@ -337,7 +338,11 @@ function addCourse() {
  * Postcondition: the course no longer exists
  * 
 */
-function confirmRemoveCourse(button) {
+function confirmRemoveCourse(button, courseID) {
+    if(courseList[courseID].published === 1){
+        alert("You cannot delete a published course. Please unpublish the course first.");
+        return;
+    }
     if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
         button.closest('.course-container').remove();
     }
@@ -3721,40 +3726,88 @@ function updateOptions(type) {
     }
 }
 
+
 function sendDataToDB() {
-    // Bundle your data together.
-    const data = {
-        courses: courseList,
-        questions: masterQuestionList,
-        tests: masterTestList,
-        coverpages: masterCoverPageList,
-        templates: masterTemplateList,
-        attachments: masterAttachmentList,
-        textbooks: masterTextbookList
-    };
-
-
-
-    fetch('/teacher_view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response error: ' + response.statusText);
+    // Prepare data for sending
+    const allData = {};
+    
+    // Add courses with their IDs for existing courses
+    allData.courses = {};
+    for (const courseId in courseList) {
+        const course = courseList[courseId];
+        
+        // Add questions to the course data with their IDs
+        course.questions = {};
+        for (const qType in masterQuestionList[courseId]) {
+            course.questions[qType] = masterQuestionList[courseId][qType].map(q => {
+                // Include the database ID if it exists
+                if (q.dbId) {
+                    return { ...q, id: q.dbId };
+                }
+                return q;
+            });
         }
-        return response.json();
+        
+        // Add tests, templates, etc. with their IDs
+        // Similar approach as questions
+        
+        allData.courses[courseId] = course;
+    }
+    
+    // Send data to Django backend
+    fetch('/api/import-course-data/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(allData)
     })
-    .then(result => {
-        console.log('Data saved successfully:', result);
-        alert('Data inserted into database successfully!');
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            console.log(`Course ${data.message}`);
+            
+            // Update local data with IDs from the server
+            updateLocalDataWithServerIds(data.idsMap);
+            
+            // Optional: Show success message to user
+            alert(`Course ${data.message} successfully`);
+        } else {
+            console.error('Error saving data:', data.errors || data.message);
+            alert('Error saving data to database. See console for details.');
+        }
     })
     .catch(error => {
-        console.error('Error inserting data:', error);
-        alert('Failed to insert data into database.');
+        console.error('Error:', error);
+        alert('Error saving data to database');
     });
 }
+
+// Update local JavaScript objects with IDs from the server
+function updateLocalDataWithServerIds(idsMap) {
+    if (!idsMap) return;
+    
+    // Update question IDs
+    if (idsMap.questions) {
+        for (const [tempId, dbId] of Object.entries(idsMap.questions)) {
+            // Find and update the question with tempId
+            for (const courseId in masterQuestionList) {
+                for (const qType in masterQuestionList[courseId]) {
+                    const questions = masterQuestionList[courseId][qType];
+                    const question = questions.find(q => q.tempId === tempId);
+                    if (question) {
+                        question.dbId = dbId;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Update test IDs, template IDs, etc. in a similar way
+}
+
 
 </script>
 </body>

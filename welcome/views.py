@@ -517,99 +517,158 @@ def signup_handler(request):
 """
 The teacher view
 """
-@login_required
-@csrf_exempt
-def teacher_view(request):
-    # Only process POST requests.
-    if request.method != "POST":
-        return JsonResponse({"error": "POST request required."}, status=405)
 
-    try:
-        # Load the JSON data from the request body.
-        data = json.loads(request.body)
-        print("Received data:", data)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON."}, status=400)
+# views.py
+# api/views.py
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, action
+from rest_framework.response import Response
+from .models import (
+    Course, Book, Question, Test, Template, CoverPage, 
+    Attachment, TestQuestion, AnswerOption, MatchingOption
+)
+from .serializers import (
+    CourseSerializer, BookSerializer, QuestionSerializer, 
+    TestSerializer, TemplateSerializer, CoverPageSerializer, 
+    AttachmentSerializer
+)
 
-    # Get the logged-in user.
-    current_user = request.user if request.user.is_authenticated else None
-
-    # Extract the 'courses' object from the JSON data.
-    courses = data.get("courses", {})
-
-    # Loop over each course in the courses dictionary.
-    for course_id, course_info in courses.items():
-        print(f"Processing course_id: {course_id} with data: {course_info}")
-        
-        # Extract the textbook information (nested dictionary) if it exists.
-        textbook_data = course_info.get("textbook", {})
-
-        # Use get_or_create to either retrieve or create a new Course.
-        course, created = Course.objects.get_or_create(
-        course_code=course_id,
-        user=current_user,
-        defaults={
-            "course_name": course_info.get("name", "Untitled Course"),
-            "course_crn": course_info.get("crn", 0),
-            "textbook_title": textbook_data.get("title", ""),
-            "textbook_author": textbook_data.get("author", ""),
-            "textbook_version": textbook_data.get("version", ""),
-            "textbook_isbn": textbook_data.get("isbn", ""),
-            "textbook_link": textbook_data.get("link", ""),
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    
+    @action(detail=True, methods=['get'])
+    def full_data(self, request, pk=None):
+        """Get all data related to a course in one request."""
+        course = self.get_object()
+        data = {
+            'course': CourseSerializer(course).data,
+            'book': BookSerializer(course.book).data if course.book else None,
+            'questions': QuestionSerializer(course.question_set.all(), many=True).data,
+            'tests': TestSerializer(course.tests.all(), many=True).data,
+            'templates': TemplateSerializer(course.template_set.all(), many=True).data,
+            'cover_pages': CoverPageSerializer(course.coverpage_set.all(), many=True).data,
+            'attachments': AttachmentSerializer(course.attachment_set.all(), many=True).data
         }
-    )
+        return Response(data)
 
-        if created:
-            print(f"Created course: {course.course_code}")
-        else:
-            # For an existing course, update textbook fields if incoming data is provided.
-            updated = False
-
-            # Update textbook_title if needed.
-            incoming_title = textbook_data.get("title", "")
-            if incoming_title and course.textbook_title != incoming_title:
-                print(f"Updating textbook_title: DB='{course.textbook_title}' vs Incoming='{incoming_title}'")
-                course.textbook_title = incoming_title
-                updated = True
-
-            # Update textbook_author if needed.
-            incoming_author = textbook_data.get("author", "")
-            if incoming_author and course.textbook_author != incoming_author:
-                print(f"Updating textbook_author: DB='{course.textbook_author}' vs Incoming='{incoming_author}'")
-                course.textbook_author = incoming_author
-                updated = True
-
-            # Update textbook_version if needed.
-            incoming_version = textbook_data.get("version", "")
-            if incoming_version and course.textbook_version != incoming_version:
-                print(f"Updating textbook_version: DB='{course.textbook_version}' vs Incoming='{incoming_version}'")
-                course.textbook_version = incoming_version
-                updated = True
-
-            # Update textbook_isbn if needed.
-            incoming_isbn = textbook_data.get("isbn", "")
-            if incoming_isbn and course.textbook_isbn != incoming_isbn:
-                print(f"Updating textbook_isbn: DB='{course.textbook_isbn}' vs Incoming='{incoming_isbn}'")
-                course.textbook_isbn = incoming_isbn
-                updated = True
-
-            # Update textbook_link if needed.
-            incoming_link = textbook_data.get("link", "")
-            if incoming_link and course.textbook_link != incoming_link:
-                print(f"Updating textbook_link: DB='{course.textbook_link}' vs Incoming='{incoming_link}'")
-                course.textbook_link = incoming_link
-                updated = True
-
-            # Optionally, update the user if none is set.
-            if course.user is None and current_user:
-                course.user = current_user
-                updated = True
-
-            if updated:
-                course.save()  # Save changes if any field was updated.
-                print(f"Updated course: {course.course_code}")
-            else:
-                print(f"No update needed for course: {course.course_code}")
-
-    # Send back a success response.
-    return JsonResponse({"status": "Data inserted successfully"})
+@api_view(['POST'])
+def sync_course_data(request):
+    """Synchronize frontend data with the database."""
+    course_id = request.data.get('course_id')
+    
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Update course and related objects
+    course_data = request.data.get('course', {})
+    if course_data:
+        course_serializer = CourseSerializer(course, data=course_data, partial=True)
+        if course_serializer.is_valid():
+            course_serializer.save()
+    
+    # Handle questions
+    question_data = request.data.get('questions', [])
+    for q_data in question_data:
+        q_id = q_data.get('id')
+        if q_id:
+            try:
+                question = Question.objects.get(id=q_id)
+                serializer = QuestionSerializer(question, data=q_data, partial=True)
+            except Question.DoesNotExist:
+                serializer = QuestionSerializer(data=q_data)
+            
+            if serializer.is_valid():
+                question = serializer.save(course=course)
+                
+                # Handle answer options
+                if 'answer_options' in q_data:
+                    # Delete existing options and create new ones
+                    AnswerOption.objects.filter(question=question).delete()
+                    for option in q_data['answer_options']:
+                        AnswerOption.objects.create(question=question, **option)
+                
+                # Handle matching options
+                if 'matching_options' in q_data:
+                    MatchingOption.objects.filter(question=question).delete()
+                    for option in q_data['matching_options']:
+                        MatchingOption.objects.create(question=question, **option)
+    
+    # Handle tests and test questions
+    test_data = request.data.get('tests', [])
+    for t_data in test_data:
+        t_id = t_data.get('id')
+        test_questions = t_data.pop('test_questions', []) if 'test_questions' in t_data else []
+        
+        if t_id:
+            try:
+                test = Test.objects.get(id=t_id)
+                serializer = TestSerializer(test, data=t_data, partial=True)
+            except Test.DoesNotExist:
+                serializer = TestSerializer(data=t_data)
+            
+            if serializer.is_valid():
+                test = serializer.save(course=course)
+                
+                # Handle test questions
+                TestQuestion.objects.filter(test=test).delete()
+                for i, tq in enumerate(test_questions):
+                    question_id = tq.get('question_id')
+                    try:
+                        question = Question.objects.get(id=question_id)
+                        TestQuestion.objects.create(
+                            test=test,
+                            question=question,
+                            assigned_points=tq.get('assigned_points'),
+                            order=i+1,
+                            randomize=tq.get('randomize', False),
+                            special_instructions=tq.get('special_instructions')
+                        )
+                    except Question.DoesNotExist:
+                        pass
+    
+    # Handle templates
+    template_data = request.data.get('templates', [])
+    for t_data in template_data:
+        t_id = t_data.get('id')
+        if t_id:
+            try:
+                template = Template.objects.get(id=t_id)
+                serializer = TemplateSerializer(template, data=t_data, partial=True)
+            except Template.DoesNotExist:
+                serializer = TemplateSerializer(data=t_data)
+            
+            if serializer.is_valid():
+                serializer.save(course=course)
+    
+    # Handle cover pages
+    cover_page_data = request.data.get('cover_pages', [])
+    for cp_data in cover_page_data:
+        cp_id = cp_data.get('id')
+        if cp_id:
+            try:
+                cover_page = CoverPage.objects.get(id=cp_id)
+                serializer = CoverPageSerializer(cover_page, data=cp_data, partial=True)
+            except CoverPage.DoesNotExist:
+                serializer = CoverPageSerializer(data=cp_data)
+            
+            if serializer.is_valid():
+                serializer.save(course=course)
+    
+    # Handle attachments
+    attachment_data = request.data.get('attachments', [])
+    for a_data in attachment_data:
+        a_id = a_data.get('id')
+        if a_id:
+            try:
+                attachment = Attachment.objects.get(id=a_id)
+                serializer = AttachmentSerializer(attachment, data=a_data, partial=True)
+            except Attachment.DoesNotExist:
+                serializer = AttachmentSerializer(data=a_data)
+            
+            if serializer.is_valid():
+                serializer.save(course=course)
+    
+    return Response({'status': 'success'})
