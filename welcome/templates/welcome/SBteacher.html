@@ -57,6 +57,7 @@
     <button onclick="addCourse()">Add Course</button>
     </div>
 
+    <div id="errorMessage" class="error-message"></div>
     <div id="courseList"></div>
 
     <!-- Context Menu for Questions -->
@@ -3729,7 +3730,7 @@ function updateOptions(type) {
 
 // Function to load all course data when the page loads
 function loadUserData() {
-    fetch('/api/load_data/', {  // Adjust the URL to match your actual API endpoint
+    fetch('/api/load_data/', {  // Adjust the URL to match actual API endpoint
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -3782,7 +3783,7 @@ function processCourseData(courseData) {
     // Clear any existing data
     document.getElementById('courseList').innerHTML = '';
     
-    // Update your global JavaScript objects
+    // Update global JavaScript objects
     masterQuestionList = {};
     masterTestList = {};
     masterTemplateList = {};
@@ -3794,7 +3795,7 @@ function processCourseData(courseData) {
     courseData.forEach(courseData => {
         const course = courseData.course;
         
-        // Populate your global objects
+        // Populate global objects
         masterQuestionList[course.id] = organizeByCategoryType(courseData.questionList);
         masterTestList[course.id] = organizeByPublishStatus(courseData.testList);
         masterTemplateList[course.id] = courseData.templateList;
