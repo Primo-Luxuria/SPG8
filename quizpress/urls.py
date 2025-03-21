@@ -28,4 +28,5 @@ urlpatterns = [
     path('', include('welcome.urls')),
     path("teacher/", views.teacher_dashboard, name="teacher_dashboard"),  # Load the HTM page
     path('parse_qti_xml/', views.parse_qti_xml, name='parse_qti_xml'), # Process file (AJAX)
+    path('api/', include('api.urls'))
 ]

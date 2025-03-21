@@ -30,7 +30,7 @@
         .context-menu ul li:hover {background: #f0f0f0;}
     </style>
 </head>
-<body style="background-color: #2e3a42;">
+<body style="background-color: #2e3a42;" onload="loadUserData()">
 
     <h1 style="color:whitesmoke;">Manage Your Courses</h1>
 
@@ -3727,7 +3727,208 @@ function updateOptions(type) {
     }
 }
 
+// Function to load all course data when the page loads
+function loadUserData() {
+    fetch('/api/load_data/', {  // Adjust the URL to match your actual API endpoint
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),  // Include CSRF token for Django
+        },
+        credentials: 'same-origin'  // Include cookies for authentication
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Process the received data
+        if (data.courseList) {
+            // We have teacher data
+            processCourseData(data.courseList);
+        } else if (data.textbookList) {
+            // We have publisher data
+            processTextbookData(data.textbookList);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading data:', error);
+        // Show user-friendly error message
+        document.getElementById('errorMessage').textContent = 'Failed to load your data. Please refresh the page or contact support.';
+    });
+}
 
+// Helper function to get CSRF token from cookies (for Django)
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Process course data (for teachers)
+function processCourseData(courseData) {
+    // Clear any existing data
+    document.getElementById('courseList').innerHTML = '';
+    
+    // Update your global JavaScript objects
+    masterQuestionList = {};
+    masterTestList = {};
+    masterTemplateList = {};
+    masterAttachmentList = {};
+    courseList = {};
+    masterCoverPageList = {};
+    
+    // Process each course
+    courseData.forEach(courseData => {
+        const course = courseData.course;
+        
+        // Populate your global objects
+        masterQuestionList[course.id] = organizeByCategoryType(courseData.questionList);
+        masterTestList[course.id] = organizeByPublishStatus(courseData.testList);
+        masterTemplateList[course.id] = courseData.templateList;
+        masterAttachmentList[course.id] = courseData.attachmentList;
+        masterCoverPageList[course.id] = courseData.coverpageList;
+        
+        addExistingCourseToUI(course);
+        
+        // Update UI components
+        updateCoverPages(course.id);
+        updateTemplates(course.id);
+        updateAllQuestionTabs(course.id);
+        updateTestTabs(course.id);
+        updateAttachments(course.id);
+    });
+}
+
+
+function updateAllQuestionTabs(courseID){
+    updateQuestionTabs('tf', courseID);
+    updateQuestionTabs('mc', courseID);
+    updateQuestionTabs('sa', courseID);
+    updateQuestionTabs('es', courseID);
+    updateQuestionTabs('ma', courseID);
+    updateQuestionTabs('ms', courseID);
+    updateQuestionTabs('fb', courseID);  
+}
+
+// Helper function to organize questions by their type
+function organizeByCategoryType(questionList) {
+    const organized = {
+        'tf': [],
+        'mc': [],
+        'sa': [],
+        'es': [],
+        'ma': [],
+        'ms': [],
+        'fb': []
+    };
+    
+    questionList.forEach(question => {
+        if (organized[question.type]) {
+            organized[question.type].push(question);
+        }
+    });
+    
+    return organized;
+}
+
+// Helper function to organize tests by publish status
+function organizeByPublishStatus(testList) {
+    const organized = {
+        'drafts': [],
+        'published': []
+    };
+    
+    testList.forEach(test => {
+        if (test.published) {
+            organized.published.push(test);
+        } else {
+            organized.drafts.push(test);
+        }
+    });
+    
+    return organized;
+}
+
+// Function to add an existing course to the UI
+function addExistingCourseToUI(course) {
+    const courseContainer = document.createElement('div');
+    courseContainer.classList.add('course-container');
+    courseContainer.innerHTML = `
+        <details>
+            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+            <details>
+                <summary>Questions</summary>
+            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                </div>
+                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Cover Pages</summary>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
+                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+            </details>
+
+            <details>
+                <summary>Templates</summary>
+                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
+                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+            </details>
+
+            <details>
+                <summary>Tests</summary>
+                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                </div>
+                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Attachments</summary>
+                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
+                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
+            </details>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, ${courseID})">Remove Course</button>
+        </details>
+    `;
+    
+    document.getElementById('courseList').appendChild(courseContainer);
+}
 
 
 

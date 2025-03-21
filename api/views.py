@@ -49,66 +49,44 @@ def load_data(request):
         for book in books:
             book_data = {
                 "book": BookSerializer(book).data,
-                "questionList": get_questionlist(course, "publisher"),
-                "testList": get_testlist(course, "publisher"),
-                "templateList": get_templatelist(course, "publisher"),
-                "attachmentList": get_attachmentlist(course, "publisher"),
-                "coverpageList": get_coverpagelist(course, "publisher"),
+                "questionList": get_resource_list(resource_type, parent, role),
+                "testList": get_resource_list(resource_type, parent, role),
+                "templateList": get_resource_list(resource_type, parent, role),
+                "attachmentList": get_resource_list(resource_type, parent, role),
+                "coverpageList": get_resource_list(resource_type, parent, role),
             }
         data["textbookList"].append(book_data)
 
     return Response(data) 
 
 @api_view(['GET'])
-def get_questionlist(input, role):
-    if(role == "teacher"):
-        questions = Question.objects.filter(course=input)
-        question_serializer = QuestionSerializer(questions, many=True)
-    else:
-        questions = Question.objects.filter(book=input)
-        question_serializer = QuestionSerializer(questions, many=True)
-    return question_serializer.data
+# Replace repetitive get_*list functions with a single function
+def get_resource_list(resource_type, parent, role):
+    """Generic function to get resources by type"""
+    model_map = {
+        'question': Question,
+        'test': Test,
+        'template': Template,
+        'attachment': Attachment,
+        'coverpage': CoverPage
+    }
+    serializer_map = {
+        'question': QuestionSerializer,
+        'test': TestSerializer,
+        'template': TemplateSerializer,
+        'attachment': AttachmentSerializer,
+        'coverpage': CoverPageSerializer
+    }
     
-
-@api_view(['GET'])
-def get_testlist(input, role):
-    if(role == "teacher"):
-        tests = Test.objects.filter(course=input)
-        test_serializer = TestSerializer(tests, many=True)
-    else:
-        tests = Test.objects.filter(book=input)
-        test_serializer = TestSerializer(tests, many=True)
-    return test_serializer.data
-
-@api_view(['GET'])
-def get_templatelist(input, role):
-    if(role == "teacher"):
-        templates = Template.objects.filter(course=input)
-        template_serializer = TemplateSerializer(templates, many=True)
-    else:
-        templates = Template.objects.filter(book=input)
-        template_serializer = TemplateSerializer(templates, many=True)
-    return template_serializer.data
-
-@api_view(['GET'])
-def get_attachmentlist(input, role):
-    if(role == "teacher"):
-        attachments = Attachment.objects.filter(course=input)
-        attachment_serializer = AttachmentSerializer(attachments, many=True)
-    else:
-        attachments = Attachment.objects.filter(book=input)
-        attachment_serializer = AttachmentSerializer(attachments, many=True)
-    return attachment_serializer.data
-
-@api_view(['GET'])
-def get_coverpagelist(input, role):
-    if(role == "teacher"):
-        cpages = CoverPage.objects.filter(course=input)
-        cpage_serializer = CoverPageSerializer(cpages, many=True)
-    else:
-        cpages = CoverPage.objects.filter(book=input)
-        cpage_serializer = CoverPageSerializer(cpages, many=True)
-    return cpage_serializer.data
+    filter_field = 'course' if role == 'teacher' else 'book'
+    filter_params = {filter_field: parent}
+    
+    model = model_map[resource_type]
+    serializer_class = serializer_map[resource_type]
+    
+    resources = model.objects.filter(**filter_params)
+    serializer = serializer_class(resources, many=True)
+    return serializer.data
 
 @api_view(['GET'])
 def get_test_feedbacklist(test, role):
