@@ -6,6 +6,7 @@
     <title>Manage Courses</title>
     <style>
         body { font-family: Arial, sans-serif; }
+        .error-message{color:red;}   
 	    textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
         .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
         details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
@@ -186,7 +187,8 @@ function addCourse() {
                 <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
                 <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse(this, ${courseID})">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${courseID}')">Remove Course</button>
+            <button class="add-btn" onclick="confirmSaveData()">Save All Changes</button>
         </details>
     `;
 
@@ -328,10 +330,16 @@ function addCourse() {
         published: 0,
         textbook: masterTextbookList[textbookISBN]
     };
-    courseList[courseID] = thisCourse;
-
-    saveUserData();   
+    courseList[courseID] = thisCourse;   
 }
+
+function confirmSaveData(){
+    if(confirm("Save all changes? This action cannot be undone, and affects all courses.")){
+        saveUserData();
+    }
+}
+
+
 
 /**
  * Used to remove a course 
@@ -340,6 +348,11 @@ function addCourse() {
  * 
 */
 function confirmRemoveCourse(button, courseID) {
+    if (!courseList[courseID]) { 
+        console.error("Course ID not found:", courseID);
+        alert("Error: Course not found.");
+        return;
+    }
     if(courseList[courseID].published === 1){
         alert("You cannot delete a published course. Please unpublish the course first.");
         return;
@@ -3979,7 +3992,8 @@ function addExistingCourseToUI(course) {
                 <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
                 <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse(this, ${courseID})">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${courseID}')">Remove Course</button>
+            <button class="add-btn" onclick="confirmSaveData()">Save All Changes</button>
         </details>
     `;
     

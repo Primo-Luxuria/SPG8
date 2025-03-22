@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ..welcome.models import (
+from welcome.models import (
     Course, Book, Question, Test, Template, CoverPage, 
     Attachment, TestQuestion, AnswerOption, MatchingOption
 )

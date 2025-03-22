@@ -89,8 +89,8 @@ This will need to change once hooked up to AWS
 #         'ENGINE': 'django.db.backends.mysql',
 #         'NAME': 'quizpressdb1',  # Ensure this matches your database name
 #         'USER': 'dbadmin',
-#         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client
-#         'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
+#         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client (Group8iscool! for Reese)
+#          'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
 #         'PORT': '3306',
 #     }
 # }
@@ -104,7 +104,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
         'USER': 'root',
-        'PASSWORD': '2319',
+        'PASSWORD': 'Conductorofmanydreams1!',
         'HOST': 'localhost',  # Keep as 'localhost' for now
         'PORT': '3306',
         'OPTIONS': {

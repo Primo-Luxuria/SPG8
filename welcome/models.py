@@ -23,7 +23,6 @@ class Book(models.Model):
         blank=True
     )
     
-
     def __str__(self):
         return self.title
 
@@ -55,13 +54,13 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     role = models.CharField(max_length=20, choices=role_choices)
     # For publishers, their content (questions, tests, etc.) is linked directly to this book.
-    book = models.ForeignKey(
-        Book,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        help_text="Book associated with the publisher (required for publishers)."
-    )
+    #book = models.ForeignKey(
+     #   Book,
+    #    on_delete=models.SET_NULL,
+    #    null=True,
+    #    blank=True,
+    #    help_text="Book associated with the publisher (required for publishers)."
+    #)
 
     def clean(self):
         # Enforce that publishers have an associated book.
