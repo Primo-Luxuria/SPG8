@@ -10,7 +10,7 @@ This model holds textbook/book details.
 It is used as a key connection point for publisher content,
 and for teacher courses (each course references a Book).
 """
-class Book(models.Model):
+class Textbook(models.Model):
     title = models.CharField(max_length=300)
     author = models.CharField(max_length=300, blank=True, null=True)
     version = models.CharField(max_length=300, blank=True, null=True)
@@ -22,6 +22,7 @@ class Book(models.Model):
         null=True,
         blank=True
     )
+    published = models.BooleanField(default=False)
     
     def __str__(self):
         return self.title
@@ -53,15 +54,7 @@ class UserProfile(models.Model):
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     role = models.CharField(max_length=20, choices=role_choices)
-    # For publishers, their content (questions, tests, etc.) is linked directly to this book.
-    #book = models.ForeignKey(
-     #   Book,
-    #    on_delete=models.SET_NULL,
-    #    null=True,
-    #    blank=True,
-    #    help_text="Book associated with the publisher (required for publishers)."
-    #)
-
+    
     def clean(self):
         # Enforce that publishers have an associated book.
         if self.role == 'publisher' and not self.book:
@@ -83,29 +76,30 @@ class Course(models.Model):
         null=True,
         blank=True
     )
-    course_code = models.CharField(
+    course_id = models.CharField(
         max_length=50,
         help_text='e.g: CS499',
         default='CS499'
     )
-    course_name = models.CharField(
+    name = models.CharField(
         max_length=250,
         help_text='e.g: SR PROJ:TEAM SOFTWARE DESIGN',
         default='Untitled Course'
     )
-    course_crn = models.CharField(
+    crn = models.CharField(
         max_length=50,
         help_text='e.g: 54352',
         default='0000'
     )
-    course_semester = models.CharField(
+    #semester
+    sem = models.CharField( 
         max_length=50,
         help_text='e.g: Fall 2021',
         default='Fall 2021'
-    )
+    ) 
     # Each course is associated with a textbook.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -117,18 +111,19 @@ class Course(models.Model):
         blank=True,
         limit_choices_to={'userprofile__role': 'teacher'}
     )
+    published = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.course_code} - {self.course_name}"
+        return f"{self.course_id} - {self.name}"
 
     def get_publisher_questions(self):
         """
         For a given course, return publisher-created questions.
         This works by matching the course's textbook with publisher questions.
         """
-        if self.book:
+        if self.textbook:
             return Question.objects.filter(
-                book=self.book,
+                textbook=self.textbook,
                 owner__userprofile__role='publisher'
             )
         return Question.objects.none()
@@ -146,14 +141,14 @@ The include_formula field is specific to fill in the blank questions.
 """
 class Question(models.Model):
     question_type_options = [
-        ('TF', 'True/False'),
-        ('MC', 'Multiple Choice'),
-        ('SA', 'Short Answer'),
-        ('ES', 'Essay'),
-        ('MA', 'Matching'),
-        ('MS', 'Multiple Selection'),
-        ('FB', 'Fill in the Blank'),
-        ('DY', 'Dynamic')  # For questions with dynamic data.
+        ('tf', 'True/False'),
+        ('mc', 'Multiple Choice'),
+        ('sa', 'Short Answer'),
+        ('es', 'Essay'),
+        ('ma', 'Matching'),
+        ('ms', 'Multiple Selection'),
+        ('fb', 'Fill in the Blank'),
+        ('dy', 'Dynamic')  # For questions with dynamic data.
     ]
     # Teacher-created question: linked to a course.
     course = models.ForeignKey(
@@ -163,34 +158,32 @@ class Question(models.Model):
         blank=True
     )
     # Publisher-created question: directly linked to a book.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         help_text="For publisher-created questions, associate with a book."
     )
-    question_type = models.CharField(max_length=50, choices=question_type_options)
-    question_text = models.TextField(help_text='Question prompt.', default='Question text.', null=True)
+    qtype = models.CharField(max_length=50, choices=question_type_options)
+    text = models.TextField(help_text='Question prompt.', default='Question text.', null=True)
     
     # Common fields for visual elements and grading.
-    embedded_graphic = models.ImageField(max_length=200, null=True, blank=True)
-    correct_answer_graphic = models.ImageField(upload_to='answer_graphics/', null=True, blank=True)
-    default_points = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
-    estimated_time = models.IntegerField(default=1, help_text='Estimated time (in minutes) to answer the question.')
-    instructions_for_grading = models.TextField(null=True, blank=True)
-    references = models.CharField(max_length=200, null=True, blank=True, help_text="Reference text (optional).")
-    instructor_comment = models.TextField(null=True, blank=True)
+    img = models.ImageField(upload_to='graphics/', max_length=200, null=True, blank=True) #embedded graphic
+    ansimg = models.ImageField(upload_to='answer_graphics/', null=True, blank=True) #answer graphic
+    score = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
+    eta = models.IntegerField(default=1, help_text='Estimated time (in minutes) to answer the question.')
+    directions = models.TextField(null=True, blank=True)
+    reference = models.CharField(max_length=200, null=True, blank=True, help_text="Reference text (optional).")
+    comments = models.TextField(null=True, blank=True)
     
     # Fields used across several types for categorization.
     chapter = models.PositiveIntegerField(default=0, help_text="Chapter number. Default is 0.")
     section = models.PositiveIntegerField(default=0, help_text="Section number. Default is 0.")
     # Used to store a single correct answer (e.g., for true/false, short answer, essay, fill in the blank).
-    correct_answer = models.TextField(null=True, blank=True, help_text="Correct answer for types needing a single answer.")
-    # Specific to fill-in-the-blank questions: indicates if a formula should be used.
-    include_formula = models.BooleanField(default=False, help_text="For fill in the blank: include a formula (default is No).")
+    answer = models.TextField(null=True, blank=True, help_text="Correct answer for types needing a single answer.")
     
-    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -201,11 +194,11 @@ class Question(models.Model):
         """
         super().clean()
         if self.owner and hasattr(self.owner, 'userprofile'):
-            if self.owner.userprofile.role == 'publisher' and self.chapter == 0:
-                raise ValidationError("Publisher-created questions must include a chapter number (non-zero).")
+            if self.owner.userprofile.role == 'publisher' and self.chapter < 0:
+                raise ValidationError("Publisher-created questions must include a chapter number (non-negative).")
 
     def __str__(self):
-        return f"[{self.get_question_type_display()}] {self.question_text[:50]}"
+        return f"[{self.get_qtype_display()}] {self.text[:50]}"
 
     @property
     def publisher_average_rating(self):
@@ -220,18 +213,32 @@ class Question(models.Model):
 
 
 """
-ANSWER OPTION MODEL
+OPTION MODEL
 Used for storing answer choices for questions such as Multiple Choice or Multiple Selection.
 Each answer option can also include optional graphics or feedback.
 """
-class AnswerOption(models.Model):
+class Options(models.Model):
     question = models.ForeignKey(
         Question,
         on_delete=models.CASCADE,
-        related_name="answer_options"
+        related_name="question_options"
     )
     text = models.TextField(help_text="Answer option text", null=True)
-    is_correct = models.BooleanField(default=False, help_text="Designates if this option is the correct answer.")
+
+    def __str__(self):
+        return self.text
+
+
+"""
+ANSWER MODEL
+"""
+class Answers(models.Model):
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="question_answers"
+    )
+    text = models.TextField(help_text="Correct answer text", null=True)
     answer_graphic = models.ImageField(upload_to='answer_graphics/', null=True, blank=True)
     response_feedback_text = models.TextField(null=True, blank=True)
     response_feedback_graphic = models.ImageField(null=True, blank=True)
@@ -239,23 +246,6 @@ class AnswerOption(models.Model):
     def __str__(self):
         return self.text
 
-
-"""
-MATCHING OPTION MODEL
-Instead of using a JSON field, this model stores matching pairs for matching-type questions.
-Each record corresponds to one pairing: an option and its corresponding match.
-"""
-class MatchingOption(models.Model):
-    question = models.ForeignKey(
-        Question,
-        on_delete=models.CASCADE,
-        related_name="matching_options"
-    )
-    option_text = models.TextField(help_text="Option text (left side).")
-    match_text = models.TextField(help_text="Matching answer text (right side).")
-
-    def __str__(self):
-        return f"{self.option_text} -> {self.match_text}"
 
 
 """
@@ -298,18 +288,25 @@ class Template(models.Model):
         help_text="Course associated with this template (teacher content)."
     )
     # Publisher-created template: linked directly to a book.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         help_text="Book associated with this template (publisher content)."
     )
     name = models.CharField(max_length=200, unique=True, help_text="Template name.")
-    font_name = models.CharField(max_length=100, default="Arial")
-    font_size = models.IntegerField(default=12)
-    header_text = models.TextField(null=True, blank=True)
-    footer_text = models.TextField(null=True, blank=True)
+    titleFont = models.CharField(max_length=100, default="Arial")
+    titleFontSize = models.IntegerField(default=48)
+    subtitleFont = models.CharField(max_length=100, default="Arial")
+    subtitleFontSize = models.IntegerField(default=24)
+    bodyFont = models.CharField(max_length=100, default="Arial")
+    bodyFontSize = models.IntegerField(default=12)
+    pageNumbersInHeader = models.BooleanField(default=False)
+    pageNumbersInFooter = models.BooleanField(default=False)
+    headerText = models.TextField(null=True, blank=True)
+    footerText = models.TextField(null=True, blank=True)
+    coverPage = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
@@ -330,33 +327,35 @@ class CoverPage(models.Model):
         help_text="Course associated with this cover page (teacher content)."
     )
     # Publisher-created cover page.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         help_text="Book associated with this cover page (publisher content)."
     )
-    cover_page_name = models.CharField(max_length=200, help_text="Name of the cover page.")
-    test_number = models.CharField(max_length=50, help_text="Test number displayed on the cover page.")
-    test_date = models.DateField(help_text="Date of the test.")
-    test_filename = models.CharField(max_length=200, help_text="Filename displayed on the cover page.")
-    filename_present = models.BooleanField(default=False, help_text="Is the filename present on the cover page?")
+    name = models.CharField(max_length=200, help_text="Name of the cover page.")
+    testNum = models.CharField(max_length=50, help_text="Test number displayed on the cover page.")
+    date = models.DateField(help_text="Date of the test.")
+    file = models.CharField(max_length=200, help_text="Filename displayed on the cover page.")
+    showFilename = models.BooleanField(default=False, help_text="Is the filename present on the cover page?")
     STUDENT_NAME_CHOICES = [
-        ('top_left', 'Top Left'),
-        ('top_right', 'Top Right'),
-        ('below_title', 'Below Title'),
+        ('TL', 'Top Left'),
+        ('TR', 'Top Right'),
+        ('BT', 'Below Title'),
     ]
-    student_name_location = models.CharField(
+    blank = models.CharField(
         max_length=20,
         choices=STUDENT_NAME_CHOICES,
         default='top_left',
         help_text="Location for the student's name on the cover page."
     )
-    grading_instructions_for_key = models.TextField(blank=True, null=True, help_text="Grading instructions for the answer key.")
+    instructions = models.TextField(blank=True, null=True, help_text="Grading instructions for the answer key.")
+    published = models.BooleanField(default=False)
+
 
     def __str__(self):
-        return f"{self.cover_page_name} - {self.test_number}"
+        return f"{self.name} - {self.testNum}"
 
 
 """
@@ -375,15 +374,16 @@ class Attachment(models.Model):
         help_text="Course associated with this attachment (teacher content)."
     )
     # Publisher-created attachment.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         help_text="Book associated with this attachment (publisher content)."
     )
+    name = models.CharField(max_length=300, help_text="attachment name")
     file = models.FileField(upload_to="attachments/")
-
+    published = models.BooleanField(default=False)
     def __str__(self):
         return self.file.name
 
@@ -405,14 +405,14 @@ class Test(models.Model):
         help_text="Course associated with this test (teacher content)."
     )
     # Publisher test: linked directly to a book.
-    book = models.ForeignKey(
-        Book,
+    textbook = models.ForeignKey(
+        Textbook,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         help_text="Book associated with this test (publisher content)."
     )
-    title = models.CharField(max_length=200, help_text="e.g: Quiz 1, Test 1", default="Untitled Test.")
+    name = models.CharField(max_length=200, help_text="e.g: Quiz 1, Test 1", default="Untitled Test.")
     date = models.DateField(null=True, blank=True)
     filename = models.CharField(max_length=200, null=True, blank=True, help_text="Generated filename for this test.")
     is_final = models.BooleanField(default=False, help_text="Mark as True when test is published/finalized.")
@@ -423,18 +423,16 @@ class Test(models.Model):
         blank=True
     )
     attachments = models.ManyToManyField(Attachment, blank=True)
-    cover_instructions = models.TextField(null=True, blank=True, help_text="Test instructions on cover page.")
-    test_number = models.CharField(max_length=50, null=True, blank=True, help_text="Identifier, e.g. 'Test #1'")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         # Return a string based on the context: course for teacher tests or book for publisher tests.
         if self.course:
-            return f"{self.title} - {self.course.course_code}"
-        elif self.book:
-            return f"{self.title} - {self.book.title}"
-        return self.title
+            return f"{self.name} - {self.course.course_id}"
+        elif self.textbook:
+            return f"{self.name} - {self.textbook.title}"
+        return self.name
 
 
 """
@@ -462,7 +460,7 @@ class TestQuestion(models.Model):
         ordering = ['order']
 
     def __str__(self):
-        return f"Q{self.order} in {self.test.title}"
+        return f"Q{self.order} in {self.test.name}"
 
 
 """
@@ -495,5 +493,5 @@ class Feedback(models.Model):
         if self.question:
             return f"Feedback on Question {self.question.id}"
         elif self.test:
-            return f"Feedback on Test {self.test.title}"
+            return f"Feedback on Test {self.test.name}"
         return "General Feedback"

@@ -303,16 +303,11 @@ function addCourse() {
 
     if(!masterTextbookList[textbookISBN]){
         let textbook = {
-            chapters: [
-                sections = [
-                    questions = []
-                ]
-            ],
             title: textbookTitle,
             author: textbookAuthor,  
             version: textbookVersion,    
             isbn: textbookISBN,  
-            link: textbookLink  
+            link: textbookLink 
         };
         masterTextbookList[textbookISBN] = textbook;
     }
@@ -803,6 +798,7 @@ function submitCoverPage(courseID) {
         showFilename: filenameTF,
         blank: nameBlankSelector,
         instructions: gradingInstructions,
+        published: 0,
         feedback: []
     };
 
@@ -830,7 +826,7 @@ function submitAttachment(courseID) {
         masterAttachmentList[courseID] = [];
     }
 
-    masterAttachmentList[courseID].push({ name: name, file: attachment });
+    masterAttachmentList[courseID].push({ name: name, file: attachment, published: 0});
     updateAttachments(courseID);
     closeModal();
     alert("Attachment added successfully!");
@@ -936,6 +932,7 @@ function addTemplate(courseID) {
         partStructure: partStructure,
         bonusSection: bonusSection,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        published: 0,
         feedback: []
     };
 
@@ -1098,7 +1095,6 @@ function addQuestion(courseID) {
     }
 
     let answer = '';
-    let prompts = [];
     let options = [];
 
     if (type === 'tf') {
@@ -1153,7 +1149,6 @@ function addQuestion(courseID) {
         img: graphic,
         ansimg: ansgraphic,
         comments: instcomm,
-        prompts: prompts,
         options: options,
         tests: [],
         chapter: chapter,
@@ -2869,7 +2864,7 @@ function submitEditTemplate(courseID, templateIndex) {
         partStructure: partStructure,
         bonusSection: bonusSection,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
-        feedback: []
+        published: 0
     };
 
     masterTemplateList[courseID][templateIndex] = templateData;
@@ -3774,26 +3769,51 @@ function loadUserData() {
     });
 }
 
-function saveUserData() {
-    // Collect all master lists into a single object
-    const dataToSave = {
-        masterQuestionList: JSON.stringify(masterQuestionList),
-        masterTestList: JSON.stringify(masterTestList),
-        masterTemplateList: JSON.stringify(masterTemplateList),
-        masterAttachmentList: JSON.stringify(masterAttachmentList),
-        courseList: JSON.stringify(courseList),
-        masterCoverPageList: JSON.stringify(masterCoverPageList)
-    };
 
-    // Send the data to your backend
+function sanitizeDataForSaving(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeDataForSaving(item));
+    }
+    
+    // Handle objects
+    const result = {};
+    for (const key in obj) {
+        if (obj[key] instanceof HTMLElement) {
+            // Get the value from HTML elements
+            result[key] = obj[key].value;
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            // Recursively process nested objects
+            result[key] = sanitizeDataForSaving(obj[key]);
+        } else {
+            // Keep primitives as is
+            result[key] = obj[key];
+        }
+    }
+    return result;
+}
+
+function saveUserData() {
+    // Sanitize all data structures
+    const sanitizedData = {
+        masterQuestionList: sanitizeDataForSaving(masterQuestionList),
+        masterTestList: sanitizeDataForSaving(masterTestList),
+        masterTemplateList: sanitizeDataForSaving(masterTemplateList),
+        masterAttachmentList: sanitizeDataForSaving(masterAttachmentList),
+        courseList: sanitizeDataForSaving(courseList),
+        masterCoverPageList: sanitizeDataForSaving(masterCoverPageList)
+    };
+    
     fetch('/api/save_data/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken(),  // Include CSRF token for Django
+            'X-CSRFToken': getCSRFToken(),
         },
-        body: JSON.stringify(dataToSave),  // Send the stringified data
-        credentials: 'same-origin'  // Include cookies for authentication
+        body: JSON.stringify(sanitizedData),
+        credentials: 'same-origin'
     })
     .then(response => {
         if (!response.ok) {
