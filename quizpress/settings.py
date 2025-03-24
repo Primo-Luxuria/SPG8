@@ -104,7 +104,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
         'USER': 'root',
-        'PASSWORD': 'YOURPWDHERE',
+        'PASSWORD': '###############!',
         'HOST': 'localhost',  # Keep as 'localhost' for now
         'PORT': '3306',
         'OPTIONS': {
@@ -161,3 +161,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+

@@ -30,7 +30,7 @@ class CourseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Course
-        fields = ['id', 'name', 'crn', 'sem', 'user', 'textbook', 'teachers', 'published']
+        fields = ['id', 'course_id', 'name', 'crn', 'sem', 'user', 'textbook', 'teachers', 'published']
 
 class OptionsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,8 +48,8 @@ class DynamicQuestionParameterSerializer(serializers.ModelSerializer):
         fields = ['id', 'question', 'formula', 'range_min', 'range_max', 'additional_params']
 
 class QuestionSerializer(serializers.ModelSerializer):
-    options = OptionsSerializer(many=True, read_only=True, source='options')
-    answers = AnswersSerializer(many=True, read_only=True, source='options')
+    options = OptionsSerializer(many=True, read_only=True, source='question_options')
+    answers = AnswersSerializer(many=True, read_only=True, source='question_answers')
     dynamic_parameters = DynamicQuestionParameterSerializer(read_only=True)
     author = UserSerializer(read_only=True)
     
@@ -122,7 +122,7 @@ class TextbookWriteSerializer(serializers.ModelSerializer):
 class CourseWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
-        fields = ['id', 'name', 'crn', 'sem', 'user', 'textbook', 'teachers', 'published']
+        fields = ['id', 'course_id', 'name', 'crn', 'sem', 'user', 'textbook', 'teachers', 'published']
 
 class QuestionWriteSerializer(serializers.ModelSerializer):
     class Meta:

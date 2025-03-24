@@ -188,7 +188,6 @@ function addCourse() {
                 <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
             <button class="remove-btn" onclick="confirmRemoveCourse(this, '${courseID}')">Remove Course</button>
-            <button class="add-btn" onclick="confirmSaveData()">Save All Changes</button>
         </details>
     `;
 
@@ -326,13 +325,14 @@ function addCourse() {
         textbook: masterTextbookList[textbookISBN]
     };
     courseList[courseID] = thisCourse;   
+
+    setTimeout(() => {
+        saveUserData('course');
+        console.log("Delayed for 1 second.");
+    }, 1000);
+    
 }
 
-function confirmSaveData(){
-    if(confirm("Save all changes? This action cannot be undone, and affects all courses.")){
-        saveUserData();
-    }
-}
 
 
 
@@ -3770,81 +3770,78 @@ function loadUserData() {
 }
 
 
-function sanitizeDataForSaving(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    // Handle arrays
-    if (Array.isArray(obj)) {
-        return obj.map(item => sanitizeDataForSaving(item));
+function saveUserData(type) { // type must be 'question', 'test', 'template', 'cpage', or 'course'
+    let data = '';
+    switch(type){
+        case 'question':
+            data = JSON.stringify({"masterQuestionList": masterQuestionList});
+            break;
+        case 'test':
+            data = JSON.stringify({"masterTestList": masterTestList}); 
+            break;
+        case 'course':
+            data = JSON.stringify({"courseList": courseList});
+            break;
+        case 'cpage': 
+            data = JSON.stringify({"masterCoverPageList": masterCoverPageList});
+            break;
+        case 'template':
+            data = JSON.stringify({"masterTemplateList": masterTemplateList});
+            break;
+        case 'attachment':
+            data = JSON.stringify({"masterAttachmentList": masterAttachmentList}); //needs to be reworked to deal with files
+            break;
+        case 'all':
+            datadump = {
+                questions: masterQuestionList,
+                tests: masterTestList,
+                courses: courseList, 
+                cpages: masterCoverPageList,
+                templates: masterTemplateList,
+                attachments: masterAttachmentList 
+            };
+            data = JSON.stringify(datadump);
+            break;
+        default:
+            console.error("Invalid type for saveUserData()");
+            return;
     }
     
-    // Handle objects
-    const result = {};
-    for (const key in obj) {
-        if (obj[key] instanceof HTMLElement) {
-            // Get the value from HTML elements
-            result[key] = obj[key].value;
-        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-            // Recursively process nested objects
-            result[key] = sanitizeDataForSaving(obj[key]);
-        } else {
-            // Keep primitives as is
-            result[key] = obj[key];
-        }
-    }
-    return result;
-}
-
-function saveUserData() {
-    // Sanitize all data structures
-    const sanitizedData = {
-        masterQuestionList: sanitizeDataForSaving(masterQuestionList),
-        masterTestList: sanitizeDataForSaving(masterTestList),
-        masterTemplateList: sanitizeDataForSaving(masterTemplateList),
-        masterAttachmentList: sanitizeDataForSaving(masterAttachmentList),
-        courseList: sanitizeDataForSaving(courseList),
-        masterCoverPageList: sanitizeDataForSaving(masterCoverPageList)
-    };
-    
-    fetch('/api/save_data/', {
+    fetch(`/api/save_data/${type}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCSRFToken(),
         },
-        body: JSON.stringify(sanitizedData),
+        body: data,
         credentials: 'same-origin'
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status !== 200) {
+            throw new Error(`Error ${status}: ${body.message || 'Unknown error'}`);
         }
-        return response.json();
-    })
-    .then(data => {
-        // Handle successful save
-        console.log('Data saved successfully:', data);
-        
-        // Show success message to user
-        const errorElement = document.getElementById('errorMessage');
-        if (errorElement) {
-            errorElement.textContent = '';  // Clear any error message
-        }
-        
-        // You might want to show a success message
+        console.log('Data saved successfully:', body);
+
         const successElement = document.getElementById('successMessage');
         if (successElement) {
             successElement.textContent = 'Your data has been saved successfully.';
-            // Hide the message after a few seconds
             setTimeout(() => {
                 successElement.textContent = '';
             }, 3000);
         }
+
+        const errorElement = document.getElementById('errorMessage');
+        if (errorElement) {
+            errorElement.textContent = '';  
+        }
     })
     .catch(error => {
         console.error('Error saving data:', error);
-        // Show user-friendly error message
-        document.getElementById('errorMessage').textContent = 'Failed to save your data. Please try again or contact support.';
+        const errorElement = document.getElementById('errorMessage');
+        if (errorElement) {
+            errorElement.textContent = `Failed to save your data: ${error.message}`;
+        }
     });
 }
 
@@ -3866,8 +3863,7 @@ function getCSRFToken() {
     return cookieValue;
 }
 
-// Process course data (for teachers)
-function processCourseData(courseData) {
+function processCourseData(data) {
     // Clear any existing data
     document.getElementById('courseList').innerHTML = '';
     
@@ -3876,31 +3872,52 @@ function processCourseData(courseData) {
     masterTestList = {};
     masterTemplateList = {};
     masterAttachmentList = {};
-    courseList = {};
+    courseList = {};  
     masterCoverPageList = {};
     
-    // Process each course
-    courseData.forEach(courseData => {
+    // Check if we have valid data
+    if (!data || !Array.isArray(data)) {
+        console.error("Invalid data format:", data);
+        document.getElementById('courseList').innerHTML = 
+            '<div class="alert alert-danger">Error loading courses. Please try again later.</div>';
+        return;
+    }
+    
+    // Process each course in the array
+    data.forEach(courseData => {
+        if (!courseData || !courseData.course) {
+            console.error("Invalid course data:", courseData);
+            return; // Skip this course and continue with others
+        }
+        
         const course = courseData.course;
+        const courseId = course.course_id; 
+        courseList[courseId] = course;
         
-        // Populate global objects
-        masterQuestionList[course.id] = organizeByCategoryType(courseData.questionList);
-        masterTestList[course.id] = organizeByPublishStatus(courseData.testList);
-        masterTemplateList[course.id] = courseData.templateList;
-        masterAttachmentList[course.id] = courseData.attachmentList;
-        masterCoverPageList[course.id] = courseData.coverpageList;
-        
-        addExistingCourseToUI(course);
-        
-        // Update UI components
-        updateCoverPages(course.id);
-        updateTemplates(course.id);
-        updateAllQuestionTabs(course.id);
-        updateTestTabs(course.id);
-        updateAttachments(course.id);
+        try {
+            masterQuestionList[courseId] = courseData.questionList ? 
+                organizeByCategoryType(courseData.questionList) : {};
+                
+            masterTestList[courseId] = courseData.testList ? 
+                organizeByPublishStatus(courseData.testList) : {};
+                
+            masterTemplateList[courseId] = courseData.templateList || [];
+            masterAttachmentList[courseId] = courseData.attachmentList || [];
+            masterCoverPageList[courseId] = courseData.coverpageList || [];
+            
+            addExistingCourseToUI(course);
+            
+            // Update UI components
+            updateCoverPages(courseId);
+            updateTemplates(courseId);
+            updateAllQuestionTabs(courseId);
+            updateTestTabs(courseId);
+            updateAttachments(courseId);
+        } catch (error) {
+            console.error(`Error processing course ${courseId}:`, error);
+        }
     });
 }
-
 
 function updateAllQuestionTabs(courseID){
     updateQuestionTabs('tf', courseID);
@@ -3957,70 +3974,67 @@ function addExistingCourseToUI(course) {
     courseContainer.classList.add('course-container');
     courseContainer.innerHTML = `
         <details>
-            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+            <summary><strong>${course.name}</strong> (ID: ${course.course_id}, CRN: ${course.crn}, ${course.sem})</summary>
             <details>
                 <summary>Questions</summary>
-            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <button class="add-btn" onclick="openEditor('Question', '${course.course_id}')">Add Question</button>
             <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
-                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
-                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
-                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
-                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
-                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
-                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                    <div class="tab active" onclick="switchTab(event, 'tf-${course.course_id}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${course.course_id}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${course.course_id}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${course.course_id}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${course.course_id}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${course.course_id}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${course.course_id}')">Fill in the Blank</div>
                 </div>
-                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
-                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
-                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
-                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
-                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
-                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
-                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+                <div class="tab-content active" id="tf-${course.course_id}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${course.course_id}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${course.course_id}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${course.course_id}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${course.course_id}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${course.course_id}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${course.course_id}"><p>Fill in the Blank questions go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Cover Pages</summary>
-                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
-                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${course.course_id}')">Add Cover Page</button>
+                    <div id="coverpages-${course.course_id}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Template', '${course.course_id}')">Add Template</button>
+                    <div id="templates-${course.course_id}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                <button class="add-btn" onclick="openEditor('Test', '${course.course_id}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('Test', '${course.course_id}')">Import Test</button>
                 <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
-                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${course.course_id}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${course.course_id}')">Published Tests</div>
                 </div>
-                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
-                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+                <div class="tab-content active" id="drafts-${course.course_id}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${course.course_id}"><p>Published tests go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Attachments</summary>
-                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
-                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
+                <button class="add-btn" onclick="openEditor('Attachment', '${course.course_id}')">Add Attachment</button>
+                <div id="attachments-${course.course_id}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${courseID}')">Remove Course</button>
-            <button class="add-btn" onclick="confirmSaveData()">Save All Changes</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${course.course_id}')">Remove Course</button>
         </details>
     `;
     
     document.getElementById('courseList').appendChild(courseContainer);
 }
-
-
 
 </script>
 </body>
