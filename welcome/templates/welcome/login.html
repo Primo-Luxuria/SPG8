@@ -1,38 +1,113 @@
 <!DOCTYPE html>
 <html lang="en-US">
-
 <head>
-    <title>Log In</title>
-    <link rel="icon" type="image/x-icon" href="quizpress.ico">
-    <link rel="stylesheet" href="home.css">
-    <meta charset="UTF-8">
-    <meta name="keywords" content="HTML, CSS, JavaScript, php, login, log in, sign in">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family:Garamond; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Log In | QuizPress</title>
+  <link rel="icon" type="image/x-icon" href="quizpress.ico">
+  <meta name="keywords" content="HTML, CSS, JavaScript, php, login, log in, sign in">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Global Styles */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #2e3a42;
+    }
+    /* Header with UAH Blue */
+    .header {
+      background-color: #0077C8; /* UAH Blue */
+      color: whitesmoke;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 36px;
+    }
+    .header p {
+      margin: 5px 0 0;
+      font-size: 16px;
+    }
+    /* Login Container */
+    .login-container {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 40px;
+      max-width: 400px;
+      margin: 40px auto;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .login-container h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .login-container label {
+      display: block;
+      margin-bottom: 5px;
+      color: #555;
+    }
+    .login-container input[type="text"],
+    .login-container input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .login-container button {
+      width: 100%;
+      padding: 10px;
+      background-color: #0077C8;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .login-container button:hover {
+      background-color: #005fa3;
+    }
+    .back-btn {
+      background-color: #ccc;
+      margin-top: 10px;
+    }
+    .back-btn:hover {
+      background-color: #bbb;
+    }
+    .message-list {
+      margin-top: 20px;
+      color: #d00;
+      list-style: none;
+      padding-left: 0;
+    }
+  </style>
 </head>
-
 <body>
-    <div>
-        <h1>Enter your username and password </h1>
-        <form id="loginForm" method="POST" action="{% url 'login_handler' %}">
-            {% csrf_token %}
-            <label for="username">Username</label><br/>
-            <input id="username" type="text" name="username" required><br/>
-            <label for="password">Password</label><br/>
-            <input id="password" type="password" name="password" required><br/><br/>
-            <button type="submit">Log In</button><br/><br/>
-        </form>
-        <button onclick="window.location.href='{% url 'home' %}'">Back to Home</button>
-    </div>
-
+  <div class="header">
+    <h1>QuizPress</h1>
+    <p>Manage Your Quizzes with Ease</p>
+  </div>
+  <div class="login-container">
+    <h1>Log In</h1>
+    <form id="loginForm" method="POST" action="{% url 'login_handler' %}">
+      {% csrf_token %}
+      <label for="username">Username</label>
+      <input id="username" type="text" name="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" required>
+      <button type="submit">Log In</button>
+    </form>
+    <button class="back-btn" onclick="window.location.href='{% url 'home' %}'">Back to Home</button>
     {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
+      <ul class="message-list">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
     {% endif %}
+  </div>
 </body>
 </html>
