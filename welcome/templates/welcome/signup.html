@@ -2,35 +2,50 @@
 <html lang="en-US">
 
 <head>
-<title>Sign Up</title>
-<link rel="icon" type="image/x-icon" href="quizpress.ico">
-<link rel="stylesheet" href="home.css">
-<meta charset="UTF-8>
-<meta name="keywords" content="HTML, CSS, JavaScript, php, sign up, register, registration, new user">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-font-family: Garamond, serif;
-</style>
+    <title>Sign Up</title>
+    <link rel="icon" type="image/x-icon" href="quizpress.ico">
+    <link rel="stylesheet" href="home.css">
+    <meta charset="UTF-8">
+    <meta name="keywords" content="HTML, CSS, JavaScript, Django, sign up, register, registration, new user">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Garamond, serif; }
+    </style>
 </head>
 
 <body>
 
 <div>
-	<h1>Sign up for QuizPress </h1>
-		<form method="POST" action="signup_handler.php">  <!-- action="/login_handling.php" -->
-			<label for="uname">Please Choose a Username</label><br/>
-			<input id="uname" type="username" name="username"><br/>
-			<label for="pwd">Please choose a Password</label><br/>
-			<input id="pwd" type="password" name="password"><br/><br/>
-			<label for="pwdconfirm">Please confirm your Password</label><br/>
-			<input id="pwdconfirm" type="password" name="passwordconfirm"><br/><br/>
-			<input type="radio" id="teacher" name="role" value="Teacher">
-			<label for="teacher">I am a teacher</label>
-			<input type="radio" id="publisher" name="role" value="Publisher">
-			<label for="publisher">I am a publisher</label><br><br>
-			<input type="submit" value="Sign Up"><br/><br/>
-		</form>
-		<button onclick="location.href={% url 'home' %}">Back to Home</button>
+    <h1>Sign up for QuizPress</h1>
+
+    <form id="signupForm" method="POST" action="{% url 'signup_handler' %}">
+        {% csrf_token %} 
+        
+        <label for="uname">Please Choose a Username</label><br/>
+        <input id="uname" type="text" name="username" required><br/>
+
+        <label for="pwd">Please Choose a Password</label><br/>
+        <input id="pwd" type="password" name="password" required><br/><br/>
+
+        <label for="pwdconfirm">Please Confirm Your Password</label><br/>
+        <input id="pwdconfirm" type="password" name="passwordconfirm" required><br/><br/>
+
+        <input type="radio" id="teacher" name="role" value="teacher" required>
+        <label for="teacher">I am a Teacher</label>
+
+        <input type="radio" id="publisher" name="role" value="publisher">
+        <label for="publisher">I am a Publisher</label><br/><br/>
+
+        <button type="submit">Sign Up</button><br/><br/>
+    </form>
+    {% if messages %}
+    <ul>
+        {% for message in messages %}
+            <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+    <button onclick="location.href='{% url 'home' %}'">Back to Home</button>
 </div>
 
 </body>

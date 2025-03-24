@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage textbooks</title>
+    <title>Manage Courses</title>
     <style>
         body { font-family: Arial, sans-serif; }
+        .error-message{color:red;}   
 	    textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
-        .textbook-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
+        .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
         details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
         .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .tab-container { margin-top: 10px; }
@@ -23,31 +24,42 @@
         .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
         .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
         .form-group label {width: 120px;text-align: right;margin-right: 10px;}
-        .form-group input {flex: 1;}  
+        .form-group input {flex: 1;}
         .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
         .context-menu ul {list-style: none;margin: 0;padding: 0;}
         .context-menu ul li {padding: 8px 12px;cursor: pointer;}
         .context-menu ul li:hover {background: #f0f0f0;}
     </style>
 </head>
-<body style="background-color: #2e3a42;">
+<body style="background-color: #2e3a42;" onload="loadUserData()">
 
-    <h1 style="color:whitesmoke;">Manage Your Textbooks</h1>
+    <h1 style="color:whitesmoke;">Manage Your Courses</h1>
 
-    <!-- Textbook Input Form -->
+    <!-- Course Input Form -->
 
     <div style="background:#e0e0e0;padding:20px;">
-    <input type="text" id="title" placeholder="Enter Textbook Title" required>
-    <input type="text" id="author" placeholder="Enter Textbook Author" required>
-    <input type="text" id="version" placeholder="Enter Textbook Version" required>
-    <input type="text" id="isbn" placeholder="Enter Textbook ISBN" required>
-    <input type="text" id="link" placeholder="Enter Textbook Website Link" required>
-    <input type="number" id="chapters" min="1" placeholder="Enter Number of Chapters" required><br/><br/>
+    <input type="text" id="courseID" placeholder="Enter Course ID" required>
+    <input type="text" id="courseName" placeholder="Enter Course Name" required>
+    <input type="text" id="courseCRN" placeholder="Enter CRN" required>
+    <select id="courseSemester" required>
+        <option value="" disabled selected>Select Semester</option>
+        <option value="Spring">Spring</option>
+        <option value="Summer">Summer</option>
+        <option value="Fall">Fall</option>
+        <option value="Winter">Winter</option>
+    </select><br/><br/>
+
+    <input type="text" id="courseTextbookTitle" placeholder="Enter Textbook Title" required>
+    <input type="text" id="courseTextbookAuthor" placeholder="Enter Textbook Author" required>
+    <input type="text" id="courseTextbookVersion" placeholder="Enter Textbook Version" required>
+    <input type="text" id="courseTextbookISBN" placeholder="Enter Textbook ISBN" required>
+    <input type="text" id="courseTextbookLink" placeholder="Enter Textbook Website Link" required><br/><br/>
     
-    <button onclick="addTextbook()">Add Textbook</button>
+    <button onclick="addCourse()">Add Course</button>
     </div>
 
-    <div id="textbookList"></div>
+    <div id="errorMessage" class="error-message"></div>
+    <div id="courseList"></div>
 
     <!-- Context Menu for Questions -->
     <div id="contextMenu" class="context-menu">
@@ -84,105 +96,112 @@ var masterQuestionList = {};
 var masterTestList = {};
 var masterTemplateList = {};
 var masterAttachmentList = {};
-var textbookList = {};
+var courseList = {};
 var masterCoverPageList = {};
+var masterTextbookList = {};
 
 /**
- * Defines the UI for a given textbook, used to interact with everything else
- * Preconditions: requires users provide all of the textbook addition data
- * Postconditions: Creates a textbook UI with tabbed panes for question and test data
+ * Defines the UI for a given course, used to interact with everything else
+ * Preconditions: requires users provide all of the course addition data
+ * Postconditions: Creates a course UI with tabbed panes for question and test data
 */
-function addTextbook() {
-    
-    const title = document.getElementById('title').value.trim();
-    const author = document.getElementById('author').value.trim();
-    const version = document.getElementById('version').value.trim();
-    const isbn = document.getElementById('isbn').value.trim();
-    const link = document.getElementById('link').value.trim();
-    const chapters = document.getElementById('chapters').value.trim();
+function addCourse() {
+    const courseID = document.getElementById('courseID').value.trim();
+    const courseName = document.getElementById('courseName').value.trim();
+    const courseCRN = document.getElementById('courseCRN').value.trim();
+    const courseSemester = document.getElementById('courseSemester').value;
+    const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
+    const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
+    const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
+    const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
+    const textbookLink = document.getElementById('courseTextbookLink').value.trim();
 
-    if (!title || !author || !version || !isbn || !link || !chapters) {
-        alert("All fields (Title, Author, Version, ISBN, Link, and Number of Chapters) are required.");
-        return;
-    }   
-
-
-    if (textbookList[isbn]) {
-        alert("Error: A testbook with that isbn already exists.");
+    if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
+        alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
         return;
     }
 
+    if (courseList[courseID]) {
+        alert("Error: A course with that ID already exists.");
+        return;
+    
+    }
 
-    const textbookContainer = document.createElement('div');
-    textbookContainer.classList.add('textbook-container');
-    textbookContainer.innerHTML = `
+
+    const courseContainer = document.createElement('div');
+    courseContainer.classList.add('course-container');
+    courseContainer.innerHTML = `
         <details>
-            <summary><strong>${title}</strong> (ID: ${isbn})</summary>
+            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
             <details>
                 <summary>Questions</summary>
-            <button class="add-btn" onclick="openEditor('Question', '${isbn}')">Add Question</button>
+            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
             <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'tf-${isbn}')">True/False</div>
-                    <div class="tab" onclick="switchTab(event, 'mc-${isbn}')">Multiple Choice</div>
-                    <div class="tab" onclick="switchTab(event, 'sa-${isbn}')">Short Answer</div>
-                    <div class="tab" onclick="switchTab(event, 'es-${isbn}')">Essay</div>
-                    <div class="tab" onclick="switchTab(event, 'ma-${isbn}')">Matching</div>
-                    <div class="tab" onclick="switchTab(event, 'ms-${isbn}')">Multiple Selection</div>
-                    <div class="tab" onclick="switchTab(event, 'fb-${isbn}')">Fill in the Blank</div>
+                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
                 </div>
-                <div class="tab-content active" id="tf-${isbn}"><p>True/False questions go here...</p></div>
-                <div class="tab-content" id="es-${isbn}"><p>Essay questions go here...</p></div>
-                <div class="tab-content" id="mc-${isbn}"><p>Multiple Choice questions go here...</p></div>
-                <div class="tab-content" id="sa-${isbn}"><p>Short Answer questions go here...</p></div>
-                <div class="tab-content" id="ma-${isbn}"><p>Matching questions go here...</p></div>
-                <div class="tab-content" id="ms-${isbn}"><p>Multiple Selection questions go here...</p></div>
-                <div class="tab-content" id="fb-${isbn}"><p>Fill in the Blank questions go here...</p></div>
+                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Cover Pages</summary>
-                    <button class="add-btn" onclick="openEditor('Cover Page', '${isbn}')">Add Cover Page</button>
-                    <div id="coverpages-${isbn}"><p>You have not added any cover pages yet...</div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
+                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${isbn}')">Add Template</button>
-                    <div id="templates-${isbn}"><p>You have not added any templates yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
+                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${isbn}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${isbn}')">Import Test</button>
+                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
                 <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'drafts-${isbn}')">Drafts</div>
-                    <div class="tab" onclick="switchTab(event, 'published-${isbn}')">Published Tests</div>
-                </div> 
-                <div class="tab-content active" id="drafts-${isbn}"><p>Saved drafts go here...</p></div>
-                <div class="tab-content" id="published-${isbn}"><p>Published tests go here...</p></div>
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                </div>
+                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Attachments</summary>
-                <button class="add-btn" onclick="openEditor('Attachment', '${isbn}')">Add Attachment</button>
-                <div id="attachments-${isbn}"><p>You have not uploaded any attachments yet...</p></div>
+                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
+                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveTextbook(this)">Remove textbook</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${courseID}')">Remove Course</button>
         </details>
     `;
 
-    document.getElementById('textbookList').appendChild(textbookContainer);
-    document.getElementById('title').value = "";
-    document.getElementById('author').value = "";
-    document.getElementById('version').value = "";
-    document.getElementById('isbn').value = "";
-    document.getElementById('link').value = "";
-    document.getElementById('chapters').value = "";
+    document.getElementById('courseList').appendChild(courseContainer);
+    document.getElementById('courseID').value = "";
+    document.getElementById('courseName').value = "";
+    document.getElementById('courseCRN').value = "";
+    document.getElementById('courseSemester').value = "";
+    document.getElementById('courseTextbookTitle').value = "";
+    document.getElementById('courseTextbookAuthor').value = "";
+    document.getElementById('courseTextbookVersion').value = "";
+    document.getElementById('courseTextbookISBN').value = "";
+    document.getElementById('courseTextbookLink').value = "";
+    
 
     const questionList = {
         'tf': [],
@@ -193,7 +212,6 @@ function addTextbook() {
         'ms': [],
         'fb': []
     };
-
     const testList = {
         'drafts': [],
         'published': []
@@ -211,11 +229,11 @@ function addTextbook() {
         date = '0' + date;
     }   
 
-    masterQuestionList[isbn] = questionList;
-    masterTestList[isbn] = testList;
-    masterCoverPageList[isbn] = [];
-    masterTemplateList[isbn] = [];
-    masterTemplateList[isbn].bonusQuestions = [];
+    masterQuestionList[courseID] = questionList;
+    masterTestList[courseID] = testList;
+    masterCoverPageList[courseID] = [];
+    masterTemplateList[courseID] = [];
+    masterTemplateList[courseID].bonusQuestions = [];
 
     const coverPageDefault = {
         name: "Default 1st Test",
@@ -250,8 +268,8 @@ function addTextbook() {
         published: 1,
     };
 
-    masterCoverPageList[isbn].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
-    updateCoverPages(isbn);
+    masterCoverPageList[courseID].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
+    updateCoverPages(courseID);
 
     const templateDefault = {
         name: "System Default",
@@ -276,28 +294,66 @@ function addTextbook() {
                 ]
             }
         ],
-        published: 1  
+        published: 1 
     };
 
-    masterTemplateList[isbn].push(templateDefault);
-    updateTemplates(isbn);
+    masterTemplateList[courseID].push(templateDefault);
+    updateTemplates(courseID);
 
-    if(!masterAttachmentList[isbn]){
-        let attachmentList = [];
-        masterAttachmentList[isbn] = attachmentList;
+    if(!masterTextbookList[textbookISBN]){
+        let textbook = {
+            title: textbookTitle,
+            author: textbookAuthor,  
+            version: textbookVersion,    
+            isbn: textbookISBN,  
+            link: textbookLink 
+        };
+        masterTextbookList[textbookISBN] = textbook;
     }
 
+    if(!masterAttachmentList[courseID]){
+        let attachmentList = [];
+        masterAttachmentList[courseID] = attachmentList;
+    }
+
+    const thisCourse = {
+        id: courseID,
+        name: courseName,
+        crn: courseCRN,
+        sem: courseSemester,
+        published: 0,
+        textbook: masterTextbookList[textbookISBN]
+    };
+    courseList[courseID] = thisCourse;   
+
+    setTimeout(() => {
+        saveUserData('course');
+        console.log("Delayed for 1 second.");
+    }, 1000);
+    
 }
 
+
+
+
 /**
- * Used to remove a textbook
- * Precondition: the textbook exists
- * Postcondition: the textbook no longer exists
+ * Used to remove a course 
+ * Precondition: the course exists
+ * Postcondition: the course no longer exists
  * 
 */
-function confirmRemoveTextbook(button) {
-    if (confirm("Are you sure you want to delete this textbook? This action cannot be undone.")) {
-        button.closest('.textbook-container').remove();
+function confirmRemoveCourse(button, courseID) {
+    if (!courseList[courseID]) { 
+        console.error("Course ID not found:", courseID);
+        alert("Error: Course not found.");
+        return;
+    }
+    if(courseList[courseID].published === 1){
+        alert("You cannot delete a published course. Please unpublish the course first.");
+        return;
+    }
+    if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+        button.closest('.course-container').remove();
     }
 }
 
@@ -321,10 +377,10 @@ function switchTab(event, tabID) {
 /**
  * Opens the editor modal. This behaves differently depending on what is edited
  * Currently the attachment, template, question, and test editors are implemented
- * Precondition: valid textbook, edit button pushed
+ * Precondition: valid course, edit button pushed
  * Postcondition: opens up a modal over the webpage content that allows you to create new data
 */
-function openEditor(type, isbn) {
+function openEditor(type, courseID) {
     const modal = document.getElementById('editModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
@@ -361,7 +417,7 @@ function openEditor(type, isbn) {
 
             <label>Point Value:</label><br/>
             <input type="number" id="pointValueField" min="1"><br><br>
-            
+
             <label for="qChapter" >Chapter:</label><br/>    
             <input type="number" id="qChapter" min="1"><br><br>
 
@@ -390,12 +446,12 @@ function openEditor(type, isbn) {
             <label>Instructor Comments (Optional):</label><br/>
             <textarea id="instructorCommentField" placeholder="Comments go here"></textarea><br><br>
 
-            <button class="add-btn" onclick="addQuestion('${isbn}')">Submit Question</button>
+            <button class="add-btn" onclick="addQuestion('${courseID}')">Submit Question</button>
         `;
     }
 
     if (type === "Cover Page"){
-        //Needs: test instructions, textbook number, test number, date of test, filename of the test,
+        //Needs: test instructions, course number, test number, date of test, filename of the test,
         //  blank for student name, and grading instructions for the key
         formContent+= `
         <div style="background:#e0e0e0;padding:20px;" id="coverPageEditor">
@@ -423,7 +479,7 @@ function openEditor(type, isbn) {
             <label>Grading Instructions for Key</label>
             <textarea id="instructions" name="instruct" rows="3" placeholder="Add your instructions for grading here. These will go into the test key."></textarea>
             <br/>
-            <button class="add-btn" onclick="submitCoverPage('${isbn}')">Submit</button>
+            <button class="add-btn" onclick="submitCoverPage('${courseID}')">Submit</button>
         </div>
         `;
     }
@@ -436,15 +492,15 @@ function openEditor(type, isbn) {
             <div id=templateSelectorPane>
                 <select id=templateSelector>
                     <option value="" disabled selected>Please Select a Template</option>
-                </select> <button id=templateSelection onclick="updateTestParts('${isbn}')">Select This One!</button>
+                </select> <button id=templateSelection onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"> </div>
             </div>
-            <button class="add-btn" id="testDraftButton" onclick="saveTest('${isbn}', '${false}')">Save as Draft</button>
-            <button class="add-btn" id="testPublishButton" onclick="saveTest('${isbn}', '${true}')">Publish Test</button>
+            <button class="add-btn" id="testDraftButton" onclick="saveTest('${courseID}', '${false}')">Save as Draft</button>
+            <button class="add-btn" id="testPublishButton" onclick="saveTest('${courseID}', '${true}')">Publish Test</button>
         </div>
         `;
         setTimeout(() => {
-        updateTemplateSelection(isbn);
+        updateTemplateSelection(courseID);
         }, 50);
         
     }
@@ -498,7 +554,7 @@ function openEditor(type, isbn) {
         <div class="form-container">
             <div class="form-group"><label>Test Name </label> <input type="text" id="tempTestName"></div>
             <div class="form-group"><label>Date </label> <input type="text" id="tempDate"></div>
-            <div class="form-group"><label>textbook Number </label> <input type="text" id="temptextbookNum"></div>
+            <div class="form-group"><label>Course Number </label> <input type="text" id="tempCourseNum"></div>
         </div>
 
   	    <h1>Header and Footer Settings</h1>
@@ -528,16 +584,16 @@ function openEditor(type, isbn) {
             
 	    
 	    <h1>Bonus Question Section Toggle</h1>
-	    <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${isbn}')">
+	    <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
 		<option value="True">Bonus Section</option>
 		<option value="False" selected>No Bonus Section</option>
 	    </select><br/><br/>
-        <button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${isbn}')">Select Bonus Questions</button>
-        <button class="add-btn" onclick="addTemplate('${isbn}')">Submit Template</button></div>
+        <button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
+        <button class="add-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
         `;
 
         setTimeout(() => {
-        updatePageSelection(isbn);
+        updatePageSelection(courseID);
         }, 50);
     }
 
@@ -545,7 +601,7 @@ function openEditor(type, isbn) {
     if (type === "Attachment"){
         formContent+=`
             <input type="file" id="newAttachment" name="attachment">
-	        <button class="add-btn" onclick="submitAttachment('${isbn}')">Submit Attachment</button>
+	        <button class="add-btn" onclick="submitAttachment('${courseID}')">Submit Attachment</button>
         `;
    }
 
@@ -559,7 +615,7 @@ function openEditor(type, isbn) {
     }, 10);
 
     if (type === "Question") {
-        updateGraphicSelectors(isbn);
+        updateGraphicSelectors(courseID);
     }
 
 }
@@ -607,22 +663,17 @@ function updateParts() {
 /** 
  *  Updates the graphic selectors inside of the editor modal during openEditor() execution
  * Is active when the editorModal is in question mode
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: graphic selectors are updated with a list of files from the Attachments Section
 */
-function updateGraphicSelectors(isbn) {
+function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
-        alert("No attachments available for this textbook!");
-        return;
-    }
-
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name; //TODO: change this to index, store attachments associated to questions from database
         option.textContent = attachment.name;
@@ -721,7 +772,7 @@ function toggleFormulaInput() {
  * Precondition: all necessary data is in the coverpage editor
  * Postcondition: cover page added to the list
 */
-function submitCoverPage(isbn) {
+function submitCoverPage(courseID) {
     const pageName = document.getElementById("nameField").value.trim();
     const testNumber = document.getElementById("tNum").value.trim();
     const testDate = document.getElementById("tDate").value.trim();
@@ -735,8 +786,8 @@ function submitCoverPage(isbn) {
         return;
     }
 
-    if (!masterCoverPageList[isbn]) {
-        masterCoverPageList[isbn] = [];
+    if (!masterCoverPageList[courseID]) {
+        masterCoverPageList[courseID] = [];
     }
 
     const coverPage = {
@@ -747,11 +798,12 @@ function submitCoverPage(isbn) {
         showFilename: filenameTF,
         blank: nameBlankSelector,
         instructions: gradingInstructions,
+        published: 0,
         feedback: []
     };
 
-    masterCoverPageList[isbn].push(coverPage);
-    updateCoverPages(isbn);
+    masterCoverPageList[courseID].push(coverPage);
+    updateCoverPages(courseID);
     closeModal();
     alert("Added a cover page");
 }
@@ -761,7 +813,7 @@ function submitCoverPage(isbn) {
  * Precondition: valid attachment
  * Postcondition: attachment posted to attachmentList
 */
-function submitAttachment(isbn) {
+function submitAttachment(courseID) {
     const attachment = document.getElementById("newAttachment").files[0];
     const name = document.getElementById("nameField").value.trim();
 
@@ -770,24 +822,24 @@ function submitAttachment(isbn) {
         return;
     }
 
-    if (!masterAttachmentList[isbn]) {
-        masterAttachmentList[isbn] = [];
+    if (!masterAttachmentList[courseID]) {
+        masterAttachmentList[courseID] = [];
     }
 
-    masterAttachmentList[isbn].push({ name: name, file: attachment });
-    updateAttachments(isbn);
+    masterAttachmentList[courseID].push({ name: name, file: attachment, published: 0});
+    updateAttachments(courseID);
     closeModal();
     alert("Attachment added successfully!");
 }
 
 /**
- * Updates the attachments for a given textbook
- * Precondition: valid isbn, attachmentList
+ * Updates the attachments for a given course
+ * Precondition: valid courseID, attachmentList
  * Postcondition: the attachments dropdown will have interactible div containers for each attachment
 */
-function updateAttachments(isbn) {
-    const attachmentList = masterAttachmentList[isbn];
-    const attachmentContainer = document.getElementById("attachments-" + isbn);
+function updateAttachments(courseID) {
+    const attachmentList = masterAttachmentList[courseID];
+    const attachmentContainer = document.getElementById("attachments-" + courseID);
     attachmentContainer.innerHTML = "";
 
     if (attachmentList.length === 0) {
@@ -804,7 +856,7 @@ function updateAttachments(isbn) {
         attachmentDiv.classList.add('context-menu-target');
         attachmentDiv.dataset.itemType = 'attachment';
         attachmentDiv.dataset.itemIndex = index;
-        attachmentDiv.dataset.isbn = isbn;
+        attachmentDiv.dataset.courseID = courseID;
 
         const attachmentLabel = document.createElement("p");
         attachmentLabel.innerHTML = `Attachment ${index + 1}: ${attachment.name}`;
@@ -816,10 +868,10 @@ function updateAttachments(isbn) {
 
 /**
  * Adds a template to the templateList
- * Precondition: valid isbn and template info
+ * Precondition: valid courseID and template info
  * Postcondition: adds a new template to the list
 */
-function addTemplate(isbn) {
+function addTemplate(courseID) {
     const templateName = document.getElementById('nameField').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
 
@@ -859,7 +911,7 @@ function addTemplate(isbn) {
         alert("Error: Template must include a valid part structure.");
         return;
     }
-    if (bonusSection && (!masterTemplateList[isbn].bonusQuestions || masterTemplateList[isbn].bonusQuestions.length === 0)) {
+    if (bonusSection && (!masterTemplateList[courseID].bonusQuestions || masterTemplateList[courseID].bonusQuestions.length === 0)) {
         alert("Error: You must select bonus questions if the bonus section is enabled.");
         return;
     }
@@ -879,21 +931,22 @@ function addTemplate(isbn) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[isbn].bonusQuestions || [],
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        published: 0,
         feedback: []
     };
 
-    if (!masterTemplateList[isbn]) {
-        masterTemplateList[isbn] = [];
+    if (!masterTemplateList[courseID]) {
+        masterTemplateList[courseID] = [];
     }
 
-    masterTemplateList[isbn].bonusQuestions
-    masterTemplateList[isbn].push(templateData);
+    masterTemplateList[courseID].bonusQuestions
+    masterTemplateList[courseID].push(templateData);
 
     alert("Template added successfully!");
     console.log("Saved Template:", templateData);
 
-    updateTemplates(isbn);
+    updateTemplates(courseID);
     closeModal();
 }
 
@@ -971,21 +1024,21 @@ function collectPartStructure() {
 
 /**
  * Updates the potential options for cover pages when you open the template editor
- * Precondition: Valid isbn
+ * Precondition: Valid courseID
  * Postcondition: populated selector in template editor (editmodal)
 */
-function updatePageSelection(isbn) {
+function updatePageSelection(courseID) {
     const selection = document.getElementById("coverPageSelector");
 
     // Clear existing options
     selection.innerHTML = '<option value="" disabled selected>Please Select a Cover Page</option>';
 
-    if (!masterCoverPageList[isbn] || masterCoverPageList[isbn].length === 0) {
-        alert("No cover pages available for this textbook!");
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
+        alert("No cover pages available for this course!");
         return;
     }
 
-    masterCoverPageList[isbn].forEach((page, index) => {
+    masterCoverPageList[courseID].forEach((page, index) => {
         const newOption = document.createElement("option");
         newOption.value = index; 
         newOption.textContent = page.name;
@@ -996,16 +1049,16 @@ function updatePageSelection(isbn) {
 
 /**
  * Updates the potential options for templates when you open the test editor
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: populated selector in test editor (editmodal)
 */
-function updateTemplateSelection(isbn){
-    if(!masterTemplateList[isbn]){
-            masterTemplateList[isbn] = [];
-        }else if(!masterTemplateList[isbn][0]){
-            alert("No templates available for this textbook!");
+function updateTemplateSelection(courseID){
+    if(!masterTemplateList[courseID]){
+            masterTemplateList[courseID] = [];
+        }else if(!masterTemplateList[courseID][0]){
+            alert("No templates available for this course!");
         }else{
-            const templateList = masterTemplateList[isbn];
+            const templateList = masterTemplateList[courseID];
             templateList.forEach((template, index)=>{
             const selection = document.getElementById("templateSelector");
             const newoption = document.createElement("option");
@@ -1020,10 +1073,10 @@ function updateTemplateSelection(isbn){
 
 /**
  * Adding the question from the currently open editModal in question mode.
- * Preconditions: expects a valid isbn, and for all of the required fields to be present
- * Postconditions: adds the question to the appropriate array for its type in the textbook questionList
+ * Preconditions: expects a valid courseID, and for all of the required fields to be present
+ * Postconditions: adds the question to the appropriate array for its type in the course questionList
 */
-function addQuestion(isbn) {
+function addQuestion(courseID) {
     const text = document.getElementById("questionField").value.trim();
     const type = document.getElementById("typeField").value;
     const points = document.getElementById("pointValueField").value.trim();
@@ -1033,16 +1086,15 @@ function addQuestion(isbn) {
     const graphic = document.getElementById("qGraphicField").value;
     const ansgraphic = document.getElementById("ansGraphicField").value;
     const instcomm = document.getElementById("instructorCommentField").value;
-    const chapter = document.getElementById("qChapter").value;
-    const section = document.getElementById("qSection").value;
+    const chapter = document.getElementById("qChapter").value.trim();
+    const section = document.getElementById("qSection").value.trim();
 
     if (!text || !type || !points || !instructions || !time || !chapter || !section) {
-        alert("Some fields (Question, Question Type, Default Point Value, Chapter, Section, and Grading Instructions) are required.");
+        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
         return;
     }
 
     let answer = '';
-    let prompts = [];
     let options = [];
 
     if (type === 'tf') {
@@ -1097,20 +1149,20 @@ function addQuestion(isbn) {
         img: graphic,
         ansimg: ansgraphic,
         comments: instcomm,
-        prompts: prompts,
         options: options,
+        tests: [],
         chapter: chapter,
         section: section,
-        tests: [],
+        feedback: [],
         published: 0
     };
 
-    if (!masterQuestionList[isbn][type]) {
-        masterQuestionList[isbn][type] = [];
+    if (!masterQuestionList[courseID][type]) {
+        masterQuestionList[courseID][type] = [];
     }
 
-    masterQuestionList[isbn][type].push(question);
-    updateQuestionTabs(type, isbn);
+    masterQuestionList[courseID][type].push(question);
+    updateQuestionTabs(type, courseID);
     alert(`Added the ${type.toUpperCase()} Question: \n"${question.text}"\n (Worth ${question.score} points!)`);
 
     closeModal();
@@ -1118,21 +1170,21 @@ function addQuestion(isbn) {
 
 /**
  * Updates the test editor to have the appropriate parts and section options
- * Preconditions: A valid template with part and sections defined correctly, a valid textbook ID
+ * Preconditions: A valid template with part and sections defined correctly, a valid course ID
  * Postconditions: Populated testeditor with all of the appropriate parts and sections
  * 
  * TODO: Check if the template has a bonus section, and add a part with one section if so.
  *       Let the teacher choose what type of question the bonus section should include
  *       Then update the section to have the appropriate syntax
 */
-function updateTestParts(isbn) {
+function updateTestParts(courseID) {
     const templateIndex = document.getElementById("templateSelector").value;
     if (!templateIndex) {
         alert("Please select a template first");
         return;
     }
     
-    const template = masterTemplateList[isbn][templateIndex];
+    const template = masterTemplateList[courseID][templateIndex];
     const partStructure = template.partStructure;
     
     let test = document.getElementById("testParts");
@@ -1164,7 +1216,7 @@ function updateTestParts(isbn) {
 
             sectionContainer.innerHTML = `
                 <h3>Section ${sectionNum}: ${questionType.toUpperCase()} Questions</h3>
-                <button class="add-btn" onclick="openQuestionModal('${isbn}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
+                <button class="add-btn" onclick="openQuestionModal('${courseID}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
                 <div class="selected-questions"></div>
             `;
 
@@ -1193,7 +1245,7 @@ function updateTestParts(isbn) {
 
         bonusSectionContainer.innerHTML = `
             <h3>Bonus Section: Bonus Questions</h3>
-            <button class="add-btn" onclick="openBonusQuestionModal('${isbn}')">Choose Bonus Questions</button>
+            <button class="add-btn" onclick="openBonusQuestionModal('${courseID}')">Choose Bonus Questions</button>
             <div class="selected-questions"></div>
         `;
 
@@ -1202,7 +1254,7 @@ function updateTestParts(isbn) {
         
         template.bonusQuestions.forEach((questionId, questionIndex) => {
             const [type, index] = questionId.split('-');
-            const question = masterQuestionList[isbn][type][index];
+            const question = masterQuestionList[courseID][type][index];
             
             const questionElement = document.createElement("div");
             questionElement.style.padding = "8px";
@@ -1237,7 +1289,7 @@ function updateTestParts(isbn) {
 
         bonusPartContainer.innerHTML = `
             <h2>Bonus Part</h2>
-            <button class="add-btn" onclick="openBonusQuestionModal('${isbn}')">Add Bonus Questions</button>
+            <button class="add-btn" onclick="openBonusQuestionModal('${courseID}')">Add Bonus Questions</button>
         `;
 
         test.appendChild(bonusPartContainer);
@@ -1246,10 +1298,10 @@ function updateTestParts(isbn) {
 
 /**
  * This rather involved function saves the test based on all the info in the test editor.
- * Preconditions: a valid isbn, one of two save buttons pressed, a test name, a valid template
+ * Preconditions: a valid courseID, one of two save buttons pressed, a test name, a valid template
  * Postconditions: saves the test as either a draft or published test.
 */
-function saveTest(isbn, isPublished, testIndex = null) {
+function saveTest(courseID, isPublished, testIndex = null) {
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
         alert("Test Name is required.");
@@ -1262,7 +1314,7 @@ function saveTest(isbn, isPublished, testIndex = null) {
         return;
     }
 
-    const template = masterTemplateList[isbn][templateIndex];
+    const template = masterTemplateList[courseID][templateIndex];
     
     let usedQuestions = [];
 
@@ -1312,17 +1364,17 @@ function saveTest(isbn, isPublished, testIndex = null) {
                 const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
 
                 // Get the question from master list and clone it
-                const question = JSON.parse(JSON.stringify(masterQuestionList[isbn][questionType.toLowerCase()][questionIndex]));
+                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]));
 
                 // Update points for this clone if they were changed
                 question.score = points;
-                usedQuestions.push(masterQuestionList[isbn][questionType.toLowerCase()][questionIndex]);
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
                 // Add to the questions for this section
                 sectionData.questions.push(question);
                 noquestions=false;
                 // Set the published key to 1 if the test is published
                 if (isPublished === 'true') {
-                    masterQuestionList[isbn][questionType.toLowerCase()][questionIndex].published = 1;
+                    masterQuestionList[courseID][questionType.toLowerCase()][questionIndex].published = 1;
                 }
             });
             if(noquestions){
@@ -1343,7 +1395,7 @@ function saveTest(isbn, isPublished, testIndex = null) {
                 questionType: 'bonus',
                 questions: template.bonusQuestions.map(q => {
                     const [type, index] = q.split('-');
-                    const question = masterQuestionList[isbn][type][index];
+                    const question = masterQuestionList[courseID][type][index];
                     if (isPublished === 'true') {
                         question.published = 1;
                     }
@@ -1355,11 +1407,11 @@ function saveTest(isbn, isPublished, testIndex = null) {
     }
 
     // Save the test data
-    if (!masterTestList[isbn]) {
-        masterTestList[isbn] = { drafts: [], published: [] };
+    if (!masterTestList[courseID]) {
+        masterTestList[courseID] = { drafts: [], published: [] };
     }
 
-    const targetList = isPublished === 'true' ? masterTestList[isbn].published : masterTestList[isbn].drafts;
+    const targetList = isPublished === 'true' ? masterTestList[courseID].published : masterTestList[courseID].drafts;
     if (testIndex !== null) {
         targetList[testIndex] = testData;
     } else {
@@ -1368,10 +1420,10 @@ function saveTest(isbn, isPublished, testIndex = null) {
     
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
-        masterTemplateList[isbn][templateIndex].published = 1;
+        masterTemplateList[courseID][templateIndex].published = 1;
         const coverPageIndex = template.coverPageType;
-        if (masterCoverPageList[isbn][coverPageIndex]) {
-            masterCoverPageList[isbn][coverPageIndex].published = 1;
+        if (masterCoverPageList[courseID][coverPageIndex]) {
+            masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
     }
 
@@ -1382,32 +1434,32 @@ function saveTest(isbn, isPublished, testIndex = null) {
     });
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
-    updateTestTabs(isbn);
+    updateTestTabs(courseID);
     closeModal();
 }
 
 /**
  * Opens up the questionModal and populates it with questions of the appropriate type. 
  * If such questions exist, creates checkboxes next to each one to be used for selecting questions.
- * Preconditions: openQuestionModal expects a valid isbn, part number, section number, and question type
- * Postconditions: opens up the question modal with questions of the appropriate type for the correct textbook
+ * Preconditions: openQuestionModal expects a valid courseID, part number, section number, and question type
+ * Postconditions: opens up the question modal with questions of the appropriate type for the correct course
 */
-function openQuestionModal(isbn, partNum, sectionNum, type) {
+function openQuestionModal(courseID, partNum, sectionNum, type) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
     const modalBody = document.getElementById("questionModalBody");
     
     // Check if we have questions of this type
-    if (!masterQuestionList[isbn][type] || masterQuestionList[isbn][type].length === 0) {
+    if (!masterQuestionList[courseID][type] || masterQuestionList[courseID][type].length === 0) {
         alert("No questions available of this type!");
         return;
     }
 
-    const questions = masterQuestionList[isbn][type];
+    const questions = masterQuestionList[courseID][type];
     modalBody.innerHTML = ""; // Clear existing content
 
     // Store the part/section info in the modal for later use
-    modalBody.dataset.isbn = isbn;
+    modalBody.dataset.courseID = courseID;
     modalBody.dataset.partNum = partNum;
     modalBody.dataset.sectionNum = sectionNum;
     modalBody.dataset.questionType = type;
@@ -1417,15 +1469,16 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
     filterContainer.style.marginBottom = '8px';
     filterContainer.style.borderBottom = '1px solid #ccc';
 
-    // Filter by Test
-    const testFilterLabel = document.createElement('label');
+    
+// Filter by Test
+const testFilterLabel = document.createElement('label');
     testFilterLabel.textContent = 'Filter by Test:';
     filterContainer.appendChild(testFilterLabel);
 
     const testFilterSelect = document.createElement('select');
     testFilterSelect.id = 'testFilterSelect';
     testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
-    const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
+    const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
     testList.forEach((test, index) => {
         const option = document.createElement('option');
         option.value = index;
@@ -1504,7 +1557,7 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
     }, 10);
 
     // Add event listeners for filters
-    testFilterSelect.addEventListener('change', () => filterQuestions(isbn, type));
+    testFilterSelect.addEventListener('change', () => filterQuestions(courseID, type));
     
     // Chapter filter change event
     chapterFilterSelect.addEventListener('change', function() {
@@ -1545,16 +1598,15 @@ function openQuestionModal(isbn, partNum, sectionNum, type) {
         }
         
         // Apply filters
-        filterQuestions(isbn, type);
+        filterQuestions(courseID, type);
     });
     
     // Section filter change event
     document.getElementById('sectionFilterSelect').addEventListener('change', () => {
-        filterQuestions(isbn, type);
+        filterQuestions(courseID, type);
     });
 }
 
-// Helper function to render questions
 function renderQuestions(questions, container) {
     container.innerHTML = '';
     
@@ -1579,9 +1631,16 @@ function renderQuestions(questions, container) {
     });
 }
 
-// Function to filter questions based on selected filters
-function filterQuestions(isbn, type) {
-    const questions = masterQuestionList[isbn][type];
+
+
+/**
+ * Filters the type of questions that are selectable in the menu for the test editor
+ * Preconditions: valid courseID, type
+ * Postconditions: filters the questions by test and/or textbook chapter/section
+ * TODO: Complete textbook support
+*/
+function filterQuestions(courseID, type) {
+    const questions = masterQuestionList[courseID][type];
     const testFilterValue = document.getElementById('testFilterSelect').value;
     const chapterFilterValue = document.getElementById('chapterFilterSelect').value;
     const sectionFilterSelect = document.getElementById('sectionFilterSelect');
@@ -1598,7 +1657,7 @@ function filterQuestions(isbn, type) {
         // Apply test filter if selected
         if (testFilterValue !== "") {
             const testIndex = parseInt(testFilterValue);
-            const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
+            const testList = masterTestList[courseID]['drafts'].concat(masterTestList[courseID]['published']);
             const testQuestionIds = testList[testIndex].questions.map(q => q.id);
             if (!testQuestionIds.includes(question.id)) {
                 includeQuestion = false;
@@ -1648,60 +1707,6 @@ function filterQuestions(isbn, type) {
     });
 }
 
-/**
- * Filters the type of questions that are selectable in the menu for the test editor
- * Preconditions: valid isbn, type
- * Postconditions: filters the questions by test and/or textbook chapter/section
- * TODO: Complete textbook support
-
-function filterQuestions(isbn, type) {
-    const testFilterSelect = document.getElementById('testFilterSelect');
-    // const textbookFilterSelect = document.getElementById('textbookFilterSelect'); // Uncomment when implementing textbook filter
-    const selectedTestIndex = testFilterSelect.value;
-    // const selectedChapterIndex = textbookFilterSelect.value; // Uncomment when implementing textbook filter
-
-    const questions = masterQuestionList[isbn][type];
-    const questionContainer = document.querySelector('#questionModalBody > div:nth-child(2)');
-    questionContainer.innerHTML = ''; // Clear existing content
-
-    let filteredQuestions = questions;
-
-    // Filter by Test
-    if (selectedTestIndex !== '') {
-        const testList = masterTestList[isbn]['drafts'].concat(masterTestList[isbn]['published']);
-        const selectedTest = testList[selectedTestIndex];
-        filteredQuestions = selectedTest.parts.flatMap(part => part.sections.flatMap(section => section.questions)).filter(q => q.qtype === type);
-    }
-
-    // Filter by Textbook (commented form)
-    
-    if (selectedChapterIndex !== '') {
-        filteredQuestions = filteredQuestions.filter(q => q.chapter === parseInt(selectedChapterIndex));
-    }
-    
-
-    filteredQuestions.forEach((question, index) => {
-        const element = document.createElement("div");
-        element.style.padding = '8px';
-        element.style.margin = '5px 0';
-        element.style.backgroundColor = '#f0f0f0';
-        element.style.borderRadius = '4px';
-        element.innerHTML = `
-            <input type="checkbox" id="q-${index}" value="${index}">
-            <label for="q-${index}">${question.text} (${question.score} Points)</label>
-        `;   
-        questionContainer.appendChild(element);
-    });
-
-    const submitButton = document.createElement('button');
-    submitButton.className = 'add-btn';
-    submitButton.textContent = 'Add Selected Questions';
-    submitButton.onclick = function() {
-        addSelectedQuestions();
-    };
-    questionContainer.appendChild(submitButton);
-}
-    */
 
 /**
  * This adds the questions selected in the questionModal to the test editor.
@@ -1711,7 +1716,7 @@ function filterQuestions(isbn, type) {
 */
 function addSelectedQuestions() {
     const modalBody = document.getElementById("questionModalBody");
-    const isbn = modalBody.dataset.isbn;
+    const courseID = modalBody.dataset.courseID;
     const partNum = parseInt(modalBody.dataset.partNum);
     const sectionNum = parseInt(modalBody.dataset.sectionNum);
     const type = modalBody.dataset.questionType;
@@ -1726,7 +1731,7 @@ function addSelectedQuestions() {
     }
     
     const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
-    const questions = selectedIndices.map(index => masterQuestionList[isbn][type][index]);
+    const questions = selectedIndices.map(index => masterQuestionList[courseID][type][index]);
     
     // Update the test part on screen
     const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
@@ -1780,6 +1785,7 @@ function addSelectedQuestions() {
     closeQuestionModal();
 }
 
+
 function ShuffleArray(questionElements){
     for (let i = questionElements.length - 2; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -1816,6 +1822,64 @@ function updateSectionPoints(partNum, sectionNum) {
     alert(`Updated all questions in Part ${partNum + 1}, Section ${sectionNum + 1} to ${newPointValue} points each.`);
 }
 
+/**
+ * This function grabs the courseSemester selector at the top of the course addition page
+ * and updates it to include the current school year rather than a standard set of seasons.
+ * For example, in the 2024-2025 school year the values would be Fall 2024, Winter 2024, Spring 2025, Summer 2025
+ * Precondition: courseSemester selector exists
+ * Postcondition: courseSemester selector should have values equal to the current school year
+*/
+function updateSemesterOptions() {
+    const select = document.getElementById('courseSemester');
+    select.innerHTML = ''; // Clear existing options
+    const option = document.createElement('option');
+
+    // Create an initial disabled option in the selector
+    option.value = '';
+    option.textContent = 'Please Choose a Semester';
+    option.disabled = true;
+    select.appendChild(option);
+    option.selected = true;
+
+    // Get the current date
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; 
+
+    let N, N_plus_1; 
+    if (month < 6) { 
+        N = year - 1;
+        N_plus_1 = year;
+    } else { 
+        N = year;
+        N_plus_1 = year + 1;
+    }
+
+    let semesters;
+    if (month >= 6 && month <= 8) {
+        semesters = [
+            `Fall ${N}`,
+            `Winter ${N}`,
+            `Spring ${N_plus_1}`,
+            `Summer ${N_plus_1}`
+        ];
+    } else {
+        semesters = [
+            `Fall ${N}`,
+            `Winter ${N}`,
+            `Spring ${N_plus_1}`,
+            `Summer ${N_plus_1}`
+        ];
+    }
+
+    // Append semester options to the dropdown
+    semesters.forEach(semester => {
+        const option = document.createElement('option');
+        option.value = semester;
+        option.textContent = semester;
+        select.appendChild(option);
+    });
+}
 
 
 /**
@@ -1847,6 +1911,14 @@ function closeQuestionModal(){
     document.getElementById("questionModal").style.opacity = "0";
 }
 
+/**
+ * This event listener loads whenever the page is loaded.
+ * DOM (Document Object Model) is a way that Javascript can interact with HTML/XML code.
+ * When called, this updates the semester options in the course info block.
+ * If the semester options are just Spring, Summer, Fall, and Winter without a year, then that means that
+ * somewhere in the code loaded prior to this is an error which prevents this from being called.
+*/
+document.addEventListener("DOMContentLoaded", updateSemesterOptions);
 
 /**
  * Opens up a context menu on right click when the user is on a context-menu-target element.
@@ -1866,7 +1938,7 @@ document.addEventListener('contextmenu', function (event) {
         // Store the relevant data in the context menu for later use
         contextMenu.dataset.itemType = target.dataset.itemType;
         contextMenu.dataset.itemIndex = target.dataset.itemIndex;
-        contextMenu.dataset.isbn = target.dataset.isbn;
+        contextMenu.dataset.courseID = target.dataset.courseID;
         contextMenu.dataset.questionType = target.dataset.questionType;
         contextMenu.dataset.testType = target.dataset.testType;
 
@@ -1897,28 +1969,28 @@ function editItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     switch (itemType) {
         case 'question':
-            editQuestion(isbn, questionType, itemIndex);
+            editQuestion(courseID, questionType, itemIndex);
             break;
         case 'coverPage':
-            editCoverPage(isbn, itemIndex);
+            editCoverPage(courseID, itemIndex);
             break;
         case 'template':
-            editTemplate(isbn, itemIndex);
+            editTemplate(courseID, itemIndex);
             break;
         case 'test':
             if(contextMenu.dataset.testType === 'published'){
                 alert("You cannot edit published tests.");
                 return;
             }
-            editTest(isbn, itemIndex);
+            editTest(courseID, itemIndex);
             break;
         case 'attachment':
-            editAttachment(isbn, itemIndex);
+            editAttachment(courseID, itemIndex);
             break;
         default:
             console.error('Unknown item type:', itemType);
@@ -1935,28 +2007,28 @@ function deleteItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     switch (itemType) {
         case 'question':
-            deleteQuestion(isbn, questionType, itemIndex);
+            deleteQuestion(courseID, questionType, itemIndex);
             break;
         case 'coverPage':
-            deleteCoverPage(isbn, itemIndex);
+            deleteCoverPage(courseID, itemIndex);
             break;
         case 'template':
-            deleteTemplate(isbn, itemIndex);
+            deleteTemplate(courseID, itemIndex);
             break;
         case 'test':
             if(contextMenu.dataset.testType === 'published'){
                 alert("You cannot delete published tests.");
                 return;
             }
-            deleteTest(isbn, itemIndex);
+            deleteTest(courseID, itemIndex);
             break;
         case 'attachment':
-            deleteAttachment(isbn, itemIndex);
+            deleteAttachment(courseID, itemIndex);
             break;
         default:
             console.error('Unknown item type:', itemType);
@@ -1969,13 +2041,13 @@ function deleteItem() {
  * Precondition: context menu is open, edit button is clicked
  * Postcondition: edit modal is opened with the appropriate question data
 */
-function editQuestion(isbn, questionType, questionIndex) {
-    if(masterQuestionList[isbn][questionType][questionIndex].published === 1){
+function editQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
            return;
         }
     }
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
 
     // Open the edit modal and populate it with the question data
     const modal = document.getElementById('editModal');
@@ -2066,7 +2138,7 @@ function editQuestion(isbn, questionType, questionIndex) {
         <textarea id="editInstructorCommentField" rows="4">${question.comments}</textarea><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructionField" rows="6">${question.directions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditQuestion('${isbn}', '${questionType}', ${questionIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditQuestion('${courseID}', '${questionType}', ${questionIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -2076,28 +2148,28 @@ function editQuestion(isbn, questionType, questionIndex) {
     }, 10);
 
     // Populate the graphic selectors
-    updateEditGraphicSelectors(isbn, question);
+    updateEditGraphicSelectors(courseID, question);
 }
 
 /**
- * This function updates the graphics fields in the editor modal with the available graphics for the textbook.
+ * This function updates the graphics fields in the editor modal with the available graphics for the course.
  * This version of the function is used when the user is editing a question
- * Precondition: valid isbn and question, attachments exist in the textbook attachment list
- * Postcondition: graphics fields are updated with the available graphics for the textbook in the edit modal
+ * Precondition: valid courseID and question, attachments exist in the course attachment list
+ * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateEditGraphicSelectors(isbn, question) {
+function updateEditGraphicSelectors(courseID, question) {
     const qGraphicField = document.getElementById('editGraphicField');
     const ansGraphicField = document.getElementById('editAnsGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
-        alert("No attachments available for this textbook!");
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
+        alert("No attachments available for this course!");
         return;
     }
 
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name;
         option.textContent = attachment.name;
@@ -2115,24 +2187,24 @@ function updateEditGraphicSelectors(isbn, question) {
 }
 
 /**
- * This function is called to update the graphics fields in the editor modal with the available graphics for the textbook.
+ * This function is called to update the graphics fields in the editor modal with the available graphics for the course.
  * This version of the function is used when the user is first creating a question.
- * Precondition: valid isbn, attachments exist in the textbook attachment list
- * Postcondition: graphics fields are updated with the available graphics for the textbook in the edit modal
+ * Precondition: valid courseID, attachments exist in the course attachment list
+ * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateGraphicSelectors(isbn) {
+function updateGraphicSelectors(courseID) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
     qGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
-    if (!masterAttachmentList[isbn] || masterAttachmentList[isbn].length === 0) {
-        alert("No attachments available for this textbook!");
+    if (!masterAttachmentList[courseID] || masterAttachmentList[courseID].length === 0) {
+        alert("No attachments available for this course!");
         return;
     }
 
-    masterAttachmentList[isbn].forEach((attachment, index) => {
+    masterAttachmentList[courseID].forEach((attachment, index) => {
         const option = document.createElement('option');
         option.value = attachment.name;
         option.textContent = attachment.name;
@@ -2212,11 +2284,11 @@ function toggleEditFormulaInput() {
 /**
  * This function is called when the user submits an edited question in the editor modal.
  * It updates the question in the master question list with the new data.
- * Precondition: valid isbn, question type, and question index
+ * Precondition: valid courseID, question type, and question index
  * Postcondition: question is updated in the master question list or a clone is created
  * RECENTLY EDITED
 */
-function submitEditQuestion(isbn, questionType, questionIndex) {
+function submitEditQuestion(courseID, questionType, questionIndex) {
     const text = document.getElementById('editQuestionField').value.trim();
     const score = document.getElementById('editPointValueField').value.trim();
     const reference = document.getElementById('editRefField').value.trim();
@@ -2226,7 +2298,7 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
     const comments = document.getElementById('editInstructorCommentField').value.trim();
     const directions = document.getElementById('editInstructionField').value.trim();
     const chapter = document.getElementById('editChapterField').value.trim();
-    const section = document.getElementById('editSectionField').value.trim();   
+    const section = document.getElementById('editSectionField').value.trim();
 
     if (!text || !score || !directions || !time || !chapter || !section) {
         alert("Some fields are required. (Prompt, Point Value, Directions, Time, Chapter, Section)");
@@ -2248,7 +2320,7 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
             document.getElementById('editOptionD').value.trim()
         ];
         answer = document.getElementById('editAnswerField').value;
-    } else if (questionType === 'ma') {
+    } else if (questionType === 'ma') { //TBD: Change the UI and logic for these
         const numOptions = parseInt(document.getElementById('editNumOptions').value);
         for (let i = 1; i <= numOptions; i++) {
             options.push(document.getElementById(`editOption${i}`).value.trim());
@@ -2278,7 +2350,7 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
     }
 
     
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     if(question.published===1){
         if(confirm("Are you sure you want to edit a published question? If you would rather clone this question, click okay.")){
             let clone = {
@@ -2296,8 +2368,8 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
                 section: section,
                 published: 0
             }
-            masterQuestionList[isbn][questionType].push(clone);
-            updateQuestionTabs(questionType, isbn);
+            masterQuestionList[courseID][questionType].push(clone);
+            updateQuestionTabs(questionType, courseID);
             closeModal();
             alert("Question cloned successfully!");
             return;
@@ -2321,24 +2393,24 @@ function submitEditQuestion(isbn, questionType, questionIndex) {
     }
     
 
-    updateQuestionTabs(questionType, isbn);
+    updateQuestionTabs(questionType, courseID);
     closeModal();
     alert("Question edited successfully!");
 }
 
 /**
  * This function is called to update the test content inside of the test containers whenever a test is saved
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: test content is updated in the test containers    
 */
-function updateTestTabs(isbn) {
-    const draftsContainer = document.getElementById(`drafts-${isbn}`);
-    const publishedContainer = document.getElementById(`published-${isbn}`);
+function updateTestTabs(courseID) {
+    const draftsContainer = document.getElementById(`drafts-${courseID}`);
+    const publishedContainer = document.getElementById(`published-${courseID}`);
     draftsContainer.innerHTML = ''; // Clear existing content
     publishedContainer.innerHTML = ''; // Clear existing content
 
-    const drafts = masterTestList[isbn].drafts;
-    const published = masterTestList[isbn].published;
+    const drafts = masterTestList[courseID].drafts;
+    const published = masterTestList[courseID].published;
 
     if (drafts.length === 0) {
         draftsContainer.innerHTML = '<p>No drafts available...</p>';
@@ -2352,7 +2424,7 @@ function updateTestTabs(isbn) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemIndex = index;
-            testDiv.dataset.isbn = isbn;
+            testDiv.dataset.courseID = courseID;
             testDiv.dataset.testType = 'draft';
 
             testDiv.innerHTML = `
@@ -2377,7 +2449,7 @@ function updateTestTabs(isbn) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemIndex = index;
-            testDiv.dataset.isbn = isbn;
+            testDiv.dataset.courseID = courseID;
             testDiv.dataset.testType = 'published';
 
             testDiv.innerHTML = `
@@ -2393,14 +2465,14 @@ function updateTestTabs(isbn) {
 
 /**
  * This function is called to update the question content inside the question containers whenever a question is saved
- * Precondition: valid questionType, isbn
+ * Precondition: valid questionType, courseID
  * Postcondition: question content is updated in the question containers
 */
-function updateQuestionTabs(questionType, isbn) {
-    const tabContent = document.getElementById(`${questionType}-${isbn}`);
+function updateQuestionTabs(questionType, courseID) {
+    const tabContent = document.getElementById(`${questionType}-${courseID}`);
     tabContent.innerHTML = ''; // Clear existing content
 
-    const questions = masterQuestionList[isbn][questionType];
+    const questions = masterQuestionList[courseID][questionType];
 
     if (questions.length === 0) {
         tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
@@ -2414,7 +2486,7 @@ function updateQuestionTabs(questionType, isbn) {
             questionDiv.classList.add('context-menu-target');
             questionDiv.dataset.itemType = 'question';
             questionDiv.dataset.itemIndex = index;
-            questionDiv.dataset.isbn = isbn;
+            questionDiv.dataset.courseID = courseID;
             questionDiv.dataset.questionType = questionType;
 
             questionDiv.innerHTML = `
@@ -2430,28 +2502,28 @@ function updateQuestionTabs(questionType, isbn) {
 
 /**
  * This function deletes a selected question when chosen from the master list
- * Precondition: valid isbn, questionType, questionIndex, not published
+ * Precondition: valid courseID, questionType, questionIndex, not published
  * Postcondition: question is deleted from the master list
 */
-function deleteQuestion(isbn, questionType, questionIndex) {
-    if(masterQuestionList[isbn][questionType][questionIndex].published === 1){
+function deleteQuestion(courseID, questionType, questionIndex) {
+    if(masterQuestionList[courseID][questionType][questionIndex].published === 1){
         alert("This question is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
-        masterQuestionList[isbn][questionType].splice(questionIndex, 1);
-        updateQuestionTabs(questionType, isbn);
+        masterQuestionList[courseID][questionType].splice(questionIndex, 1);
+        updateQuestionTabs(questionType, courseID);
         alert("Question deleted successfully!");
     }
 }
 
 /**
  * This function edits the cover page that was previously saved. 
- * Precondition: valid isbn, pageIndex
+ * Precondition: valid courseID, pageIndex
  * Postcondition: cover page is edited and republished in the master list
 */
-function editCoverPage(isbn, pageIndex) {
-    const coverPage = masterCoverPageList[isbn][pageIndex];
+function editCoverPage(courseID, pageIndex) {
+    const coverPage = masterCoverPageList[courseID][pageIndex];
 
     // Open the edit modal and populate it with the cover page data
     const modal = document.getElementById('editModal');
@@ -2479,7 +2551,7 @@ function editCoverPage(isbn, pageIndex) {
         </select><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructions" rows="6">${coverPage.instructions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditCoverPage('${isbn}', ${pageIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditCoverPage('${courseID}', ${pageIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -2491,36 +2563,36 @@ function editCoverPage(isbn, pageIndex) {
 
 /**
  * This function is called to delete a cover page from the master list
- * Precondition: valid isbn, pageIndex, not published
+ * Precondition: valid courseID, pageIndex, not published
  * Postcondition: cover page is deleted from the master list
 */
-function deleteCoverPage(isbn, pageIndex) {
-    if(masterCoverPageList[isbn][pageIndex].published === 1){
+function deleteCoverPage(courseID, pageIndex) {
+    if(masterCoverPageList[courseID][pageIndex].published === 1){
         alert("This cover page is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this cover page? This action cannot be undone.")) {
-        masterCoverPageList[isbn].splice(pageIndex, 1);
-        updateCoverPages(isbn);
+        masterCoverPageList[courseID].splice(pageIndex, 1);
+        updateCoverPages(courseID);
         alert("Cover page deleted successfully!");
     }
 }
 
 /**
  * This function is called to update the coverpage options inside any template editor
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: cover page options are updated in the template editor
 */
-function updateCoverPages(isbn) {
-    const coverPageContainer = document.getElementById(`coverpages-${isbn}`);
+function updateCoverPages(courseID) {
+    const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterCoverPageList[isbn] || masterCoverPageList[isbn].length === 0) {
+    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
         coverPageContainer.innerHTML = '<p>You have not added any cover pages yet...</p>';
         return;
     }
 
-    masterCoverPageList[isbn].forEach((coverPage, index) => {
+    masterCoverPageList[courseID].forEach((coverPage, index) => {
         const coverPageDiv = document.createElement('div');
         coverPageDiv.style.backgroundColor = '#d0d0d0';
         coverPageDiv.style.padding = '5px';
@@ -2529,7 +2601,7 @@ function updateCoverPages(isbn) {
         coverPageDiv.classList.add('context-menu-target');
         coverPageDiv.dataset.itemType = 'coverPage';
         coverPageDiv.dataset.itemIndex = index;
-        coverPageDiv.dataset.isbn = isbn;
+        coverPageDiv.dataset.courseID = courseID;
 
         coverPageDiv.innerHTML = `
             <p><strong>${coverPage.name}</strong> (Test Number: ${coverPage.testNum}, Date: ${coverPage.date})</p>
@@ -2543,19 +2615,19 @@ function updateCoverPages(isbn) {
 
 /**
  * This function updates the templates inside of the template container UI when a template is saved/edited
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: templates are updated in the template container
 */
-function updateTemplates(isbn) {
-    const templateContainer = document.getElementById(`templates-${isbn}`);
+function updateTemplates(courseID) {
+    const templateContainer = document.getElementById(`templates-${courseID}`);
     templateContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterTemplateList[isbn] || masterTemplateList[isbn].length === 0) {
+    if (!masterTemplateList[courseID] || masterTemplateList[courseID].length === 0) {
         templateContainer.innerHTML = '<p>You have not added any templates yet...</p>';
         return;
     }
 
-    masterTemplateList[isbn].forEach((template, index) => {
+    masterTemplateList[courseID].forEach((template, index) => {
         const templateDiv = document.createElement('div');
         templateDiv.style.backgroundColor = '#d0d0d0';
         templateDiv.style.padding = '5px';
@@ -2564,7 +2636,7 @@ function updateTemplates(isbn) {
         templateDiv.classList.add('context-menu-target');
         templateDiv.dataset.itemType = 'template';
         templateDiv.dataset.itemIndex = index;
-        templateDiv.dataset.isbn = isbn;
+        templateDiv.dataset.courseID = courseID;
 
         templateDiv.innerHTML = `
             <p><strong>${template.name}</strong></p>
@@ -2575,12 +2647,12 @@ function updateTemplates(isbn) {
 }
 
 /**
- * This function is called from the context menu to edit an existing template from the textbook UI
- * Precondition: valid isbn, templateIndex, not published
+ * This function is called from the context menu to edit an existing template from the course UI
+ * Precondition: valid courseID, templateIndex, not published
  * Postcondition: template is edited and saved in the master list
 */
-function editTemplate(isbn, templateIndex) {
-    const template = masterTemplateList[isbn][templateIndex];
+function editTemplate(courseID, templateIndex) {
+    const template = masterTemplateList[courseID][templateIndex];
 
     // Open the edit modal and populate it with the template data
     const modal = document.getElementById('editModal');
@@ -2642,7 +2714,7 @@ function editTemplate(isbn, templateIndex) {
             <div class="form-container">
                 <div class="form-group"><label>Test Name </label> <input type="text" id="tempTestName" value="${template.name}"></div>
                 <div class="form-group"><label>Date </label> <input type="text" id="tempDate"></div>
-                <div class="form-group"><label>Textbook Number </label> <input type="text" id="temptextbookNum"></div>
+                <div class="form-group"><label>Course Number </label> <input type="text" id="tempCourseNum"></div>
             </div>
 
             <h1>Header and Footer Settings</h1>
@@ -2670,19 +2742,19 @@ function editTemplate(isbn, templateIndex) {
             <div style="background:#d0d0d0;padding:20px" id="partsContainer"></div>
 
             <h1>Bonus Question Section Toggle</h1>
-            <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${isbn}')">
+            <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
                 <option value="True" ${template.bonusSection ? 'selected' : ''}>Bonus Section</option>
                 <option value="False" ${!template.bonusSection ? 'selected' : ''}>No Bonus Section</option>
             </select><br/><br/>
-            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${isbn}')">Select Bonus Questions</button>
-            <button class="add-btn" onclick="submitEditTemplate('${isbn}', ${templateIndex})">Submit Template</button>
+            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
+            <button class="add-btn" onclick="submitEditTemplate('${courseID}', ${templateIndex})">Submit Template</button>
         </div>
     `;
 
     modalBody.innerHTML = formContent;
 
     // Populate the cover page selector
-    updatePageSelection(isbn);
+    updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
     pageSelector.value = coverPageType;
     
@@ -2709,10 +2781,10 @@ function editTemplate(isbn, templateIndex) {
 
 /**
  * This function is used to submit an edited template when the user is finished editing the template from the context menu
- * Precondition: valid isbn, templateIndex
+ * Precondition: valid courseID, templateIndex
  * Postcondition: template is edited and saved in the master list
 */
-function submitEditTemplate(isbn, templateIndex) {
+function submitEditTemplate(courseID, templateIndex) {
     const templateName = document.getElementById('tempTestName').value.trim();
     const coverPageType = document.getElementById('coverPageSelector').value;
 
@@ -2754,24 +2826,24 @@ function submitEditTemplate(isbn, templateIndex) {
     }
 
     if(bonusSection){
-        if(masterTemplateList[isbn].bonusQuestions.length>0){
-            masterTemplateList[isbn][templateIndex].bonusQuestions = masterTemplateList[isbn].bonusQuestions;   
-        } else if (masterTemplateList[isbn][templateIndex].bonusQuestions.length>0){
-            masterTemplateList[isbn][templateIndex].bonusQuestions = masterTemplateList[isbn][templateIndex].bonusQuestions;
+        if(masterTemplateList[courseID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
+        } else if (masterTemplateList[courseID][templateIndex].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID][templateIndex].bonusQuestions;
         } else {
             alert("No bonus questions selected!");
             return;
         }
-        console.log("Bonus Questions:", masterTemplateList[isbn][templateIndex].bonusQuestions);
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
     }else{
         alert("no bonus questions!");
-        masterTemplateList[isbn][templateIndex].bonusQuestions = [];
-        console.log("Bonus Questions:", masterTemplateList[isbn][templateIndex].bonusQuestions);
+        masterTemplateList[courseID][templateIndex].bonusQuestions = [];
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
     }
-    if (bonusSection && !masterTemplateList[isbn].bonusQuestions) {
-        alert("Bonus questions failed to add to textbook");
+    if (bonusSection && !masterTemplateList[courseID].bonusQuestions) {
+        alert("Bonus questions failed to add to course");
         return;
-    }else if(bonusSection && (masterTemplateList[isbn][templateIndex].bonusQuestions.length === 0)){
+    }else if(bonusSection && (masterTemplateList[courseID][templateIndex].bonusQuestions.length === 0)){
         alert("Bonus questions failed to add to template");
         return;
     }
@@ -2791,44 +2863,44 @@ function submitEditTemplate(isbn, templateIndex) {
         coverPageType: coverPageType,
         partStructure: partStructure,
         bonusSection: bonusSection,
-        bonusQuestions: masterTemplateList[isbn].bonusQuestions || [],
-        feedback: []
+        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        published: 0
     };
 
-    masterTemplateList[isbn][templateIndex] = templateData;
-    masterTemplateList[isbn].bonusQuestions = [];
+    masterTemplateList[courseID][templateIndex] = templateData;
+    masterTemplateList[courseID].bonusQuestions = [];
 
     alert("Template edited successfully!");
     console.log("Edited Template:", templateData);
 
-    updateTemplates(isbn);
+    updateTemplates(courseID);
     closeModal();
 }
 
 /**
  * This function is called to delete a template from the master Templatelist. 
- * Precondition: valid isbn, templateIndex, not published
+ * Precondition: valid courseID, templateIndex, not published
  * Postcondition: template is deleted from the master list
 */
-function deleteTemplate(isbn, templateIndex) {
-    if(masterTemplateList[isbn][templateIndex].published === 1){
+function deleteTemplate(courseID, templateIndex) {
+    if(masterTemplateList[courseID][templateIndex].published === 1){
         alert("This template is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this template? This action cannot be undone.")) {
-        masterTemplateList[isbn].splice(templateIndex, 1);
-        updateTemplates(isbn);
+        masterTemplateList[courseID].splice(templateIndex, 1);
+        updateTemplates(courseID);
         alert("Template deleted successfully!");
     }
 }
 
 /**
  * This function is used to edit a draft test after it has been saved in the master list
- * Precondition: valid isbn, testIndex, not published
+ * Precondition: valid courseID, testIndex, not published
  * Postcondition: test is edited and saved in the master list
 */
-function editTest(isbn, testIndex) {
-    const test = masterTestList[isbn]['drafts'][testIndex];
+function editTest(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex];
 
     // Open the edit modal and populate it with the test data
     const modal = document.getElementById('editModal');
@@ -2846,25 +2918,25 @@ function editTest(isbn, testIndex) {
                 <select id="templateSelector">
                     <option value="" disabled>Please Select a Template</option>
                 </select> 
-                <button id="templateSelection" onclick="updateTestParts('${isbn}')">Select This One!</button>
+                <button id="templateSelection" onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <button class="add-btn" id="testDraftButton" onclick="submitEditedTest('${isbn}', '${false}', ${testIndex})">Save as Draft</button>
-            <button class="add-btn" id="testPublishButton" onclick="submitEditedTest('${isbn}', '${true}', ${testIndex})">Publish Test</button>
+            <button class="add-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testIndex})">Save as Draft</button>
+            <button class="add-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testIndex})">Publish Test</button>
         </div>
     `;
 
     modalBody.innerHTML = formContent;
 
     // Populate the template selector
-    updateTemplateSelection(isbn);
+    updateTemplateSelection(courseID);
 
     // Set the selected template
     const templateSelector = document.getElementById('templateSelector');
     templateSelector.value = test.templateIndex;
 
     // Populate the test parts
-    updateTestParts(isbn);
+    updateTestParts(courseID);
 
     // Populate the parts and sections with existing test data
     test.parts.forEach((part, partIndex) => {
@@ -2956,7 +3028,7 @@ function editTest(isbn, testIndex) {
         
         test.template.bonusQuestions.forEach((questionId, questionIndex) => {
             const [type, index] = questionId.split('-');
-            const question = masterQuestionList[isbn][type][index];
+            const question = masterQuestionList[courseID][type][index];
             const questionElement = document.createElement("div");
             questionElement.style.padding = "8px";
             questionElement.style.margin = "5px 0";
@@ -2986,29 +3058,29 @@ function editTest(isbn, testIndex) {
 
 /**
  * This function is called to delete a test from the master test list
- * Precondition: valid isbn, testIndex, not published
+ * Precondition: valid courseID, testIndex, not published
  * Postcondition: test is deleted from the master list
 */
-function deleteTest(isbn, testIndex) {
-    if(masterTestList[isbn]['drafts'][testIndex].published === 1){
+function deleteTest(courseID, testIndex) {
+    if(masterTestList[courseID]['drafts'][testIndex].published === 1){
         alert("This test is published and cannot be deleted.");
         return;
     }
     if (confirm("Are you sure you want to delete this test? This action cannot be undone.")) {
-        const isDraft = masterTestList[isbn]['drafts'][testIndex] !== undefined;
-        const targetList = isDraft ? masterTestList[isbn]['drafts'] : masterTestList[isbn]['published'];
+        const isDraft = masterTestList[courseID]['drafts'][testIndex] !== undefined;
+        const targetList = isDraft ? masterTestList[courseID]['drafts'] : masterTestList[courseID]['published'];
         targetList.splice(testIndex, 1);
-        updateTestTabs(isbn);
+        updateTestTabs(courseID);
         alert("Test deleted successfully!");
     }
 }
 
 /**
  * This function determines whether or not bonus questions are available inside the template
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: bonus questions are toggled on or off in the template editor
 */
-function toggleBonusQuestionSelection(isbn) {
+function toggleBonusQuestionSelection(courseID) {
     const bonusToggle = document.getElementById('bonusToggle').value;
     const selectBonusQuestionsBtn = document.getElementById('selectBonusQuestionsBtn');
     if (bonusToggle === 'True') {
@@ -3020,10 +3092,10 @@ function toggleBonusQuestionSelection(isbn) {
 
 /**
  * The bonus question modal is opened when the user wants to add bonus questions to a template or test
- * Precondition: valid isbn
+ * Precondition: valid courseID
  * Postcondition: bonus question modal is opened
 */
-function openBonusQuestionModal(isbn) {
+function openBonusQuestionModal(courseID) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
     const modalBody = document.getElementById("questionModalBody");
@@ -3031,7 +3103,7 @@ function openBonusQuestionModal(isbn) {
     modalBody.innerHTML = ""; // Clear existing content
     
     // Store the relevant data in the modal for later use
-    modalBody.dataset.isbn = isbn;
+    modalBody.dataset.courseID = courseID;
     modalBody.dataset.questionType = 'bonus';
 
     const questionContainer = document.createElement('div');
@@ -3039,8 +3111,8 @@ function openBonusQuestionModal(isbn) {
     questionContainer.style.marginBottom = '8px';
     questionContainer.style.borderBottom = '1px solid #ccc';
 
-    Object.keys(masterQuestionList[isbn]).forEach(type => {
-        const questions = masterQuestionList[isbn][type];
+    Object.keys(masterQuestionList[courseID]).forEach(type => {
+        const questions = masterQuestionList[courseID][type];
         questions.forEach((question, index) => {
             const element = document.createElement("div");
             element.style.padding = '8px';
@@ -3059,7 +3131,7 @@ function openBonusQuestionModal(isbn) {
     submitButton.className = 'add-btn';
     submitButton.textContent = 'Add Selected Questions';
     submitButton.onclick = function() {
-        addSelectedBonusQuestions(isbn);
+        addSelectedBonusQuestions(courseID);
     };
     questionContainer.appendChild(submitButton);
 
@@ -3074,10 +3146,10 @@ function openBonusQuestionModal(isbn) {
 
 /**
  * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open
- * Precondition: valid isbn, bonus questions selected
+ * Precondition: valid courseID, bonus questions selected
  * Postcondition: bonus questions are added to the template or test
 */
-function addSelectedBonusQuestions(isbn) {
+function addSelectedBonusQuestions(courseID) {
     const modalBody = document.getElementById("questionModalBody");
     const checkboxes = modalBody.querySelectorAll('input[type="checkbox"]:checked');
     const selectedQuestions = Array.from(checkboxes).map(cb => cb.value);
@@ -3087,18 +3159,18 @@ function addSelectedBonusQuestions(isbn) {
         return;
     }
 
-    masterTemplateList[isbn].bonusQuestions = selectedQuestions;
+    masterTemplateList[courseID].bonusQuestions = selectedQuestions;
     closeQuestionModal();
     alert(`Added ${selectedQuestions.length} bonus questions.`);
 }
 
 /**
  * This renames attachments, not much else to it, it is an editor to facilitate renaming them
- * Precondition: valid attachmentIndex and isbn
+ * Precondition: valid attachmentIndex and courseID
  * Postcondition: the attachment editer is opened
 */
-function editAttachment(isbn, attachmentIndex) {
-    const attachment = masterAttachmentList[isbn][attachmentIndex];
+function editAttachment(courseID, attachmentIndex) {
+    const attachment = masterAttachmentList[courseID][attachmentIndex];
 
     // Open the edit modal and populate it with the attachment data
     const modal = document.getElementById('editModal');
@@ -3110,7 +3182,7 @@ function editAttachment(isbn, attachmentIndex) {
     const formContent = `
         <label>Attachment Name:</label><br/>
         <input type="text" id="editAttachmentName" value="${attachment.name}"><br><br>
-        <button class="add-btn" onclick="submitEditAttachment('${isbn}', ${attachmentIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditAttachment('${courseID}', ${attachmentIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -3122,10 +3194,10 @@ function editAttachment(isbn, attachmentIndex) {
 
 /**
  * This publishes the changes to the attachment name made in the editAttachment function
- * Precondition: valid isbn, attachmentIndex
+ * Precondition: valid courseID, attachmentIndex
  * Postcondition: attachment is renamed
 */
-function submitEditAttachment(isbn, attachmentIndex) {
+function submitEditAttachment(courseID, attachmentIndex) {
     const newName = document.getElementById('editAttachmentName').value.trim();
 
     if (!newName) {
@@ -3133,32 +3205,32 @@ function submitEditAttachment(isbn, attachmentIndex) {
         return;
     }
 
-    masterAttachmentList[isbn][attachmentIndex].name = newName;
-    updateAttachments(isbn);
+    masterAttachmentList[courseID][attachmentIndex].name = newName;
+    updateAttachments(courseID);
     closeModal();
     alert("Attachment renamed successfully!");
 }
 
 /**
  * This function is called to delete an attachment from the master list
- * Precondition: valid isbn, attachmentIndex
+ * Precondition: valid courseID, attachmentIndex
  * Postcondition: attachment is deleted from the master list
  * TODO: Prohibit deletion of published attachments, track published attachments using ID or hash
 */
-function deleteAttachment(isbn, attachmentIndex) {
+function deleteAttachment(courseID, attachmentIndex) {
     if (confirm("Are you sure you want to delete this attachment? This action cannot be undone.")) {
-        masterAttachmentList[isbn].splice(attachmentIndex, 1);
-        updateAttachments(isbn);
+        masterAttachmentList[courseID].splice(attachmentIndex, 1);
+        updateAttachments(courseID);
         alert("Attachment deleted successfully!");
     }
 }
 
 /**
  * This function is called to submit an edited test
- * Precondition: valid isbn, isPublished, testIndex
+ * Precondition: valid courseID, isPublished, testIndex
  * Postcondition: test is edited and saved in the master list
 */
-function submitEditedTest(isbn, isPublished, testIndex) {
+function submitEditedTest(courseID, isPublished, testIndex) {
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
         alert("Test Name is required.");
@@ -3171,7 +3243,7 @@ function submitEditedTest(isbn, isPublished, testIndex) {
         return;
     }
 
-    const template = masterTemplateList[isbn][templateIndex];
+    const template = masterTemplateList[courseID][templateIndex];
     
     let usedQuestions = [];
 
@@ -3221,17 +3293,17 @@ function submitEditedTest(isbn, isPublished, testIndex) {
                 const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
 
                 // Get the question from master list and clone it
-                const question = JSON.parse(JSON.stringify(masterQuestionList[isbn][questionType.toLowerCase()][questionIndex]));
+                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]));
 
                 // Update points for this clone if they were changed
                 question.score = points;
-                usedQuestions.push(masterQuestionList[isbn][questionType.toLowerCase()][questionIndex]);
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionIndex]);
                 // Add to the questions for this section
                 sectionData.questions.push(question);
                 noquestions=false;
                 // Set the published key to 1 if the test is published
                 if (isPublished === 'true') {
-                    masterQuestionList[isbn][questionType.toLowerCase()][questionIndex].published = 1;
+                    masterQuestionList[courseID][questionType.toLowerCase()][questionIndex].published = 1;
                 }
             });
             if(noquestions){
@@ -3252,7 +3324,7 @@ function submitEditedTest(isbn, isPublished, testIndex) {
                 questionType: 'bonus',
                 questions: template.bonusQuestions.map(q => {
                     const [type, index] = q.split('-');
-                    const question = masterQuestionList[isbn][type][index];
+                    const question = masterQuestionList[courseID][type][index];
                     if (isPublished === 'true') {
                         question.published = 1;
                     }
@@ -3264,12 +3336,12 @@ function submitEditedTest(isbn, isPublished, testIndex) {
     }
 
     // Save the test data
-    if (!masterTestList[isbn]) {
-        masterTestList[isbn] = { drafts: [], published: [] };
+    if (!masterTestList[courseID]) {
+        masterTestList[courseID] = { drafts: [], published: [] };
     }
 
-    const draftsList = masterTestList[isbn].drafts;
-    const publishedList = masterTestList[isbn].published;
+    const draftsList = masterTestList[courseID].drafts;
+    const publishedList = masterTestList[courseID].published;
 
     if (isPublished === 'true') {
         // Remove from drafts and add to published
@@ -3283,10 +3355,10 @@ function submitEditedTest(isbn, isPublished, testIndex) {
 
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
-        masterTemplateList[isbn][templateIndex].published = 1;
+        masterTemplateList[courseID][templateIndex].published = 1;
         const coverPageIndex = template.coverPageType;
-        if (masterCoverPageList[isbn][coverPageIndex]) {
-            masterCoverPageList[isbn][coverPageIndex].published = 1;
+        if (masterCoverPageList[courseID][coverPageIndex]) {
+            masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
     }
 
@@ -3297,14 +3369,14 @@ function submitEditedTest(isbn, isPublished, testIndex) {
     });
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
-    updateTestTabs(isbn);
+    updateTestTabs(courseID);
     closeModal();
 }
 
 /**
  * This function opens up the modal to produce a feedback form
  * It allows the user to leave a rating out of five stars, the average score, average time taken, and comments
- * Precondition: valid isbn, questionType, questionIndex
+ * Precondition: valid courseID, questionType, questionIndex
  * Postcondition: feedback form is opened 
  * TODO: add average time taken field
 */
@@ -3312,11 +3384,11 @@ function addFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     if (itemType === 'question') {
-        const question = masterQuestionList[isbn][questionType][itemIndex];
+        const question = masterQuestionList[courseID][questionType][itemIndex];
 
         // Open the feedback modal and populate it with the feedback form
         const modal = document.getElementById('editModal');
@@ -3332,7 +3404,7 @@ function addFeedback() {
             <input type="number" id="feedbackAverageScore" min="0"><br><br>
             <label>Comments:</label><br/>
             <textarea id="feedbackComments" rows="4"></textarea><br><br>
-            <button class="add-btn" onclick="submitFeedback('${isbn}', '${questionType}', ${itemIndex})">Submit Feedback</button>
+            <button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemIndex})">Submit Feedback</button>
         `;
 
         modalBody.innerHTML = formContent;
@@ -3341,7 +3413,7 @@ function addFeedback() {
             modal.style.opacity = '1';
         }, 10);
     } else if (itemType === 'test') {
-        const test = masterTestList[isbn]['drafts'][itemIndex] || masterTestList[isbn]['published'][itemIndex];
+        const test = masterTestList[courseID]['drafts'][itemIndex] || masterTestList[courseID]['published'][itemIndex];
 
         // Open the feedback modal and populate it with the feedback form
         const modal = document.getElementById('editModal');
@@ -3357,7 +3429,7 @@ function addFeedback() {
             <input type="number" id="feedbackAverageScore" min="0"><br><br>
             <label>Comments:</label><br/>
             <textarea id="feedbackComments" rows="4"></textarea><br><br>
-            <button class="add-btn" onclick="submitTestFeedback('${isbn}', ${itemIndex})">Submit Feedback</button>
+            <button class="add-btn" onclick="submitTestFeedback('${courseID}', ${itemIndex})">Submit Feedback</button>
         `;
 
         modalBody.innerHTML = formContent;
@@ -3372,10 +3444,10 @@ function addFeedback() {
 
 /**
  * This function is called to submit feedback for a question
- * Precondition: valid isbn, questionType, questionIndex
+ * Precondition: valid courseID, questionType, questionIndex
  * Postcondition: feedback is submitted and saved in the master list
 */
-function submitFeedback(isbn, questionType, questionIndex) {
+function submitFeedback(courseID, questionType, questionIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -3394,7 +3466,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
     }
 
     const feedback = {
-        username: isbn, // Using isbn as the username for now
+        username: courseID, // Using courseID as the username for now
         rating: rating,
         averageScore: averageScore,
         comments: comments,
@@ -3402,7 +3474,7 @@ function submitFeedback(isbn, questionType, questionIndex) {
         responses: []
     };
 
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     if (!question.feedback) {
         question.feedback = [];
     }
@@ -3410,15 +3482,15 @@ function submitFeedback(isbn, questionType, questionIndex) {
 
     alert("Feedback submitted successfully!");
     closeModal();
-    viewQuestionFeedback(isbn, questionType, questionIndex);
+    viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
 /**
  * This function is called to submit feedback for a test
- * Precondition: valid isbn, testIndex
+ * Precondition: valid courseID, testIndex
  * Postcondition: feedback is submitted and saved in the master list
 */
-function submitTestFeedback(isbn, testIndex) {
+function submitTestFeedback(courseID, testIndex) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -3437,7 +3509,7 @@ function submitTestFeedback(isbn, testIndex) {
     }
 
     const feedback = {
-        username: isbn, // Using isbn as the username for now
+        username: courseID, // Using courseID as the username for now
         rating: rating,
         averageScore: averageScore,
         comments: comments,
@@ -3445,7 +3517,7 @@ function submitTestFeedback(isbn, testIndex) {
         responses: []
     };
 
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
     if (!test.feedback) {
         test.feedback = [];
     }
@@ -3453,26 +3525,26 @@ function submitTestFeedback(isbn, testIndex) {
 
     alert("Feedback submitted successfully!");
     closeModal();
-    viewTestFeedback(isbn, testIndex);
+    viewTestFeedback(courseID, testIndex);
 }
 
 /**
  * This function is called to view feedback for a question or test
  * It opens up an amazon review-like page
- * Precondition: valid isbn, questionType (for questions), questionIndex stored in context menu
+ * Precondition: valid courseID, questionType (for questions), questionIndex stored in context menu
  * Postcondition: feedback is displayed in the modal
 */
 function viewFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemIndex = contextMenu.dataset.itemIndex;
-    const isbn = contextMenu.dataset.isbn;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     if (itemType === 'question') {
-        viewQuestionFeedback(isbn, questionType, itemIndex);
+        viewQuestionFeedback(courseID, questionType, itemIndex);
     } else if (itemType === 'test') {
-        viewTestFeedback(isbn, itemIndex);
+        viewTestFeedback(courseID, itemIndex);
     } else {
         alert("Feedback can only be viewed for questions and tests.");
     }
@@ -3480,11 +3552,11 @@ function viewFeedback() {
 
 /**
  * This function is called to view the feedback to questions, it is called by viewFeedback
- * Precondition: valid isbn, questionType, questionIndex
+ * Precondition: valid courseID, questionType, questionIndex
  * Postcondition: feedback is displayed in the modal
 */
-function viewQuestionFeedback(isbn, questionType, questionIndex) {
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+function viewQuestionFeedback(courseID, questionType, questionIndex) {
+    const question = masterQuestionList[courseID][questionType][questionIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -3513,7 +3585,7 @@ function viewQuestionFeedback(isbn, questionType, questionIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitResponse('${isbn}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitResponse('${courseID}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -3528,11 +3600,11 @@ function viewQuestionFeedback(isbn, questionType, questionIndex) {
 
 /**
  * This function is called to view the feedback to tests, it is called by viewFeedback
- * Precondition: valid isbn, testIndex
+ * Precondition: valid courseID, testIndex
  * Postcondition: feedback is displayed in the modal
 */
-function viewTestFeedback(isbn, testIndex) {
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+function viewTestFeedback(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -3561,7 +3633,7 @@ function viewTestFeedback(isbn, testIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitTestResponse('${isbn}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitTestResponse('${courseID}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -3576,10 +3648,10 @@ function viewTestFeedback(isbn, testIndex) {
 
 /**
  * This function is called to submit response inside of the feedback modal
- * Precondition: valid isbn, questionType, questionIndex, feedbackIndex
+ * Precondition: valid courseID, questionType, questionIndex, feedbackIndex
  * Postcondition: response is submitted and saved in the master list, displayed on the review page
 */
-function submitResponse(isbn, questionType, questionIndex, feedbackIndex) {
+function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -3588,24 +3660,24 @@ function submitResponse(isbn, questionType, questionIndex, feedbackIndex) {
     }
 
     const response = {
-        username: isbn, // Using isbn as the username for now
+        username: courseID, // Using courseID as the username for now
         text: responseText,
         date: new Date().toLocaleString()
     };
 
-    const question = masterQuestionList[isbn][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
 
     alert("Response submitted successfully!");
-    viewQuestionFeedback(isbn, questionType, questionIndex);
+    viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
 /**
  * This function is called to submit response inside of the feedback modal for tests
- * Precondition: valid isbn, testIndex, feedbackIndex
+ * Precondition: valid courseID, testIndex, feedbackIndex
  * Postcondition: response is submitted and saved in the master list, displayed on the review page
 */
-function submitTestResponse(isbn, testIndex, feedbackIndex) {
+function submitTestResponse(courseID, testIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -3614,16 +3686,16 @@ function submitTestResponse(isbn, testIndex, feedbackIndex) {
     }
 
     const response = {
-        username: isbn, // Using isbn as the username for now
+        username: courseID, // Using courseID as the username for now
         text: responseText,
         date: new Date().toLocaleString()
     };
 
-    const test = masterTestList[isbn]['drafts'][testIndex] || masterTestList[isbn]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
     test.feedback[feedbackIndex].responses.push(response);
 
     alert("Response submitted successfully!");
-    viewTestFeedback(isbn, testIndex);
+    viewTestFeedback(courseID, testIndex);
 }
 
 /**
@@ -3640,7 +3712,7 @@ function updateOptions(type) {
         for (let i = 1; i <= numOptions; i++) {
             optionsContainer.innerHTML += `
                 <label>Option ${i}:</label><br/>
-                <input type="text" id="option${i}" placeholder="Option ${i}"><br><br>
+                <input type="text" id="option${i}" placeholder="Please put paired values together"><br><br>
             `;
         }
     } else if (type === 'ms') {
@@ -3664,6 +3736,305 @@ function updateOptions(type) {
     }
 }
 
+// Function to load all course data when the page loads
+function loadUserData() {
+    fetch('/api/load_data/', {  // Adjust the URL to match actual API endpoint
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),  // Include CSRF token for Django
+        },
+        credentials: 'same-origin'  // Include cookies for authentication
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Process the received data
+        if (data.courseList) {
+            // We have teacher data
+            processCourseData(data.courseList);
+        } else if (data.textbookList) {
+            // We have publisher data
+            processTextbookData(data.textbookList);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading data:', error);
+        // Show user-friendly error message
+        document.getElementById('errorMessage').textContent = 'Failed to load your data. Please refresh the page or contact support.';
+    });
+}
+
+
+function saveUserData(type) { // type must be 'question', 'test', 'template', 'cpage', or 'course'
+    let data = '';
+    switch(type){
+        case 'question':
+            data = JSON.stringify({"masterQuestionList": masterQuestionList});
+            break;
+        case 'test':
+            data = JSON.stringify({"masterTestList": masterTestList}); 
+            break;
+        case 'course':
+            data = JSON.stringify({"courseList": courseList});
+            break;
+        case 'cpage': 
+            data = JSON.stringify({"masterCoverPageList": masterCoverPageList});
+            break;
+        case 'template':
+            data = JSON.stringify({"masterTemplateList": masterTemplateList});
+            break;
+        case 'attachment':
+            data = JSON.stringify({"masterAttachmentList": masterAttachmentList}); //needs to be reworked to deal with files
+            break;
+        case 'all':
+            datadump = {
+                questions: masterQuestionList,
+                tests: masterTestList,
+                courses: courseList, 
+                cpages: masterCoverPageList,
+                templates: masterTemplateList,
+                attachments: masterAttachmentList 
+            };
+            data = JSON.stringify(datadump);
+            break;
+        default:
+            console.error("Invalid type for saveUserData()");
+            return;
+    }
+    
+    fetch(`/api/save_data/${type}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: data,
+        credentials: 'same-origin'
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+    .then(({ status, body }) => {
+        if (status !== 200) {
+            throw new Error(`Error ${status}: ${body.message || 'Unknown error'}`);
+        }
+        console.log('Data saved successfully:', body);
+
+        const successElement = document.getElementById('successMessage');
+        if (successElement) {
+            successElement.textContent = 'Your data has been saved successfully.';
+            setTimeout(() => {
+                successElement.textContent = '';
+            }, 3000);
+        }
+
+        const errorElement = document.getElementById('errorMessage');
+        if (errorElement) {
+            errorElement.textContent = '';  
+        }
+    })
+    .catch(error => {
+        console.error('Error saving data:', error);
+        const errorElement = document.getElementById('errorMessage');
+        if (errorElement) {
+            errorElement.textContent = `Failed to save your data: ${error.message}`;
+        }
+    });
+}
+
+
+// Helper function to get CSRF token from cookies (for Django)
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function processCourseData(data) {
+    // Clear any existing data
+    document.getElementById('courseList').innerHTML = '';
+    
+    // Update global JavaScript objects
+    masterQuestionList = {};
+    masterTestList = {};
+    masterTemplateList = {};
+    masterAttachmentList = {};
+    courseList = {};  
+    masterCoverPageList = {};
+    
+    // Check if we have valid data
+    if (!data || !Array.isArray(data)) {
+        console.error("Invalid data format:", data);
+        document.getElementById('courseList').innerHTML = 
+            '<div class="alert alert-danger">Error loading courses. Please try again later.</div>';
+        return;
+    }
+    
+    // Process each course in the array
+    data.forEach(courseData => {
+        if (!courseData || !courseData.course) {
+            console.error("Invalid course data:", courseData);
+            return; // Skip this course and continue with others
+        }
+        
+        const course = courseData.course;
+        const courseId = course.course_id; 
+        courseList[courseId] = course;
+        
+        try {
+            masterQuestionList[courseId] = courseData.questionList ? 
+                organizeByCategoryType(courseData.questionList) : {};
+                
+            masterTestList[courseId] = courseData.testList ? 
+                organizeByPublishStatus(courseData.testList) : {};
+                
+            masterTemplateList[courseId] = courseData.templateList || [];
+            masterAttachmentList[courseId] = courseData.attachmentList || [];
+            masterCoverPageList[courseId] = courseData.coverpageList || [];
+            
+            addExistingCourseToUI(course);
+            
+            // Update UI components
+            updateCoverPages(courseId);
+            updateTemplates(courseId);
+            updateAllQuestionTabs(courseId);
+            updateTestTabs(courseId);
+            updateAttachments(courseId);
+        } catch (error) {
+            console.error(`Error processing course ${courseId}:`, error);
+        }
+    });
+}
+
+function updateAllQuestionTabs(courseID){
+    updateQuestionTabs('tf', courseID);
+    updateQuestionTabs('mc', courseID);
+    updateQuestionTabs('sa', courseID);
+    updateQuestionTabs('es', courseID);
+    updateQuestionTabs('ma', courseID);
+    updateQuestionTabs('ms', courseID);
+    updateQuestionTabs('fb', courseID);  
+}
+
+// Helper function to organize questions by their type
+function organizeByCategoryType(questionList) {
+    const organized = {
+        'tf': [],
+        'mc': [],
+        'sa': [],
+        'es': [],
+        'ma': [],
+        'ms': [],
+        'fb': []
+    };
+    
+    questionList.forEach(question => {
+        if (organized[question.type]) {
+            organized[question.type].push(question);
+        }
+    });
+    
+    return organized;
+}
+
+// Helper function to organize tests by publish status
+function organizeByPublishStatus(testList) {
+    const organized = {
+        'drafts': [],
+        'published': []
+    };
+    
+    testList.forEach(test => {
+        if (test.published) {
+            organized.published.push(test);
+        } else {
+            organized.drafts.push(test);
+        }
+    });
+    
+    return organized;
+}
+
+// Function to add an existing course to the UI
+function addExistingCourseToUI(course) {
+    const courseContainer = document.createElement('div');
+    courseContainer.classList.add('course-container');
+    courseContainer.innerHTML = `
+        <details>
+            <summary><strong>${course.name}</strong> (ID: ${course.course_id}, CRN: ${course.crn}, ${course.sem})</summary>
+            <details>
+                <summary>Questions</summary>
+            <button class="add-btn" onclick="openEditor('Question', '${course.course_id}')">Add Question</button>
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'tf-${course.course_id}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${course.course_id}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${course.course_id}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${course.course_id}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${course.course_id}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${course.course_id}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${course.course_id}')">Fill in the Blank</div>
+                </div>
+                <div class="tab-content active" id="tf-${course.course_id}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${course.course_id}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${course.course_id}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${course.course_id}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${course.course_id}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${course.course_id}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${course.course_id}"><p>Fill in the Blank questions go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Cover Pages</summary>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${course.course_id}')">Add Cover Page</button>
+                    <div id="coverpages-${course.course_id}"><p>You have not added any cover pages yet...</div>
+            </details>
+
+            <details>
+                <summary>Templates</summary>
+                    <button class="add-btn" onclick="openEditor('Template', '${course.course_id}')">Add Template</button>
+                    <div id="templates-${course.course_id}"><p>You have not added any templates yet...</p></div>
+            </details>
+
+            <details>
+                <summary>Tests</summary>
+                <button class="add-btn" onclick="openEditor('Test', '${course.course_id}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('Test', '${course.course_id}')">Import Test</button>
+                <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${course.course_id}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${course.course_id}')">Published Tests</div>
+                </div>
+                <div class="tab-content active" id="drafts-${course.course_id}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${course.course_id}"><p>Published tests go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Attachments</summary>
+                <button class="add-btn" onclick="openEditor('Attachment', '${course.course_id}')">Add Attachment</button>
+                <div id="attachments-${course.course_id}"><p>You have not uploaded any attachments yet...</p></div>
+            </details>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this, '${course.course_id}')">Remove Course</button>
+        </details>
+    `;
+    
+    document.getElementById('courseList').appendChild(courseContainer);
+}
 
 </script>
 </body>

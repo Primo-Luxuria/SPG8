@@ -2,61 +2,37 @@
 <html lang="en-US">
 
 <head>
-<title>Log In</title>
-<link rel="icon" type="image/x-icon" href="quizpress.ico">
-<link rel="stylesheet" href="home.css">
-<meta charset="UTF-8>
-<meta name="keywords" content="HTML, CSS, JavaScript, php, login, log in, sign in">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-font-family: Garamond, serif;
-</style>
+    <title>Log In</title>
+    <link rel="icon" type="image/x-icon" href="quizpress.ico">
+    <link rel="stylesheet" href="home.css">
+    <meta charset="UTF-8">
+    <meta name="keywords" content="HTML, CSS, JavaScript, php, login, log in, sign in">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family:Garamond; }
+    </style>
 </head>
 
-
-
-
 <body>
+    <div>
+        <h1>Enter your username and password </h1>
+        <form id="loginForm" method="POST" action="{% url 'login_handler' %}">
+            {% csrf_token %}
+            <label for="username">Username</label><br/>
+            <input id="username" type="text" name="username" required><br/>
+            <label for="password">Password</label><br/>
+            <input id="password" type="password" name="password" required><br/><br/>
+            <button type="submit">Log In</button><br/><br/>
+        </form>
+        <button onclick="window.location.href='{% url 'home' %}'">Back to Home</button>
+    </div>
 
-<div>
-	<h1>Enter your username and password </h1>
-		<form id="loginForm">  <!-- action="/login_handling.php" -->
-			<label for="uname">Username</label><br/>
-			<input id="uname" type="username" name="username"><br/>
-			<label for="pwd">Password</label><br/>
-			<input id="pwd" type="password" name="password"><br/><br/>
-			<input type="button" id="loginButton" value="Log In"><br/><br/>
-		</form>
-		<button onclick="location.href={% url 'home' $}">Back to Home</button>
-</div>
-
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </body>
-
-<script>
-document.getElementById('loginButton').addEventListener('click', function() {
-    // Collect form data
-    const formData = new FormData(document.getElementById('loginForm'));
-
-    // Send AJAX request
-    fetch('login_handler.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json()) // Expect JSON response
-    .then(data => {
-        if (data.status === 'success') {
-            // Redirect to the appropriate homepage based on role
-            window.location.href = `../${data.role.toLowerCase()}/home.html`;
-        } else {
-            // Display error message
-            document.getElementById('response').innerHTML = data.message;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        document.getElementById('response').innerHTML = "An error occurred.";
-    });
-});
-</script>
-
 </html>
