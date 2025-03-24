@@ -236,6 +236,7 @@ function addCourse() {
     masterTemplateList[courseID].bonusQuestions = [];
 
     const coverPageDefault = {
+        courseID: courseID,
         name: "Default 1st Test",
         testNum: 1,
         date: `${year}-${month}-${date}`,
@@ -247,6 +248,7 @@ function addCourse() {
     };
 
     const coverPageDefault2 = {
+        courseID: courseID,
         name: "Default 2nd Test",
         testNum: 2,
         date: `${year}-${month}-${date}`,
@@ -258,6 +260,7 @@ function addCourse() {
     };
 
     const coverPageDefault3 = {
+        courseID: courseID,
         name: "Default 3rd Test",
         testNum: 3,
         date: `${year}-${month}-${date}`,
@@ -272,6 +275,7 @@ function addCourse() {
     updateCoverPages(courseID);
 
     const templateDefault = {
+        courseID: courseID,
         name: "System Default",
         titleFont: "Times New Roman",
         titleFontSize: 36,
@@ -328,6 +332,8 @@ function addCourse() {
 
     setTimeout(() => {
         saveUserData('course');
+        saveUserData('cpage');
+        saveUserData('template');
         console.log("Delayed for 1 second.");
     }, 1000);
     
@@ -791,6 +797,7 @@ function submitCoverPage(courseID) {
     }
 
     const coverPage = {
+        courseID: courseID,
         name: pageName,
         testNum: testNumber,
         date: testDate,
@@ -804,9 +811,48 @@ function submitCoverPage(courseID) {
 
     masterCoverPageList[courseID].push(coverPage);
     updateCoverPages(courseID);
+    saveUserData('cpage');
     closeModal();
     alert("Added a cover page");
 }
+
+function submitEditCoverPage(courseID, pageIndex) {
+    const pageName = document.getElementById("editCoverPageName").value.trim();
+    const testNumber = document.getElementById("editTestNumber").value.trim();
+    const testDate = document.getElementById("editTestDate").value.trim();
+    const filename = document.getElementById("editFilename").value.trim();
+    const filenameTF = document.getElementById("editShowFilename").checked;
+    const nameBlankSelector = document.getElementById("editNameBlankSelector").value.trim();
+    const gradingInstructions = document.getElementById("editInstructions").value.trim();
+
+    if (!pageName || !testNumber || !testDate || !filename || !nameBlankSelector || !gradingInstructions) {
+        alert("Cover page name, Test number, test date, filename, name blank selection, and grading instructions are required fields!");
+        return;
+    }
+
+    masterCoverPageList[courseID][pageIndex] = {
+        name: pageName,
+        testNum: testNumber,
+        date: testDate,
+        file: filename,
+        showFilename: filenameTF,
+        blank: nameBlankSelector,
+        instructions: gradingInstructions,
+        published: masterCoverPageList[courseID][pageIndex].published, // Preserve published status
+        feedback: masterCoverPageList[courseID][pageIndex].feedback    // Preserve existing feedback
+    };
+
+    updateCoverPages(courseID);
+    saveUserData('cpage');
+    closeModal();
+
+    alert("Cover page updated successfully");
+}
+
+
+
+
+
 
 /**
  * Submit attachments to the attachmentList
@@ -828,6 +874,7 @@ function submitAttachment(courseID) {
 
     masterAttachmentList[courseID].push({ name: name, file: attachment, published: 0});
     updateAttachments(courseID);
+    saveUserData('attachment');
     closeModal();
     alert("Attachment added successfully!");
 }
@@ -917,6 +964,7 @@ function addTemplate(courseID) {
     }
 
     const templateData = {
+        courseID: courseID,
         name: templateName,
         titleFont: titleFont,
         titleFontSize: titleFontSize,
@@ -947,6 +995,7 @@ function addTemplate(courseID) {
     console.log("Saved Template:", templateData);
 
     updateTemplates(courseID);
+    saveUserData('template');
     closeModal();
 }
 
@@ -1139,6 +1188,7 @@ function addQuestion(courseID) {
     }
 
     const question = {
+        courseID: courseID,
         text: text,
         answer: answer,
         qtype: type,
@@ -1164,6 +1214,7 @@ function addQuestion(courseID) {
     masterQuestionList[courseID][type].push(question);
     updateQuestionTabs(type, courseID);
     alert(`Added the ${type.toUpperCase()} Question: \n"${question.text}"\n (Worth ${question.score} points!)`);
+    saveUserData('question');
 
     closeModal();
 }
@@ -1319,10 +1370,12 @@ function saveTest(courseID, isPublished, testIndex = null) {
     let usedQuestions = [];
 
     const testData = {
+        courseID: courseID,
         name: testName,
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
+        published:0,
         parts: [],
         feedback: []
     };
@@ -1411,6 +1464,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
         masterTestList[courseID] = { drafts: [], published: [] };
     }
 
+    testData.published = isPublished === true ? 1 : 0;
     const targetList = isPublished === 'true' ? masterTestList[courseID].published : masterTestList[courseID].drafts;
     if (testIndex !== null) {
         targetList[testIndex] = testData;
@@ -1425,6 +1479,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
         if (masterCoverPageList[courseID][coverPageIndex]) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
+        
     }
 
     usedQuestions.forEach(question => {
@@ -1435,6 +1490,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
     updateTestTabs(courseID);
+    saveUserData('test');
     closeModal();
 }
 
@@ -2394,6 +2450,7 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     
 
     updateQuestionTabs(questionType, courseID);
+    saveUserData('question');
     closeModal();
     alert("Question edited successfully!");
 }
@@ -2874,6 +2931,7 @@ function submitEditTemplate(courseID, templateIndex) {
     console.log("Edited Template:", templateData);
 
     updateTemplates(courseID);
+    saveUserData('template');
     closeModal();
 }
 
@@ -3207,6 +3265,7 @@ function submitEditAttachment(courseID, attachmentIndex) {
 
     masterAttachmentList[courseID][attachmentIndex].name = newName;
     updateAttachments(courseID);
+    saveUserData('attachment');
     closeModal();
     alert("Attachment renamed successfully!");
 }
@@ -3370,6 +3429,7 @@ function submitEditedTest(courseID, isPublished, testIndex) {
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
     updateTestTabs(courseID);
+    saveUserData('test');
     closeModal();
 }
 
@@ -3736,71 +3796,93 @@ function updateOptions(type) {
     }
 }
 
-// Function to load all course data when the page loads
-function loadUserData() {
-    fetch('/api/load_data/', {  // Adjust the URL to match actual API endpoint
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken(),  // Include CSRF token for Django
-        },
-        credentials: 'same-origin'  // Include cookies for authentication
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok: ' + response.statusText);
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Process the received data
-        if (data.courseList) {
-            // We have teacher data
-            processCourseData(data.courseList);
-        } else if (data.textbookList) {
-            // We have publisher data
-            processTextbookData(data.textbookList);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading data:', error);
-        // Show user-friendly error message
-        document.getElementById('errorMessage').textContent = 'Failed to load your data. Please refresh the page or contact support.';
-    });
-}
+
 
 
 function saveUserData(type) { // type must be 'question', 'test', 'template', 'cpage', or 'course'
     let data = '';
     switch(type){
         case 'question':
-            data = JSON.stringify({"masterQuestionList": masterQuestionList});
+            // Transform nested structure to flat structure
+            let questionList = {};
+            
+            // Iterate through courses
+            Object.keys(masterQuestionList).forEach(courseID => {
+                // Iterate through question types
+                Object.keys(masterQuestionList[courseID]).forEach(qtype => {
+                    // Iterate through questions of this type
+                    Object.keys(masterQuestionList[courseID][qtype]).forEach(questionID => {
+                        // Add the question to the flat structure with courseID
+                        let question = masterQuestionList[courseID][qtype][questionID];
+                        question.courseID = courseID; // Add courseID to the question
+                        questionList[questionID] = question;
+                    });
+                });
+            });
+            
+            data = JSON.stringify({"questionList": questionList});
             break;
         case 'test':
-            data = JSON.stringify({"masterTestList": masterTestList}); 
+            let testList = {};
+                
+            // Iterate through courses
+            Object.keys(masterTestList).forEach(courseID => {
+                Object.keys(masterTestList[courseID]).forEach(is_published => {
+                    Object.keys(masterTestList[courseID][is_published]).forEach(testID => {
+                        let test = masterTestList[courseID][is_published][testID];
+                        test.courseID = courseID; 
+                        testList[testID] = test;
+                    });
+                });
+            });
+            
+            data = JSON.stringify({"testList": testList});
             break;
         case 'course':
             data = JSON.stringify({"courseList": courseList});
             break;
         case 'cpage': 
-            data = JSON.stringify({"masterCoverPageList": masterCoverPageList});
+            // Transform array-based structure to ID-key structure
+            let cpageList = {};
+            
+            // Iterate through courses
+            Object.keys(masterCoverPageList).forEach(courseID => {
+                masterCoverPageList[courseID].forEach((cpage, index) => {
+                    // Use existing ID if available, otherwise generate one
+                    const cpageID = cpage.id || `temp_${index}_${Date.now()}`;
+                    cpage.courseID = courseID; // Add courseID to the cover page
+                    cpageList[cpageID] = cpage;
+                });
+            });
+            
+            data = JSON.stringify({"cpageList": cpageList});
             break;
         case 'template':
-            data = JSON.stringify({"masterTemplateList": masterTemplateList});
+            // Transform array-based structure to name-key structure
+            let templateList = {};
+            
+            // Iterate through courses
+            Object.keys(masterTemplateList).forEach(courseID => {
+                masterTemplateList[courseID].forEach(template => {
+                    // Use template name as key since that's what the backend expects
+                    const templateName = template.name;
+                    template.courseID = courseID; // Add courseID to the template
+                    templateList[templateName] = template;
+                });
+            });
+            
+            data = JSON.stringify({"templateList": templateList});
             break;
         case 'attachment':
             data = JSON.stringify({"masterAttachmentList": masterAttachmentList}); //needs to be reworked to deal with files
             break;
         case 'all':
-            datadump = {
-                questions: masterQuestionList,
-                tests: masterTestList,
-                courses: courseList, 
-                cpages: masterCoverPageList,
-                templates: masterTemplateList,
-                attachments: masterAttachmentList 
-            };
-            data = JSON.stringify(datadump);
+            saveUserData('course');
+            saveUserData('cpage');
+            saveUserData('attachment');
+            saveUserData('question');
+            saveUserData('template');
+            saveUserData('test')
             break;
         default:
             console.error("Invalid type for saveUserData()");
@@ -3845,7 +3927,6 @@ function saveUserData(type) { // type must be 'question', 'test', 'template', 'c
     });
 }
 
-
 // Helper function to get CSRF token from cookies (for Django)
 function getCSRFToken() {
     const name = 'csrftoken';
@@ -3863,110 +3944,195 @@ function getCSRFToken() {
     return cookieValue;
 }
 
+function loadUserData() {
+    fetch('/api/load_data/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Received data:', data); // Debug the response format
+        
+        // Check if courseList exists directly in the response
+        if (data.courseList) {
+            processCourseData(data.courseList);
+        } 
+        // If courseList is wrapped in another object
+        else {
+            processCourseData(data);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading data:', error);
+        document.getElementById('errorMessage').textContent = 'Failed to load your data. Please refresh the page or contact support.';
+    });
+}
+
 function processCourseData(data) {
     // Clear any existing data
     document.getElementById('courseList').innerHTML = '';
     
-    // Update global JavaScript objects
-    masterQuestionList = {};
-    masterTestList = {};
-    masterTemplateList = {};
-    masterAttachmentList = {};
-    courseList = {};  
-    masterCoverPageList = {};
+    // Initialize global JavaScript objects
+    window.masterQuestionList = window.masterQuestionList || {};
+    window.masterTestList = window.masterTestList || {};
+    window.masterTemplateList = window.masterTemplateList || {};
+    window.masterAttachmentList = window.masterAttachmentList || {};
+    window.courseList = window.courseList || {};  
+    window.masterCoverPageList = window.masterCoverPageList || {};
     
-    // Check if we have valid data
-    if (!data || !Array.isArray(data)) {
+    // Debug the data structure
+    console.log("Data structure received:", data);
+    
+    // Check if we have a direct array of courses
+    if (Array.isArray(data)) {
+        // Process the array of courses directly
+        processCoursesArray(data);
+    }
+    // Check if we have a courseList array property
+    else if (data.courseList && Array.isArray(data.courseList)) {
+        processCoursesArray(data.courseList);
+    }
+    // For single course object
+    else if (data.course) {
+        processCourseSingle(data);
+    }
+    else {
         console.error("Invalid data format:", data);
         document.getElementById('courseList').innerHTML = 
             '<div class="alert alert-danger">Error loading courses. Please try again later.</div>';
+    }
+}
+
+function processCoursesArray(courses) {
+    if (courses.length === 0) {
+        document.getElementById('courseList').innerHTML = 
+            '<div class="alert alert-info">No courses available.</div>';
         return;
     }
     
-    // Process each course in the array
-    data.forEach(courseData => {
-        if (!courseData || !courseData.course) {
-            console.error("Invalid course data:", courseData);
-            return; // Skip this course and continue with others
+    courses.forEach(courseData => {
+        processCourseSingle(courseData);
+    });
+}
+
+function processCourseSingle(courseData) {
+    // Check if we have course data
+    const course = courseData.course;
+    if (!course) {
+        console.error("Invalid course data:", courseData);
+        return;
+    }
+    
+    const courseId = course.course_id; 
+    window.courseList[courseId] = course;
+    
+    try {
+        // Initialize data structures for this course
+        window.masterQuestionList[courseId] = {
+            'tf': [], 'mc': [], 'sa': [], 'es': [], 'ma': [], 'ms': [], 'fb': []
+        };
+        
+        window.masterTestList[courseId] = {
+            'drafts': [], 'published': []
+        };
+        
+        // Process questions
+        if (courseData.questionList && Array.isArray(courseData.questionList)) {
+            courseData.questionList.forEach(question => {
+                const type = question.qtype || 'mc'; // Default to mc if not specified
+                // Make sure we have a valid question type
+                if (window.masterQuestionList[courseId][type]) {
+                    window.masterQuestionList[courseId][type].push(question);
+                }
+                if (!question.tests) {
+                    question.tests = [];
+                }
+            });
         }
         
-        const course = courseData.course;
-        const courseId = course.course_id; 
-        courseList[courseId] = course;
+        // Process tests
+        if (courseData.testList && Array.isArray(courseData.testList)) {
+            courseData.testList.forEach(test => {
+                // Sort by is_final or published field
+                const category = (test.is_final || test.published) ? 'published' : 'drafts';
+                window.masterTestList[courseId][category].push(test);
+            });
+        }
         
-        try {
-            masterQuestionList[courseId] = courseData.questionList ? 
-                organizeByCategoryType(courseData.questionList) : {};
-                
-            masterTestList[courseId] = courseData.testList ? 
-                organizeByPublishStatus(courseData.testList) : {};
-                
-            masterTemplateList[courseId] = courseData.templateList || [];
-            masterAttachmentList[courseId] = courseData.attachmentList || [];
-            masterCoverPageList[courseId] = courseData.coverpageList || [];
-            
-            addExistingCourseToUI(course);
-            
-            // Update UI components
-            updateCoverPages(courseId);
-            updateTemplates(courseId);
-            updateAllQuestionTabs(courseId);
-            updateTestTabs(courseId);
-            updateAttachments(courseId);
-        } catch (error) {
-            console.error(`Error processing course ${courseId}:`, error);
-        }
-    });
+        // Process remaining data
+        window.masterTemplateList[courseId] = courseData.templateList || [];
+        window.masterAttachmentList[courseId] = courseData.attachmentList || [];
+        window.masterCoverPageList[courseId] = courseData.coverpageList || [];
+        
+        // Add course to UI
+        addExistingCourseToUI(course);
+        
+        // Update UI components
+        updateCoverPages(courseId);
+        updateTemplates(courseId);
+        updateQuestionTabs('tf', courseId);
+        updateQuestionTabs('mc', courseId);
+        updateQuestionTabs('es', courseId);
+        updateQuestionTabs('sa', courseId);
+        updateQuestionTabs('fb', courseId);
+        updateQuestionTabs('ms', courseId);
+        updateQuestionTabs('ma', courseId);
+        updateTestTabs(courseId);
+        updateAttachments(courseId);
+    } catch (error) {
+        console.error(`Error processing course ${courseId}:`, error);
+    }
 }
 
-function updateAllQuestionTabs(courseID){
-    updateQuestionTabs('tf', courseID);
-    updateQuestionTabs('mc', courseID);
-    updateQuestionTabs('sa', courseID);
-    updateQuestionTabs('es', courseID);
-    updateQuestionTabs('ma', courseID);
-    updateQuestionTabs('ms', courseID);
-    updateQuestionTabs('fb', courseID);  
+
+// Add this to the top of your JavaScript to enable detailed debugging
+function debugDataStructures() {
+    console.log("Current data structures:");
+    console.log("courseList:", window.courseList);
+    console.log("masterQuestionList:", window.masterQuestionList);
+    console.log("masterTestList:", window.masterTestList);
+    console.log("masterTemplateList:", window.masterTemplateList);
+    console.log("masterCoverPageList:", window.masterCoverPageList);
+    console.log("masterAttachmentList:", window.masterAttachmentList);
 }
 
-// Helper function to organize questions by their type
-function organizeByCategoryType(questionList) {
-    const organized = {
-        'tf': [],
-        'mc': [],
-        'sa': [],
-        'es': [],
-        'ma': [],
-        'ms': [],
-        'fb': []
+// Call this after loadUserData() completes
+window.addEventListener('load', function() {
+    loadUserData();
+    
+    // Debug button for development
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = "Debug Data Structures";
+    debugBtn.style.position = "fixed";
+    debugBtn.style.bottom = "10px";
+    debugBtn.style.right = "10px";
+    debugBtn.style.zIndex = "1000";
+    debugBtn.onclick = debugDataStructures;
+    document.body.appendChild(debugBtn);
+});
+
+function getQuestionTypeName(qtype) {
+    const types = {
+        'tf': 'True/False',
+        'mc': 'Multiple Choice',
+        'sa': 'Short Answer',
+        'es': 'Essay',
+        'ma': 'Matching',
+        'ms': 'Multiple Selection',
+        'fb': 'Fill in the Blank'
     };
-    
-    questionList.forEach(question => {
-        if (organized[question.type]) {
-            organized[question.type].push(question);
-        }
-    });
-    
-    return organized;
+    return types[qtype] || qtype;
 }
 
-// Helper function to organize tests by publish status
-function organizeByPublishStatus(testList) {
-    const organized = {
-        'drafts': [],
-        'published': []
-    };
-    
-    testList.forEach(test => {
-        if (test.published) {
-            organized.published.push(test);
-        } else {
-            organized.drafts.push(test);
-        }
-    });
-    
-    return organized;
-}
 
 // Function to add an existing course to the UI
 function addExistingCourseToUI(course) {

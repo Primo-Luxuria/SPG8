@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from welcome.models import (
     Textbook, UserProfile, Course, Question, Options, Answers, 
     DynamicQuestionParameter, Template, CoverPage, Attachment, 
-    Test, TestQuestion, Feedback
+    Test, TestQuestion, Feedback, TestPart, TestSection
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -69,7 +69,7 @@ class TemplateSerializer(serializers.ModelSerializer):
             'id', 'course', 'textbook', 'name', 'titleFont', 'titleFontSize',
             'subtitleFont', 'subtitleFontSize', 'bodyFont', 'bodyFontSize',
             'pageNumbersInHeader', 'pageNumbersInFooter', 'headerText', 'footerText',
-            'coverPage'
+            'coverPage', 'part_structure'
         ]
 
 class CoverPageSerializer(serializers.ModelSerializer):
@@ -90,10 +90,24 @@ class TestQuestionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TestQuestion
-        fields = ['id', 'test', 'question', 'assigned_points', 'order', 'randomize', 'special_instructions']
+        fields = ['id', 'test', 'question', 'assigned_points', 'order', 'randomize', 'special_instructions', 'section']
+
+class TestSectionSerializer(serializers.ModelSerializer):
+    questions = TestQuestionSerializer(many=True, read_only=True, source='testquestion_set')
+    
+    class Meta:
+        model = TestSection
+        fields = ['id', 'section_number', 'question_type', 'questions']
+
+class TestPartSerializer(serializers.ModelSerializer):
+    sections = TestSectionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = TestPart
+        fields = ['id', 'part_number', 'sections']
 
 class TestSerializer(serializers.ModelSerializer):
-    test_questions = TestQuestionSerializer(many=True, read_only=True)
+    parts = TestPartSerializer(many=True, read_only=True)
     attachments = AttachmentSerializer(many=True, read_only=True)
     template = TemplateSerializer(read_only=True)
     
@@ -102,7 +116,7 @@ class TestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'course', 'textbook', 'name', 'date', 'filename',
             'is_final', 'template', 'attachments', 'created_at', 'updated_at',
-            'test_questions'
+            'parts'
         ]
 
 class FeedbackSerializer(serializers.ModelSerializer):
@@ -143,20 +157,44 @@ class AnswersWriteSerializer(serializers.ModelSerializer):
         model = Answers
         fields = ['id', 'question', 'text', 'answer_graphic', 'response_feedback_text', 'response_feedback_graphic']
 
+class TestSectionWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TestSection
+        fields = ['id', 'section_number', 'question_type']
+
+class TestPartWriteSerializer(serializers.ModelSerializer):
+    sections = TestSectionWriteSerializer(many=True)
+    
+    class Meta:
+        model = TestPart
+        fields = ['id', 'part_number', 'sections']
+
 class TestWriteSerializer(serializers.ModelSerializer):
+    parts = TestPartWriteSerializer(many=True)
+    
     class Meta:
         model = Test
         fields = [
             'id', 'course', 'textbook', 'name', 'date', 'filename',
-            'is_final', 'template'
+            'is_final', 'template', 'parts'
         ]
 
 class TestQuestionWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestQuestion
-        fields = ['id', 'test', 'question', 'assigned_points', 'order', 'randomize', 'special_instructions']
+        fields = ['id', 'test', 'question', 'assigned_points', 'order', 'randomize', 'special_instructions', 'section']
 
 class FeedbackWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feedback
         fields = ['id', 'question', 'test', 'user', 'rating', 'comments']
+
+class TemplateWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Template
+        fields = [
+            'id', 'course', 'textbook', 'name', 'titleFont', 'titleFontSize',
+            'subtitleFont', 'subtitleFontSize', 'bodyFont', 'bodyFontSize',
+            'pageNumbersInHeader', 'pageNumbersInFooter', 'headerText', 'footerText',
+            'coverPage', 'part_structure'  # Add part_structure here
+        ]

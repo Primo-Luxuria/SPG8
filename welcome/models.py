@@ -307,7 +307,7 @@ class Template(models.Model):
     headerText = models.TextField(null=True, blank=True)
     footerText = models.TextField(null=True, blank=True)
     coverPage = models.IntegerField(default=0)
-
+    part_structure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
     def __str__(self):
         return self.name
 
@@ -434,6 +434,34 @@ class Test(models.Model):
             return f"{self.name} - {self.textbook.title}"
         return self.name
 
+class TestPart(models.Model):
+    test = models.ForeignKey(
+        Test,
+        on_delete=models.CASCADE,
+        related_name='parts',
+        help_text="Test this part belongs to"
+    )
+    part_number = models.IntegerField(default=1, help_text="Part number within the test")
+    
+    def __str__(self):
+        return f"Part {self.part_number} of {self.test.name}"
+
+class TestSection(models.Model):
+    part = models.ForeignKey(
+        TestPart,
+        on_delete=models.CASCADE,
+        related_name='sections',
+        help_text="Part this section belongs to"
+    )
+    section_number = models.IntegerField(default=1, help_text="Section number within the part")
+    question_type = models.CharField(max_length=50, help_text="Type of questions in this section")
+    
+    def __str__(self):
+        return f"Section {self.section_number} in Part {self.part.part_number} of {self.part.test.name}"
+
+
+
+
 
 """
 TEST QUESTION MODEL
@@ -454,6 +482,7 @@ class TestQuestion(models.Model):
     order = models.IntegerField(default=1, help_text="Order of question in the test.")
     randomize = models.BooleanField(default=False)
     special_instructions = models.TextField(null=True, blank=True)
+    section = models.ForeignKey(TestSection, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
         unique_together = ('test', 'question')
