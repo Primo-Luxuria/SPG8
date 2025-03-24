@@ -69,7 +69,7 @@ class TemplateSerializer(serializers.ModelSerializer):
             'id', 'course', 'textbook', 'name', 'titleFont', 'titleFontSize',
             'subtitleFont', 'subtitleFontSize', 'bodyFont', 'bodyFontSize',
             'pageNumbersInHeader', 'pageNumbersInFooter', 'headerText', 'footerText',
-            'coverPage', 'part_structure'
+            'coverPage', 'partStructure'
         ]
 
 class CoverPageSerializer(serializers.ModelSerializer):
@@ -196,5 +196,5 @@ class TemplateWriteSerializer(serializers.ModelSerializer):
             'id', 'course', 'textbook', 'name', 'titleFont', 'titleFontSize',
             'subtitleFont', 'subtitleFontSize', 'bodyFont', 'bodyFontSize',
             'pageNumbersInHeader', 'pageNumbersInFooter', 'headerText', 'footerText',
-            'coverPage', 'part_structure'  # Add part_structure here
+            'coverPage', 'partStructure'  
         ]

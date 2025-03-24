@@ -4024,8 +4024,32 @@ function processCoursesArray(courses) {
     });
 }
 
+function processTemplates(templateData, courseId) {
+    if (!window.masterTemplateList[courseId]) {
+        window.masterTemplateList[courseId] = [];
+    }
+    
+    // Process each template
+    templateData.forEach(template => {
+        // Make sure partStructure is properly parsed if it's a string
+        if (template.partStructure && typeof template.partStructure === 'string') {
+            try {
+                template.partStructure = JSON.parse(template.partStructure);
+            } catch (e) {
+                console.error(`Error parsing partStructure for template ${template.name}:`, e);
+                template.partStructure = []; // Default to empty array if parsing fails
+            }
+        } else if (!template.partStructure) {
+            template.partStructure = []; // Initialize if missing
+        }
+        
+        // Add to master template list
+        window.masterTemplateList[courseId].push(template);
+    });
+}
+
 function processCourseSingle(courseData) {
-    // Check if we have course data
+    
     const course = courseData.course;
     if (!course) {
         console.error("Invalid course data:", courseData);
@@ -4068,8 +4092,14 @@ function processCourseSingle(courseData) {
             });
         }
         
+        // Process templates 
+        if (courseData.templateList && Array.isArray(courseData.templateList)) {
+            processTemplates(courseData.templateList, courseId);
+        } else {
+            window.masterTemplateList[courseId] = [];
+        }
+        
         // Process remaining data
-        window.masterTemplateList[courseId] = courseData.templateList || [];
         window.masterAttachmentList[courseId] = courseData.attachmentList || [];
         window.masterCoverPageList[courseId] = courseData.coverpageList || [];
         
@@ -4078,7 +4108,7 @@ function processCourseSingle(courseData) {
         
         // Update UI components
         updateCoverPages(courseId);
-        updateTemplates(courseId);
+        updateTemplates(courseId); 
         updateQuestionTabs('tf', courseId);
         updateQuestionTabs('mc', courseId);
         updateQuestionTabs('es', courseId);
@@ -4092,7 +4122,6 @@ function processCourseSingle(courseData) {
         console.error(`Error processing course ${courseId}:`, error);
     }
 }
-
 
 // Add this to the top of your JavaScript to enable detailed debugging
 function debugDataStructures() {

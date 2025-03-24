@@ -307,7 +307,7 @@ class Template(models.Model):
     headerText = models.TextField(null=True, blank=True)
     footerText = models.TextField(null=True, blank=True)
     coverPage = models.IntegerField(default=0)
-    part_structure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
+    partStructure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
     def __str__(self):
         return self.name
 

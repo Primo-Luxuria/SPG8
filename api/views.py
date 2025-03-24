@@ -564,7 +564,7 @@ def save_template_data(request):
             "headerText": templateData.get('headerText'),
             "footerText": templateData.get('footerText'),
             "coverPage": templateData.get('coverPageType', 0),
-            "part_structure": templateData.get('partStructure')  # Add this line
+            "partStructure": templateData.get('partStructure')  
         }
         
         # Create or update the template
