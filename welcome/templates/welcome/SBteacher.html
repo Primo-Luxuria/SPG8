@@ -172,7 +172,8 @@ function addCourse() {
             <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
@@ -4211,7 +4212,8 @@ function addExistingCourseToUI(course) {
             <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${course.course_id}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${course.course_id}')">Import Test</button>
+                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${course.course_id}')">Drafts</div>
@@ -4409,7 +4411,8 @@ function addCourse() {
             <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
@@ -7957,6 +7960,49 @@ function updateOptions(type) {
         }
     }
 }
+
+
+
+function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersion, isbn, link) {
+        let fileInput = document.getElementById("fileInput");
+        let file = fileInput.files[0];
+
+        if (!file) {
+            alert("Please select a file!");
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append("file", file);  // Append the file
+        formData.append("courseID", id);
+        formData.append("courseName", name);
+        formData.append("courseCRN", crn);
+        formData.append("courseSemester", semester);
+        formData.append("courseTextbookTitle", textTitle);
+        formData.append("courseTextbookAuthor", textAuthor);
+        formData.append("courseTextbookVersion", textVersion);
+        formData.append("courseTextbookISBN", isbn);
+        formData.append("courseTextbookLink", link);
+
+        fetch("{% url 'parse_qti_xml' %}", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"  // CSRF token for Django security
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            let resultDiv = document.getElementById("result");
+            if (data.error) {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            } else {
+                resultDiv.innerHTML = `<p>File Processed: ${data.file_info.filename} (${data.file_info.size} bytes)</p>`;
+                resultDiv.innerHTML += `<p>Received String: ${data.string_received}</p>`;
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
 
 
 </script>
