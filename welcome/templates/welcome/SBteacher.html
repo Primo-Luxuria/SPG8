@@ -1143,13 +1143,13 @@ function addQuestion(courseID) {
         return;
     }
 
-    let answer = '';
+    let answer = [];
     let options = [];
 
     if (type === 'tf') {
-        answer = document.getElementById("answerField").value;
+        answer.push(document.getElementById("answerField").value);
     } else if (type === 'sa' || type === 'es') {
-        answer = document.getElementById("answerField").value.trim();
+        answer.push(document.getElementById("answerField").value.trim());
     } else if (type === 'mc') {
         options = [
             document.getElementById("optionA").value.trim(),
@@ -1157,7 +1157,7 @@ function addQuestion(courseID) {
             document.getElementById("optionC").value.trim(),
             document.getElementById("optionD").value.trim()
         ];
-        answer = document.getElementById("answerField").value;
+        answer.push(document.getElementById("answerField").value);
     } else if (type === 'ma') {
         const numOptions = parseInt(document.getElementById("numOptions").value);
         for (let i = 1; i <= numOptions; i++) {
@@ -1171,6 +1171,7 @@ function addQuestion(courseID) {
         }
     } else if (type === 'ms') {
         const numOptions = parseInt(document.getElementById("numOptions").value);
+        answer = [];
         for (let i = 1; i <= numOptions; i++) {
             options.push(document.getElementById(`option${i}`).value.trim());
             if (document.getElementById(`correct${i}`).checked) {
@@ -1179,6 +1180,7 @@ function addQuestion(courseID) {
         }
     } else if (type === 'fb') {
         const numBlanks = parseInt(document.getElementById("numBlanks").value);
+        answer = [];
         for (let i = 1; i <= numBlanks; i++) {
             answer.push(document.getElementById(`blank${i}`).value.trim());
         }
@@ -4230,6 +4232,8 @@ function addExistingCourseToUI(course) {
     
     document.getElementById('courseList').appendChild(courseContainer);
 }
+
+
 
 </script>
 </body>
