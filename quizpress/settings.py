@@ -104,7 +104,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
         'USER': 'root',
-        'PASSWORD': 'Conductorofmanydreams1!',
+        'PASSWORD': '2319isuck',
         'HOST': 'localhost',  # Keep as 'localhost' for now
         'PORT': '3306',
         'OPTIONS': {

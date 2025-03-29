@@ -16,7 +16,7 @@ from welcome.models import *
 import json
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from .models import Course, AnswerOption  # Import additional models as needed
+from .models import Course#, AnswerOption  # Import additional models as needed
 
 
 def home(request):
