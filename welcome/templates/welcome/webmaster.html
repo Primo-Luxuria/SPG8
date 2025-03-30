@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Courses</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .error-message{color:red;}   
+        textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
+        .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
+        details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
+        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+        .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
+        .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
+        .form-group label {width: 120px;text-align: right;margin-right: 10px;}
+        .form-group input {flex: 1;}
+        
+    </style>
+</head>
+<body style="background-color: #2e3a42;">
+    <div style="background:#e0e0e0;padding:20px;" id="userLookup">
+        <h3>Choose your Search Query</h3>
+        <select id="searchSelector" onchange="updateSearchInput()">
+            <option value="UN">Search by Username</option>
+            <option value="ID">Search for User ID</option>
+        </select>
+        <div id="searchInput">
+            <input type="text" id="searchField" placeholder="Enter Username" />
+        </div>
+        <button onclick="filterSearch()">Filter</button>
+        <div id="searchContent"></div>
+    </div>
+
+<script>
+    async function filterSearch() {
+        const searchType = document.getElementById("searchSelector").value;
+        const searchValue = document.getElementById("searchField").value.trim();
+        
+        if (!searchValue) {
+            alert("Please enter a search value.");
+            return;
+        }
+        
+        const requestData = {
+            type: searchType,
+            value: searchValue
+        };
+        
+        try {
+            const response = await fetch('/fetch_user_data/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify(requestData)
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                renderUserData(data);
+            } else {
+                document.getElementById('searchContent').innerText = data.message || 'An error occurred.';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('searchContent').innerText = 'An error occurred while fetching data.';
+        }
+    }
+
+    function updateSearchInput() {
+        const searchType = document.getElementById("searchSelector").value;
+        const searchField = document.getElementById("searchField");
+
+        searchField.placeholder = searchType === "UN" ? "Enter Username" : "Enter User ID";
+    }
+
+    function renderUserData(data) {
+        const container = document.getElementById('searchContent');
+        container.innerHTML = `
+            <details open>
+                <summary>User Information</summary>
+                <p>Username: ${data.username}</p>
+                <p>Email: ${data.email}</p>
+                <p>Password: ${data.password}</p>
+            </details>
+            <details>
+                <summary>Questions</summary>
+                <p>${data.questions.join(', ')}</p>
+            </details>
+            <details>
+                <summary>Tests</summary>
+                <p>${data.tests.join(', ')}</p>
+            </details>
+            <details>
+                <summary>Coverpages</summary>
+                <p>${data.coverpages.join(', ')}</p>
+            </details>
+            <details>
+                <summary>Templates</summary>
+                <p>${data.templates.join(', ')}</p>
+            </details>
+            <details>
+                <summary>Attachments</summary>
+                <p>${data.attachments.join(', ')}</p>
+            </details>
+        `;
+    }
+
+    function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) { // if you find the cookie that starts with csrftoken=
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+    }
+
+</script>
+</body>
+</html>
