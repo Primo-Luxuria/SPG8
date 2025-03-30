@@ -119,6 +119,7 @@ def parse_qti_xml(request):
             qtype=g_q_type,
             text=g_q_text,
             score=g_points,
+            author=g_course.user # sets to the current user
             #general_feedback_text=g_g_f_t,
             #feedback_graphic=g_f_g,
             #feedback_type=g_f_t,
@@ -580,6 +581,7 @@ def parse_qti_xml(request):
             "crn": course_crn,
             "sem": course_semester,
             "textbook": textbook_instance,
+            "user": request.user # sets to the current user
         }
     )
 
