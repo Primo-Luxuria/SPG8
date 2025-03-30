@@ -118,13 +118,13 @@ def parse_qti_xml(request):
             course=g_course, # this is because, logically, when questions/tests are uploaded to a course, are they not part of it?
             qtype=g_q_type,
             text=g_q_text,
-            score=g_points,
-            author=g_course.user # sets to the current user
-            #general_feedback_text=g_g_f_t,
-            #feedback_graphic=g_f_g,
-            #feedback_type=g_f_t,
-            # z
+            score=g_points
         )
+
+        # checks if user is logged in
+        if request.user.is_authenticated:
+            temp_question_instance.author = request.user # sets to the current user
+            temp_question_instance.save()
 
         return temp_question_instance
 
@@ -580,14 +580,26 @@ def parse_qti_xml(request):
             "name": course_name,
             "crn": course_crn,
             "sem": course_semester,
-            "textbook": textbook_instance,
-            "user": request.user # sets to the current user
+            "textbook": textbook_instance
         }
     )
 
-    print(course_id)
-    print(course_name)
-    print(course_instance)
+    # Check if the user is authenticated (logged in)
+    if request.user.is_authenticated:
+
+        course_instance.user = request.user # sets field to current user
+        course_instance.save()
+
+        current_user = request.user
+        # Check if teacher already in course
+        if current_user in course_instance.teachers.all():
+            print(f'{current_user.username} teacher already in {course_instance.name} course')
+        else:
+            course_instance.teachers.add(current_user)  # Adds teacher if not in course
+            course_instance.save()  # Updates the Course entry in the database (makes sure it's saved)
+            print(f'{current_user.username} teacher ADDED to {course_instance.name} course')
+    else:
+        print("User is not logged in.")
 
     # 00 End
     # """
