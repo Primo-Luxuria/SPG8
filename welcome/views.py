@@ -257,6 +257,16 @@ def parse_qti_xml(request):
                                                                 ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url # change src attribute
+                        question_text_field = str(html_obj) # save html as string
+                        question_instance.text = question_text_field # update text field
+                        question_instance.save() # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
@@ -271,6 +281,15 @@ def parse_qti_xml(request):
                             if temp_img_data_pair is not None:
                                 question_instance.ansimg.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
 
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = question_instance.ansimg.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                question_instance.answer = value  # update answer text field
+                                question_instance.save()  # save/update entry in database
+
                             question_instance.save()
                         else:
                             options_instance = Options.objects.create(
@@ -281,6 +300,15 @@ def parse_qti_xml(request):
                             if temp_img_data_pair is not None:
                                 options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
                                 options_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = options_instance.image.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                options_instance.text = value  # update options text field
+                                options_instance.save()  # save/update entry in database
 
                 elif the_question_type == 'true_false_question':
                     node = node.find('.//response_lid')
@@ -307,6 +335,16 @@ def parse_qti_xml(request):
                                                    ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
@@ -341,6 +379,16 @@ def parse_qti_xml(request):
                                                    ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
@@ -391,6 +439,16 @@ def parse_qti_xml(request):
                                                    ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
@@ -409,6 +467,16 @@ def parse_qti_xml(request):
                                 answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
                                                                     ContentFile(temp_img_data_pair.raw_image_data))
                                 answer_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                answer_instance.text = value  # update answer_instance text field
+                                answer_instance.save()  # save/update entry in database
+
                         else:
                             options_instance = Options.objects.create(
                                 question=question_instance,
@@ -418,6 +486,15 @@ def parse_qti_xml(request):
                             if temp_img_data_pair is not None:
                                 options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
                                 options_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = options_instance.image.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                options_instance.text = value  # update option text field
+                                options_instance.save()  # save/update entry in database
 
                 elif the_question_type == 'matching_question': # this is explicitly stated in rubric to support
                     # Canvas requires you to add at least one answer
@@ -435,6 +512,16 @@ def parse_qti_xml(request):
                                                    ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
@@ -478,7 +565,7 @@ def parse_qti_xml(request):
                         else:
                             matching_pair_string += value
 
-                        # multiple_answers questions CANNOT have embedded graphics in responses
+                        # matching questions CANNOT have embedded graphics in responses
                         answer_instance = Answers.objects.create(
                             question=question_instance,
                             text=matching_pair_string
@@ -505,6 +592,16 @@ def parse_qti_xml(request):
                                                    ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,

@@ -168,7 +168,8 @@ function addCourse() {
             <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
+                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
