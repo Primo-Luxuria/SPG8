@@ -6,11 +6,12 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from django.db import transaction
 from django.http import JsonResponse
+import json, os
 
 from welcome.models import (
     Course, Textbook, Question, Test, Template, CoverPage, 
     Attachment, TestQuestion, Options, Answers, UserProfile, Feedback, DynamicQuestionParameter,
-    TestPart, TestSection
+    TestPart, TestSection, FeedbackResponse
 )
 from .serializers import (
     CourseSerializer, TextbookSerializer, QuestionSerializer, 
@@ -18,669 +19,538 @@ from .serializers import (
     AttachmentSerializer, TestSectionSerializer, TestPartSerializer
 )
 
-"""
-GET Methods
-"""
-@api_view(['GET']) 
-def load_data(request):
-    # Check if request has a user
-    if not request.user or not request.user.is_authenticated:
-        return Response({"error": "Authentication required"}, status=401)
 
+# Webmaster API behavior
+from django.contrib.auth.models import User
+from django.db.models import Prefetch
+
+@api_view(['POST'])
+@transaction.atomic
+def delete_item(request):
+    data = request.data
+    type = data.get("type", "")
+    if type == "":
+        return Response({"status": "error", "message": "Invalid type"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    item = data.get("item", "")
+    if item == "":
+        return Response({"status": "error", "message": "Invalid item"}, status=status.HTTP_400_BAD_REQUEST)
+    
     try:
-        # Try to get user profile
-        user = request.user
-        try:
-            user_profile = UserProfile.objects.get(user=user)
-            role = user_profile.role
-        except UserProfile.DoesNotExist:
-            return Response({"error": "User profile not found"}, status=404)
-        
-        # Initialize data dictionary based on role
-        if role == 'teacher':
-            data = {"courseList": []}
-            # Get courses associated with the user
-            courses = Course.objects.filter(teachers=user)
-            if not courses.exists():
-                return Response({"message": "No courses available for this teacher.", "courseList": []}, status=200)
-                
-            for course in courses:
-                try:
-                    course_data = {
-                        "course": CourseSerializer(course).data,
-                        "questionList": get_resource_list('question', course, 'teacher'),
-                        "testList": get_resource_list('test', course, 'teacher'),
-                        "templateList": get_resource_list('template', course, 'teacher'),
-                        "attachmentList": get_resource_list('attachment', course, 'teacher'),
-                        "coverpageList": get_resource_list('coverpage', course, 'teacher'),
-                    }
-                    data["courseList"].append(course_data)
-                except Exception as e:
-                    # If processing a specific course fails, print the error but continue with others
-                    print(f"Error processing course {course.id}: {str(e)}")
-                    continue
-        
-        elif role == 'publisher':
-            data = {"textbookList": []}
-            try:
-                books = Textbook.objects.filter(publisher=user)
-                if not books.exists():
-                    return Response({"message": "No textbooks available for this publisher.", "textbookList": []}, status=200)
+        user = User.objects.get(username=data.get("username", ""))
+    except User.DoesNotExist:
+        return Response({"status": "error", "message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check user permissions based on role
+    try:
+        user_profile = UserProfile.objects.get(user=user)
+        role = user_profile.role
+    except UserProfile.DoesNotExist:
+        return Response({"status": "error", "message": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Only webmaster can delete any item, teachers and publishers can only delete their own items
+    if role not in ['webmaster', 'teacher', 'publisher']:
+        return Response({"status": "error", "message": "Insufficient permissions"}, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        # Handle different item types
+        if type == "test":
+            test_id = item.get('id') if isinstance(item, dict) else None
+            if not test_id:
+                # Try to find test by name and other attributes
+                name = item.get('name')
+                if name:
+                    # For teacher
+                    if role == 'teacher':
+                        tests = Test.objects.filter(name=name, course__teachers=user)
+                    # For publisher
+                    elif role == 'publisher':
+                        tests = Test.objects.filter(name=name, textbook__publisher=user)
+                    # For webmaster
+                    else:
+                        tests = Test.objects.filter(name=name)
                     
-                for book in books:
-                    try:
-                        book_data = {
-                            "book": TextbookSerializer(book).data,
-                            "questionList": get_resource_list('question', book, 'publisher'),
-                            "testList": get_resource_list('test', book, 'publisher'),
-                            "templateList": get_resource_list('template', book, 'publisher'),
-                            "attachmentList": get_resource_list('attachment', book, 'publisher'),
-                            "coverpageList": get_resource_list('coverpage', book, 'publisher'),
-                        }
-                        data["textbookList"].append(book_data)
-                    except Exception as e:
-                        # If processing a specific book fails, print the error but continue with others
-                        print(f"Error processing textbook {book.id}: {str(e)}")
-                        continue
-            except Exception as e:
-                return Response({"error": f"Error retrieving textbooks: {str(e)}"}, status=500)
-        else:
-            return Response({"error": f"Unsupported role: {role}"}, status=400)
-            
-        return Response(data)
-        
-    except Exception as e:
-        # Catch-all for any other unexpected errors
-        print(f"Unexpected error in load_data: {str(e)}")
-        return Response({"error": "An unexpected error occurred"}, status=500)
-
-def get_resource_list(resource_type, parent, role):
-    """Generic function to get resources by type"""
-    model_map = {
-        'question': Question,
-        'test': Test,
-        'template': Template,
-        'attachment': Attachment,
-        'coverpage': CoverPage
-    }
-    serializer_map = {
-        'question': QuestionSerializer,
-        'test': TestSerializer,
-        'template': TemplateSerializer,
-        'attachment': AttachmentSerializer,
-        'coverpage': CoverPageSerializer
-    }
-    
-    filter_field = 'course' if role == 'teacher' else 'book'
-    filter_params = {filter_field: parent}
-    
-    model = model_map[resource_type]
-    serializer_class = serializer_map[resource_type]
-    
-    resources = model.objects.filter(**filter_params)
-    serializer = serializer_class(resources, many=True)
-    return serializer.data
-
-def get_test_feedbacklist(test, role):
-    pass # see below
-
-def get_question_feedbacklist(question, role):
-    feedback = Feedback.objects.filter(question=question)
-    #serializer for feedback here
-    return feedback#_serializer.data 
-
-
-def get_test_questionlist(test, role):
-    pass 
-
-
-
-
-
-"""
-POST Methods
-"""
-
-import json
-from django.db import transaction
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from datetime import datetime
-
-import json
-from django.http import JsonResponse
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from django.db import transaction
-from welcome.models import Course, Textbook, UserProfile
-
-
-@api_view(['POST'])
-@transaction.atomic  # Ensures data consistency
-def save_course_data(request):
-    user = request.user
-    print(f"Received course data from user: {user}")
-
-    # Validate user profile
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-        print(f"User profile found: {user_profile}")
-    except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
-
-    data = request.data
-    courseList = data.get('courseList', {})
-
-    # Handle JSON string case
-    if isinstance(courseList, str):
-        try:
-            courseList = json.loads(courseList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
-
-    print(f"Parsed course data: {courseList}")
-
-    for courseID, courseData in courseList.items():
-        print(f"Processing course ID: {courseID}")
-        textbook_data = courseData.get('textbook')
-
-        if textbook_data:
-            isbn = textbook_data.get('isbn')
-            if isbn:
-                textbook, created = Textbook.objects.update_or_create(
-                    isbn=isbn,
-                    defaults={
-                        "title": textbook_data.get('title'),
-                        "author": textbook_data.get('author'),
-                        "version": textbook_data.get('version'),
-                        "link": textbook_data.get('link')
-                    }
-                )
-                print(f"Textbook {'created' if created else 'updated'}: {textbook}")
+                    if tests.exists():
+                        tests.delete()
+                        return Response({"status": "success", "message": "Test successfully deleted!"})
+                    else:
+                        return Response({"status": "error", "message": "Test not found"}, status=status.HTTP_404_NOT_FOUND)
             else:
-                print("Textbook ISBN is missing")
-                return Response({"error": "Textbook ISBN is missing"}, status=400)
+                test = Test.objects.get(id=test_id)
+                # Check permissions
+                if role != 'webmaster':
+                    if role == 'teacher' and test.course and test.course.teachers.filter(id=user.id).exists():
+                        pass  # Teacher owns this test
+                    elif role == 'publisher' and test.textbook and test.textbook.publisher == user:
+                        pass  # Publisher owns this test
+                    else:
+                        return Response({"status": "error", "message": "You don't have permission to delete this test"}, 
+                                       status=status.HTTP_403_FORBIDDEN)
+                test.delete()
+                return Response({"status": "success", "message": "Test successfully deleted!"})
+        
+        elif type == "attachment":
+            attachment_id = item.get('id') if isinstance(item, dict) else None
+            if not attachment_id:
+                # Try to find attachment by name
+                name = item.get('name')
+                if name:
+                    # For teacher
+                    if role == 'teacher':
+                        attachments = Attachment.objects.filter(name=name, course__teachers=user)
+                    # For publisher
+                    elif role == 'publisher':
+                        attachments = Attachment.objects.filter(name=name, textbook__publisher=user)
+                    # For webmaster
+                    else:
+                        attachments = Attachment.objects.filter(name=name)
+                    
+                    if attachments.exists():
+                        for attachment in attachments:
+                            # Delete the actual file too
+                            if attachment.file:
+                                if hasattr(attachment.file, 'path') and os.path.exists(attachment.file.path):
+                                    os.remove(attachment.file.path)
+                        attachments.delete()
+                        return Response({"status": "success", "message": "Attachment successfully deleted!"})
+                    else:
+                        return Response({"status": "error", "message": "Attachment not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                attachment = Attachment.objects.get(id=attachment_id)
+                # Check permissions
+                if role != 'webmaster':
+                    if role == 'teacher' and attachment.course and attachment.course.teachers.filter(id=user.id).exists():
+                        pass  # Teacher owns this attachment
+                    elif role == 'publisher' and attachment.textbook and attachment.textbook.publisher == user:
+                        pass  # Publisher owns this attachment
+                    else:
+                        return Response({"status": "error", "message": "You don't have permission to delete this attachment"}, 
+                                       status=status.HTTP_403_FORBIDDEN)
+                # Delete the actual file too
+                if attachment.file:
+                    if hasattr(attachment.file, 'path') and os.path.exists(attachment.file.path):
+                        os.remove(attachment.file.path)
+                attachment.delete()
+                return Response({"status": "success", "message": "Attachment successfully deleted!"})
+        
+        elif type == "question":
+            question_id = item.get('id') if isinstance(item, dict) else None
+            if not question_id:
+                # Try to find question by text
+                text = item.get('text')
+                if text:
+                    # For teacher/publisher, only delete their own questions
+                    if role in ['teacher', 'publisher']:
+                        questions = Question.objects.filter(text=text, author=user)
+                    # For webmaster
+                    else:
+                        questions = Question.objects.filter(text=text)
+                    
+                    if questions.exists():
+                        questions.delete()
+                        return Response({"status": "success", "message": "Question successfully deleted!"})
+                    else:
+                        return Response({"status": "error", "message": "Question not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                question = Question.objects.get(id=question_id)
+                # Check permissions
+                if role != 'webmaster' and question.author != user:
+                    return Response({"status": "error", "message": "You don't have permission to delete this question"}, 
+                                   status=status.HTTP_403_FORBIDDEN)
+                question.delete()
+                return Response({"status": "success", "message": "Question successfully deleted!"})
+        
+        elif type == "coverpage":
+            coverpage_id = item.get('id') if isinstance(item, dict) else None
+            if not coverpage_id:
+                # Try to find coverpage by name
+                name = item.get('name')
+                if name:
+                    # For teacher
+                    if role == 'teacher':
+                        coverpages = CoverPage.objects.filter(name=name, course__teachers=user)
+                    # For publisher
+                    elif role == 'publisher':
+                        coverpages = CoverPage.objects.filter(name=name, textbook__publisher=user)
+                    # For webmaster
+                    else:
+                        coverpages = CoverPage.objects.filter(name=name)
+                    
+                    if coverpages.exists():
+                        coverpages.delete()
+                        return Response({"status": "success", "message": "Cover page successfully deleted!"})
+                    else:
+                        return Response({"status": "error", "message": "Cover page not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                coverpage = CoverPage.objects.get(id=coverpage_id)
+                # Check permissions
+                if role != 'webmaster':
+                    if role == 'teacher' and coverpage.course and coverpage.course.teachers.filter(id=user.id).exists():
+                        pass  # Teacher owns this coverpage
+                    elif role == 'publisher' and coverpage.textbook and coverpage.textbook.publisher == user:
+                        pass  # Publisher owns this coverpage
+                    else:
+                        return Response({"status": "error", "message": "You don't have permission to delete this cover page"}, 
+                                       status=status.HTTP_403_FORBIDDEN)
+                coverpage.delete()
+                return Response({"status": "success", "message": "Cover page successfully deleted!"})
+        
+        elif type == "template":
+            template_id = item.get('id') if isinstance(item, dict) else None
+            if not template_id:
+                # Try to find template by name
+                name = item.get('name')
+                if name:
+                    # For teacher
+                    if role == 'teacher':
+                        templates = Template.objects.filter(name=name, course__teachers=user)
+                    # For publisher
+                    elif role == 'publisher':
+                        templates = Template.objects.filter(name=name, textbook__publisher=user)
+                    # For webmaster
+                    else:
+                        templates = Template.objects.filter(name=name)
+                    
+                    if templates.exists():
+                        templates.delete()
+                        return Response({"status": "success", "message": "Template successfully deleted!"})
+                    else:
+                        return Response({"status": "error", "message": "Template not found"}, status=status.HTTP_404_NOT_FOUND)
+            else:
+                template = Template.objects.get(id=template_id)
+                # Check permissions
+                if role != 'webmaster':
+                    if role == 'teacher' and template.course and template.course.teachers.filter(id=user.id).exists():
+                        pass  # Teacher owns this template
+                    elif role == 'publisher' and template.textbook and template.textbook.publisher == user:
+                        pass  # Publisher owns this template
+                    else:
+                        return Response({"status": "error", "message": "You don't have permission to delete this template"}, 
+                                       status=status.HTTP_403_FORBIDDEN)
+                template.delete()
+                return Response({"status": "success", "message": "Template successfully deleted!"})
+        
         else:
-            textbook = None
-            print("No textbook found for this course")
-
-        newDefaults = {
-            "name": courseData.get('name'),
-            "crn": courseData.get('crn'),
-            "sem": courseData.get('sem'),
-            "published": courseData.get('published')
-        }
-
-        course, created = Course.objects.update_or_create(
-            course_id=courseID,
-            defaults=newDefaults
-        )
-
-        if textbook:
-            course.textbook = textbook
-
-        # Assign teacher to the course
-        course.teachers.add(user)  
-        print(f"User is {user.id}")
-        course.save()
-
-        print(f"Course {'created' if created else 'updated'}: {course}")
-
-    print("Successfully saved all courses!")
-    return Response({"status": "Successfully saved course!"})
+            return Response({"status": "error", "message": f"Unknown item type: {type}"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return Response({"status": "error", "message": f"Error deleting item: {str(e)}"}, 
+                      status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response({"status": "error", "message": "Failed to delete item"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-    
-@api_view(['POST'])
-@transaction.atomic
-def save_question_data(request):
-    user = request.user
-    print(f"Received question data from user: {user}")
-    
-    # Validate user profile
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-        role = user_profile.role
-        print(f"User profile found: {user_profile}")
-    except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    data = request.data
-    questionList = data.get('questionList', {})
-    
-    # Handle JSON string case
-    if isinstance(questionList, str):
-        try:
-            questionList = json.loads(questionList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
-    
-    print(f"Parsed question data: {questionList}")
-    
-    for questionID, questionData in questionList.items():
-        print(f"Processing question ID: {questionID}")
-        
-        # Get course or textbook based on role
-        if role == 'teacher':
-            course_id = questionData.get('courseID')
-            try:
-                course = Course.objects.get(course_id=course_id)
-            except Course.DoesNotExist:
-                return Response({"error": f"Course not found: {course_id}"}, status=404)
-            textbook = None
-        else:  # publisher
-            textbook_isbn = questionData.get('textbook', {}).get('isbn')
-            try:
-                textbook = Textbook.objects.get(isbn=textbook_isbn)
-            except Textbook.DoesNotExist:
-                return Response({"error": f"Textbook not found: {textbook_isbn}"}, status=404)
-            course = None
-        
-        # Create or update the question
-        question_defaults = {
-            "text": questionData.get('text'),
-            "answer": questionData.get('answer'),
-            "qtype": questionData.get('qtype'),
-            "score": questionData.get('score', 1.0),
-            "directions": questionData.get('directions'),
-            "reference": questionData.get('reference'),
-            "eta": questionData.get('eta', 1),
-            "comments": questionData.get('comments'),
-            "chapter": questionData.get('chapter', 0),
-            "section": questionData.get('section', 0),
-            "author": user,
-        }
-        
-        # Handle image fields if present
-        if 'img' in questionData and questionData['img']:
-            question_defaults['img'] = questionData['img']
-        if 'ansimg' in questionData and questionData['ansimg']:
-            question_defaults['ansimg'] = questionData['ansimg']
-        
-        # Create or update the question
-        question, created = Question.objects.update_or_create(
-            id=None if questionID == '0' or questionID == 'new' else questionID,
-            defaults=question_defaults
-        )
-        
-        # Set course or textbook based on role
-        if role == 'teacher':
-            question.course = course
-            question.textbook = None
-        else:  # publisher
-            question.textbook = textbook
-            question.course = None
-        
-        question.save()
-        print(f"Question {'created' if created else 'updated'}: {question}")
-        
-        # Process options if present
-        if 'options' in questionData and questionData['options']:
-            # First, delete existing options to avoid duplicates
-            Options.objects.filter(question=question).delete()
-            
-            for option_text in questionData['options']:
-                option = Options.objects.create(
-                    question=question,
-                    text=option_text
-                )
-                print(f"Option created: {option}")
-    
-    print("Successfully saved all questions!")
-    return Response({"status": "Successfully saved questions!"})
 
-# Define this outside any other function
-def process_test(test_data, user, role, is_published=False):
-    """Process a single test object from the frontend data"""
-    print(f"Processing test: {test_data.get('name', 'Unknown')}")
-    
-    # Get required fields
-    course_id = test_data.get('courseID')
-    template_index = test_data.get('templateIndex')
-    
-    # Find the course
-    try:
-        course = Course.objects.get(course_id=course_id)
-    except Course.DoesNotExist:
-        print(f"Course not found: {course_id}")
-        return None
-    
-    # Find or create template
-    template = None
-    if template_index is not None:
-        try:
-            template = Template.objects.get(id=template_index)
-        except Template.DoesNotExist:
-            print(f"Template not found: {template_index}")
-    
-    
-    # Update test fields
-    test, created = Test.objects.update_or_create(
-        course=course,
-        name=test_data.get('name'),
-        defaults={"name":test_data.get('name'),"template":template, "is_final":is_published}
-    )
-    test.save()
-    
-    # Clear existing parts and sections to rebuild
-    TestPart.objects.filter(test=test).delete()
-    
-    # Process parts
-    parts_data = test_data.get('parts', [])
-    for part_data in parts_data:
-        part = TestPart.objects.create(
-            test=test,
-            part_number=part_data.get('partNumber', 1)
-        )
-        
-        # Process sections
-        sections_data = part_data.get('sections', [])
-        for section_data in sections_data:
-            section = TestSection.objects.create(
-                part=part,
-                section_number=section_data.get('sectionNumber', 1),
-                question_type=section_data.get('questionType', '')
-            )
-            
-            # Process questions
-            questions_data = section_data.get('questions', [])
-            for idx, question_data in enumerate(questions_data):
-                # Find or create the question
-                q_id = question_data.get('id')
-                try:
-                    question = Question.objects.get(id=q_id)
-                except Question.DoesNotExist:
-                    print(f"Question {q_id} not found, skipping")
-                    continue
-                
-                # Create test question linking
-                TestQuestion.objects.update_or_create(
-                    test=test,
-                    question=question,
-                    defaults={
-                        "test":test,
-                        "question":question,
-                        "assigned_points":question_data.get('score', 1),
-                        "order":idx,
-                        "section":section}
-                )
-    
-    return test
 
 @api_view(['POST'])
 @transaction.atomic
-def save_test_data(request):
-    user = request.user
-    print(f"Received test data from user: {user}")
-    
-    # Validate user profile
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-        role = user_profile.role
-        print(f"User profile found: {user_profile}")
-    except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
-    
+def update_user(request):
     data = request.data
-    testList = data.get('testList', {})
-    
-    # Handle JSON string case
-    if isinstance(testList, str):
+    currentUN = data.get('username')
+    print("New UN: " + data.get('new_username'))
+    print("New PW: " + data.get('new_password'))
+    # Check if the new username already exists
+    if data.get('update_username') & User.objects.filter(username=data.get('new_username')).exists():
+        print("This username is taken!")
+        return Response({"status": "This username is taken!"})
+
+    try:
+        # Try to find the current user
+        user = User.objects.get(username=currentUN)
+        print("OLD UN: " + user.username)
+        print("OLD PW: " + user.password)
+    except User.DoesNotExist:
+        return Response({"status": "User not found"})
+
+    # Update user details
+    user.username = data.get('new_username')
+    user.set_password(data.get('new_password'))
+    user.save()
+    print("FINAL UN: " + user.username)
+    print("FINAL PW: " + user.password)
+    return Response({"status": "success"})
+
+
+@api_view(['POST'])
+@transaction.atomic
+def fetch_user_data(request):
+    data = request.data
+    request_type = data.get('type', '')  # Fixed typo
+    value = data.get('value', '')  # Fixed typo
+
+    if request_type == "UN":
         try:
-            testList = json.loads(testList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
-    
-    print(f"Parsed test data: {testList}")
-    
-    # Check if testList has 'drafts' and 'published' structure or direct test IDs
-    if 'drafts' in testList or 'published' in testList:
-        # Original structure with drafts/published keys
-        for status in ['drafts', 'published']:
-            tests = testList.get(status, [])
-            for test_data in tests:
-                process_test(test_data, user, role, status == 'published')
+            user = User.objects.get(username=value)
+        except User.DoesNotExist:
+            return Response({"status": "User not found"})
+
+    elif request_type == "ID":
+        try:
+            user = User.objects.get(id=value)
+        except User.DoesNotExist:
+            return Response({"status": "User not found"})
     else:
-        # Direct test ID structure
-        for test_id, test_data in testList.items():
-            is_published = test_data.get('published', False)
-            process_test(test_data, user, role, is_published)
+        return Response({"status": "INVALID REQUEST TYPE"})
     
-    print("Successfully saved all tests!")
-    return Response({"status": "Successfully saved tests!"})
-
-@api_view(['POST'])
-@transaction.atomic
-def save_textbook_data(request):
-    user = request.user
-    print(f"Received textbook data from user: {user}")
-    
-    # Validate user profile
     try:
-        user_profile = UserProfile.objects.get(user=user)
-        role = user_profile.role
-        print(f"User profile found: {user_profile}")
+        userpf = UserProfile.objects.get(user=user)
     except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
+        return Response({"status": "UserProfile not found"})
     
-    data = request.data
-    textbookList = data.get('textbookList', {})
+    role = userpf.role
+    question_list = []
+
+    if role == "teacher":
+        courses = Course.objects.filter(teachers=user)
+        question_list = get_question_list('author', [user])
+        test_list = get_test_list('course', courses)
+        template_list = get_template_list('course', courses)
+        cpage_list = get_cpage_list('course', courses)
+        attachment_list = get_attachment_list('course', courses)
     
-    # Handle JSON string case
-    if isinstance(textbookList, str):
-        try:
-            textbookList = json.loads(textbookList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
+    elif role == "publisher":
+        textbooks = Textbook.objects.filter(publisher=user)
+        question_list = get_question_list('author', [user])
+        test_list = get_test_list('textbook', textbooks)
+        template_list = get_template_list('textbook', textbooks)
+        cpage_list = get_cpage_list('textbook', textbooks)
+        attachment_list = get_attachment_list('textbook', textbooks)
     
-    print(f"Parsed textbook data: {textbookList}")
+    elif role == "webmaster":
+        question_list = [] #Dummy values
+        test_list = []
+        template_list = []
+        attachment_list = []
+        cpage_list = []
+    else:
+        return Response({"status": "Failed due to invalid user role"}, status=400)
     
-    for isbn, textbookData in textbookList.items():
-        print(f"Processing textbook ISBN: {isbn}")
+    return Response({
+        "status": "success",
+        "username": user.username,
+        "password": user.password,
+        "role": role,
+        "question_list": json.dumps(question_list, cls=CustomJSONEncoder),
+        "test_list": json.dumps(test_list, cls=CustomJSONEncoder),
+        "template_list": json.dumps(template_list, cls=CustomJSONEncoder),
+        "cpage_list": json.dumps(cpage_list, cls=CustomJSONEncoder),
+        "attachment_list": json.dumps(attachment_list, cls=CustomJSONEncoder)
+    })
+
+from decimal import Decimal
+from django.core.serializers.json import DjangoJSONEncoder
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if obj is None:
+            return None
         
-        # Create or update the textbook
-        textbook, created = Textbook.objects.update_or_create(
-            isbn=isbn,
-            defaults={
-                "title": textbookData.get('title'),
-                "author": textbookData.get('author'),
-                "version": textbookData.get('version'),
-                "link": textbookData.get('link'),
-                "publisher": user if role == 'publisher' else None,
-                "published": textbookData.get('published', False)
+        # Handle Decimal to float conversion
+        if isinstance(obj, Decimal):
+            return float(obj)
+        
+        # Handle ImageField or FileField objects safely
+        # Check if it's a FileField or ImageField without directly accessing .url
+        from django.db.models.fields.files import FieldFile
+        if isinstance(obj, FieldFile):
+            return obj.url if obj.name else None
+        
+        # Handle datetime and date objects
+        elif hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        
+        # For any other unhandled objects, call the default method of the superclass
+        return super().default(obj)
+
+def get_cpage_list(field, suite):
+    cpage_list = []
+    for instance in suite:
+        cpages = CoverPage.objects.filter(**{field: instance})
+        for c in cpages:
+            cpage_data = {
+            "name": c.name,
+            "testNum": c.testNum,
+            "date": c.date,
+            "file": c.file,
+            "showFilename": c.showFilename,
+            "blank": c.blank,
+            "instructions": c.instructions,
+            "published": c.published,
+            "feedback": []
             }
+            cpage_list.append(cpage_data)
+    return cpage_list
+
+def get_template_list(field, suite):
+    template_list = []
+    for instance in suite:
+        templates = Template.objects.filter(**{field: instance})
+        for t in templates:
+            template_data = {
+            "name": t.name,
+            "titleFont": t.titleFont,
+            "titleFontSize": t.titleFontSize,
+            "subtitleFont": t.subtitleFont,
+            "subtitleFontSize": t.subtitleFontSize,
+            "bodyFont": t.bodyFont,
+            "bodyFontSize": t.bodyFontSize,
+            "pageNumbersInHeader": t.pageNumbersInHeader,
+            "pageNumbersInFooter": t.pageNumbersInFooter,
+            "headerText": t.headerText,
+            "footerText": t.footerText,
+            "coverPage": t.coverPage,
+            "partStructure": t.partStructure,
+            "bonusSection": t.bonusSection,
+            "published": t.published,
+            "feedback": []
+            }
+            template_list.append(template_data)
+    return template_list
+
+
+def get_question_list(field, suite):
+    question_list = []
+    for instance in suite:
+        questions = Question.objects.filter(**{field: instance}).prefetch_related(
+                        Prefetch('question_answers',queryset=Answers.objects.all(),to_attr="answers"),
+                        Prefetch('feedbacks', queryset=Feedback.objects.all(),to_attr="feedback"))
+        for q in questions:
+            
+            question_data = {
+            'text': q.text,
+            'answer': q.answers,
+            'qtype': q.qtype,
+            'score': q.score,
+            'directions': q.directions,
+            'reference': q.reference,
+            'eta': q.eta,
+            'img': q.img,
+            'ansimg': q.ansimg,
+            'comments': q.comments,
+            'prompts': [],
+            'options': list(Options.objects.filter(question=q).values()),
+            'tests': [],
+            'chapter': q.chapter,
+            'section': q.section,
+            'published': q.published,
+            } 
+            question_data['feedback'] = []
+            feedback = q.feedback
+            for f in feedback:
+                feedback_data = {
+                    "username": f.user.username,
+                    "rating": f.rating,
+                    "averageScore": f.averageScore,
+                    "comments": f.comments,
+                    "date": f.created_at,
+                    "responses": [{"username": r.user.username, "text":r.text,"date":r.date}for r in FeedbackResponse.objects.filter(feedback=f)]
+                }
+                question_data['feedback'].append(feedback_data)
+            question_list.append(question_data)
+    return question_list
+
+def get_attachment_list(field, suite):
+    attachment_list = []
+    for instance in suite:
+        attachments = Attachment.objects.filter(**{field: instance})
+        for a in attachments:
+            attachment_data = {
+                "name": a.name,
+                "file": a.file
+            }
+            attachment_list.append(attachment_data)
+    return attachment_list
+
+def get_test_list(field, suite):
+    test_list = []
+    for instance in suite:
+        tests = Test.objects.filter(**{field: instance}).select_related('template').prefetch_related(
+            'attachments',
+            Prefetch('feedbacks', queryset=Feedback.objects.select_related('user'), to_attr="feedback_list"),
+            Prefetch('parts', queryset=TestPart.objects.prefetch_related(
+                Prefetch('sections', queryset=TestSection.objects.all(), to_attr='section_list')
+            ), to_attr='part_list'),
+            Prefetch('test_questions', queryset=TestQuestion.objects.select_related('question', 'section')
+                .prefetch_related(
+                    Prefetch('question__question_answers', queryset=Answers.objects.all(), to_attr='answer_list'),
+                    Prefetch('question__question_options', queryset=Options.objects.all(), to_attr='option_list')
+                ).order_by('order'), to_attr='test_question_list')
         )
         
-        print(f"Textbook {'created' if created else 'updated'}: {textbook}")
-    
-    print("Successfully saved all textbooks!")
-    return Response({"status": "Successfully saved textbooks!"})
+        for t in tests:
+            test_data = {
+                'name': t.name,
+                'template': t.template.id if t.template else None,
+                'templateName': t.template.name if t.template else None,
+                'templateIndex': t.templateIndex,
+                'attachments': [{'name': a.name, 'file': str(a.file)} for a in t.attachments.all()],
+                'parts': []
+            }
 
-@api_view(['POST'])
-@transaction.atomic
-def save_template_data(request):
-    user = request.user
-    print(f"Received template data from user: {user}")
-    
-    # Validate user profile
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-        role = user_profile.role
-        print(f"User profile found: {user_profile}")
-    except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    data = request.data
-    templateList = data.get('templateList', {})
-    
-    # Handle JSON string case
-    if isinstance(templateList, str):
-        try:
-            templateList = json.loads(templateList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
-    
-    print(f"Parsed template data: {templateList}")
-    
-    for templateName, templateData in templateList.items():
-        print(f"Processing template: {templateName}")
-        
-        # Get course or textbook based on role
-        if role == 'teacher':
-            course_id = templateData.get('courseID')
-            try:
-                course = Course.objects.get(course_id=course_id)
-            except Course.DoesNotExist:
-                return Response({"error": f"Course not found: {course_id}"}, status=404)
-            textbook = None
-        else:  # publisher
-            textbook_isbn = templateData.get('textbook', {}).get('isbn')
-            try:
-                textbook = Textbook.objects.get(isbn=textbook_isbn)
-            except Textbook.DoesNotExist:
-                return Response({"error": f"Textbook not found: {textbook_isbn}"}, status=404)
-            textbook = None
-        
-        # Create or update the template
-        template_defaults = {
-            "titleFont": templateData.get('titleFont', 'Arial'),
-            "titleFontSize": templateData.get('titleFontSize', 48),
-            "subtitleFont": templateData.get('subtitleFont', 'Arial'),
-            "subtitleFontSize": templateData.get('subtitleFontSize', 24),
-            "bodyFont": templateData.get('bodyFont', 'Arial'),
-            "bodyFontSize": templateData.get('bodyFontSize', 12),
-            "pageNumbersInHeader": templateData.get('pageNumbersInHeader', False),
-            "pageNumbersInFooter": templateData.get('pageNumbersInFooter', False),
-            "headerText": templateData.get('headerText'),
-            "footerText": templateData.get('footerText'),
-            "coverPage": templateData.get('coverPageType', 0),
-            "partStructure": templateData.get('partStructure')  
-        }
-        
-        # Create or update the template
-        template, created = Template.objects.update_or_create(
-            name=templateName,
-            defaults=template_defaults
-        )
-        
-        # Set course or textbook based on role
-        if role == 'teacher':
-            template.course = course
-            template.textbook = None
-        else:  # publisher
-            template.textbook = textbook
-            template.course = None
-        
-        template.save()
-        print(f"Template {'created' if created else 'updated'}: {template}")
-    
-    print("Successfully saved all templates!")
-    return Response({"status": "Successfully saved templates!"})
+            # Create a map of test_questions by section for easy access
+            section_question_map = {}
+            for tq in getattr(t, 'test_question_list', []):
+                if tq.section:
+                    if tq.section.id not in section_question_map:
+                        section_question_map[tq.section.id] = []
+                    section_question_map[tq.section.id].append(tq)
 
+            for p in getattr(t, 'part_list', []):
+                part_data = {
+                    'partNum': p.part_number,
+                    'sections': []
+                }
 
-@api_view(['POST'])
-@transaction.atomic
-def save_cpage_data(request):
-    user = request.user
-    print(f"Received cover page data from user: {user}")
+                for s in getattr(p, 'section_list', []):
+                    section_data = {
+                        'sectionNum': s.section_number,
+                        'questionType': s.question_type,
+                        'questions': []
+                    }
+
+                    # Get questions for this section from our map
+                    for tq in section_question_map.get(s.id, []):
+                        question = tq.question
+                        section_data['questions'].append({
+                            'text': question.text,
+                            'answer': [ans.text for ans in getattr(question, 'answer_list', [])],
+                            'qtype': question.qtype,
+                            'score': tq.assigned_points,
+                            'directions': question.directions,
+                            'reference': question.reference,
+                            'eta': question.eta,
+                            'img': question.img.url if question.img else None,
+                            'ansimg': question.ansimg.url if question.ansimg else None,
+                            'comments': question.comments,
+                            'prompts': [],
+                            'options': [{'text': opt.text, 'image': opt.image.url if opt.image else None} 
+                                      for opt in getattr(question, 'option_list', [])],
+                            'chapter': question.chapter,
+                            'section': question.section,
+                            'published': question.published,
+                        })
+
+                    part_data['sections'].append(section_data)
+                
+                test_data['parts'].append(part_data)
+            
+            test_data['feedback'] = []
+            for f in getattr(t, 'feedback_list', []):
+                feedback_data = {
+                    "username": f.user.username if f.user else "Anonymous",
+                    "rating": f.rating,
+                    "averageScore": f.averageScore,
+                    "comments": f.comments,
+                    "date": f.created_at,
+                    "responses": [{"username": r.user.username if r.user else "Anonymous", 
+                                 "text": r.text, 
+                                 "date": r.date} 
+                                 for r in FeedbackResponse.objects.filter(feedback=f).select_related('user')]
+                }
+                test_data['feedback'].append(feedback_data)
+            
+            test_list.append(test_data)
     
-    # Validate user profile
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-        role = user_profile.role
-        print(f"User profile found: {user_profile}")
-    except UserProfile.DoesNotExist:
-        print("User profile not found")
-        return Response({"error": "User profile not found"}, status=404)
-    
-    data = request.data
-    cpageList = data.get('cpageList', {})
-    
-    # Handle JSON string case
-    if isinstance(cpageList, str):
-        try:
-            cpageList = json.loads(cpageList)
-        except json.JSONDecodeError:
-            print("Invalid JSON format")
-            return Response({"error": "Invalid JSON format"}, status=400)
-    
-    print(f"Parsed cover page data: {cpageList}")
-    
-    for cpageID, cpageData in cpageList.items():
-        print(f"Processing cover page ID: {cpageID}")
-        id = '';
-        # Get course or textbook based on role
-        if role == 'teacher':
-            newid = cpageData.get('courseID')
-            try:
-                course = Course.objects.get(course_id=newid)
-            except Course.DoesNotExist:
-                return Response({"error": f"Course not found: {newid}"}, status=404)
-            textbook = None
-        else:  # publisher
-            newid = cpageData.get('textbook', {}).get('isbn')
-            try:
-                textbook = Textbook.objects.get(isbn=newid)
-            except Textbook.DoesNotExist:
-                return Response({"error": f"Textbook not found: {newid}"}, status=404)
-            course = None
-        
-        # Parse date if present
-        test_date = None
-        if cpageData.get('date'):
-            try:
-                test_date = datetime.strptime(cpageData.get('date'), '%Y-%m-%d').date()
-            except ValueError:
-                print(f"Invalid date format: {cpageData.get('date')}")
-                test_date = datetime.now().date()
-        
-        # Create or update the cover page
-        cpage_defaults = {
-            "name": cpageData.get('name'),
-            "testNum": cpageData.get('testNum'),
-            "date": test_date or datetime.now().date(),
-            "file": cpageData.get('file', ''),
-            "showFilename": cpageData.get('showFilename', False),
-            "blank": cpageData.get('blank', 'TL'),
-            "instructions": cpageData.get('instructions'),
-            "published": cpageData.get('published', False)
-        }
-        
-        if role == 'teacher':
-            # Create or update the cover page
-            cpage, created = CoverPage.objects.update_or_create(
-            course=course,
-            name=cpage_defaults['name'],
-            defaults=cpage_defaults
-            )
-        else:
-            # Create or update the cover page
-            cpage, created = CoverPage.objects.update_or_create(
-            textbook=textbook,
-            name=cpage_defaults['name'],
-            defaults=cpage_defaults
-            )
-        
-        # Set course or textbook based on role
-        if role == 'teacher':
-            cpage.course = course
-            cpage.textbook = None
-        else:  # publisher
-            cpage.textbook = textbook
-            cpage.course = None
-        
-        cpage.save()
-        print(f"Cover page {'created' if created else 'updated'}: {cpage}")
-    
-    print("Successfully saved all cover pages!")
-    return Response({"status": "Successfully saved cover pages!"})
+    return test_list

@@ -3,11 +3,7 @@ from . import views
 
 
 urlpatterns = [
-    path('load_data/', views.load_data, name='load_data'),
-    path('save_data/question/', views.save_question_data, name='save_question_data'),
-    path('save_data/test/', views.save_test_data, name='save_test_data'),
-    path('save_data/template/', views.save_template_data, name='save_template_data'),
-    path('save_data/cpage/', views.save_cpage_data, name='save_cpage_data'),
-    path('save_data/course/', views.save_course_data, name='save_course_data'),
-    path('save_data/textbook/', views.save_textbook_data, name='save_textbook_data'),
+    path('fetch_user_data/', views.fetch_user_data, name='fetch_user_data'),
+    path('delete_item/', views.delete_item, name='delete_item'),
+    path('update_user/', views.update_user, name='update_user')
 ]

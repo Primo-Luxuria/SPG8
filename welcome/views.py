@@ -10,6 +10,7 @@ from django.contrib.auth import authenticate, login
 from django.middleware.csrf import get_token
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 
 from welcome.models import *
 
@@ -85,6 +86,8 @@ def login_handler(request):
                 return redirect("teacher_dashboard")
             elif role == "publisher":
                 return redirect("publisher_dashboard")
+            elif role == "webmaster":
+                return redirect("webmaster_dashboard")
             else:
                 return redirect("home")  # Default fallback
         else:
@@ -94,13 +97,13 @@ def login_handler(request):
     return redirect("login")  # Redirect if not POST
 
 
-
+import time
 def parse_qti_xml(request):
     """
     Parses a QTI XML file and saves extracted data to the database.
     This supports QTI version 1.2 only.
     """
-
+    start_time = time.perf_counter()
     class ImageDataPair:
         def __init__(self, raw_image_data, actual_image_name):
             self.raw_image_data = raw_image_data
@@ -646,12 +649,18 @@ def parse_qti_xml(request):
                             #
 
     #
-
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print(execution_time)
     # this is here because the javascript that calls the Parser depends on what it returns
     if file_info is None:
+        print("Success! Created test record")
         return JsonResponse({"Success": "created Test record."}, status=555)
+        
     else:
+        print("File processed successfully!")
         return JsonResponse({"message": "File processed successfully!", "file_info": file_info})
+        
 #
 
 
@@ -666,13 +675,20 @@ def login_view(request):
 def signup_view(request):
     return render(request, 'welcome/signup.html')
 
+@login_required
 def teacher_dashboard(request):
-    return render(request, 'welcome/SBteacher.html')
+    context = {'username': request.user.username}
+    return render(request, 'welcome/SBteacher.html', context)
 
+@login_required
 def publisher_dashboard(request):
-    return render(request, 'welcome/SBpublisher.html')
+    context = {'username': request.user.username}
+    return render(request, 'welcome/SBpublisher.html', context)
 
-
+@login_required
+def webmaster_dashboard(request):
+    context = {'username': request.user.username}
+    return render(request, 'welcome/webmaster.html', context)
 
 
 """

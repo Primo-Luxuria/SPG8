@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Courses</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .error-message{color:red;}   
+        textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
+        .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
+        details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
+        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+        .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
+        .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
+        .form-group label {width: 120px;text-align: right;margin-right: 10px;}
+        .form-group input {flex: 1;}
+        
+    </style>
+</head>
+<body style="background-color: #2e3a42;">
+    <div style="background:#e0e0e0;padding:20px;" id="userLookup">
+        <h3>Choose your Search Query</h3>
+        <select id="searchSelector" onchange="updateSearchInput()">
+            <option value="UN">Search by Username</option>
+            <option value="ID">Search for User ID</option>
+        </select>
+        <div id="searchInput">
+            <input type="text" id="searchField" placeholder="Enter Username" />
+        </div>
+        <button onclick="filterSearch()">Filter</button>
+        <div id="searchContent"></div>
+    </div>
+
+<script>
+    var userQuestions = {};
+    var userTests = {};
+    var userCoverPages = {};
+    var userTemplates ={};
+    var userAttachments ={};
+    var username;
+    var password;
+
+    async function filterSearch() {
+        const searchType = document.getElementById("searchSelector").value;
+        const searchValue = document.getElementById("searchField").value.trim();
+        
+        if (!searchValue) {
+            alert("Please enter a search value.");
+            return;
+        }
+        
+        const requestData = {
+            type: searchType,
+            value: searchValue
+        };
+        
+        try {
+            const response = await fetch('/api/fetch_user_data/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify(requestData)
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                renderUserData(data);
+            } else {
+                document.getElementById('searchContent').innerText = data.message || 'An error occurred.';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('searchContent').innerText = 'An error occurred while fetching data.';
+        }
+    }
+
+    function updateSearchInput() {
+        const searchType = document.getElementById("searchSelector").value;
+        const searchField = document.getElementById("searchField");
+
+        searchField.placeholder = searchType === "UN" ? "Enter Username" : "Enter User ID";
+    }
+
+    function renderUserData(data) {
+        userAttachments = JSON.parse(data.attachment_list);
+        userQuestions = JSON.parse(data.question_list);
+        userTemplates = JSON.parse(data.template_list);
+        userCoverPages = JSON.parse(data.cpage_list);
+        userTests = JSON.parse(data.test_list);
+        role = data.role;
+        username = data.username;
+        password = data.password;
+        const container = document.getElementById('searchContent');
+        container.innerHTML = `
+            <details open>
+                <summary>User Information</summary>
+                <p>Enter New Username for ${username}</p>
+                <input id="unchange" type="text" value="${data.username}"> 
+                <input type="checkbox" id="checkUN">
+                <p>Enter New Password:</p>
+                <input id="pwchange" type="text"> 
+                <input type="checkbox" id="checkPW"><br>
+                <p>"Check the box of either (or both) field(s) you wish to update"</p>
+                <button onclick="updateUserData()">Update User Data</button><br>
+            </details>
+            <details>
+                <summary>Questions</summary>
+                <div id="question-container">No questions yet. . . </div>
+            </details>
+            <details>
+                <summary>Tests</summary>
+                <div id="test-container">No tests yet. . . </div>
+            </details>
+            <details>
+                <summary>Coverpages</summary>
+                <div id="coverpage-container">No cover pages yet. . . </div>
+            </details>
+            <details>
+                <summary>Templates</summary>
+                <div id="template-container">No templates yet. . . </div>
+            </details>
+            <details>
+                <summary>Attachments</summary>
+                <div id="attachment-container">No attachments yet. . . </div>
+            </details>
+        `;
+        questionContainer = document.getElementById("question-container");
+        if (userQuestions.length === 0) {
+            questionContainer.innerHTML = "No questions yet...";
+        } else {
+            questionContainer.innerHTML = ""; // Clear container
+        for(let i=0; i<userQuestions.length; i++) {
+            let div = document.createElement("div");
+            div.className = "course-container";
+            let p = document.createElement("p");
+            p.innerHTML = `Question: ${userQuestions[i].text}`;
+            div.appendChild(p);
+            
+            // Add delete button
+            let deleteBtn = document.createElement("button");
+            deleteBtn.className = "remove-btn";
+            deleteBtn.textContent = "Delete Question";
+            deleteBtn.onclick = function() { deleteItem(this); };
+            div.appendChild(deleteBtn);
+            
+            div.dataset.index = i;
+            div.dataset.type = "question";
+            questionContainer.appendChild(div);
+            }
+        }
+    
+        // Similar updates for other content types
+        testContainer = document.getElementById("test-container");
+        if (userTests.length === 0) {
+            testContainer.innerHTML = "No tests yet...";
+        } else {
+            testContainer.innerHTML = ""; // Clear container
+            for(let i = 0; i<userTests.length; i++) {
+                let div = document.createElement("div");
+                div.className = "course-container";
+                let p = document.createElement("p");
+                p.innerHTML = `Test: ${userTests[i].name}`;
+                div.appendChild(p);
+            
+                // Add delete button
+                let deleteBtn = document.createElement("button");
+                deleteBtn.className = "remove-btn";
+                deleteBtn.textContent = "Delete Test";
+                deleteBtn.onclick = function() { deleteItem(this); };
+                div.appendChild(deleteBtn);
+            
+                div.dataset.index = i;
+                div.dataset.type = "test";
+                testContainer.appendChild(div);
+            }
+        }
+    
+        // Repeat similar pattern for templates, cover pages, and attachments
+        templateContainer = document.getElementById("template-container");
+        if (userTemplates.length === 0) {
+            templateContainer.innerHTML = "No templates yet...";
+        } else {
+            templateContainer.innerHTML = "";
+            for(let i = 0; i<userTemplates.length; i++) {
+                let div = document.createElement("div");
+                div.className = "course-container";
+                let p = document.createElement("p");
+                p.innerHTML = `Template: ${userTemplates[i].name}`;
+                div.appendChild(p);
+                
+                let deleteBtn = document.createElement("button");
+                deleteBtn.className = "remove-btn";
+                deleteBtn.textContent = "Delete Template";
+                deleteBtn.onclick = function() { deleteItem(this); };
+                div.appendChild(deleteBtn);
+                
+                div.dataset.index = i;
+                div.dataset.type = "template";
+                templateContainer.appendChild(div);
+            }
+        }
+        
+        coverpageContainer = document.getElementById("coverpage-container");
+        if (userCoverPages.length === 0) {
+            coverpageContainer.innerHTML = "No cover pages yet...";
+        } else {
+            coverpageContainer.innerHTML = "";
+            for(let i = 0; i<userCoverPages.length; i++) {
+                let div = document.createElement("div");
+                div.className = "course-container";
+                let p = document.createElement("p");
+                p.innerHTML = `Cover Page: ${userCoverPages[i].name}`;
+                div.appendChild(p);
+                
+                let deleteBtn = document.createElement("button");
+                deleteBtn.className = "remove-btn";
+                deleteBtn.textContent = "Delete Cover Page";
+                deleteBtn.onclick = function() { deleteItem(this); };
+                div.appendChild(deleteBtn);
+                
+                div.dataset.index = i;
+                div.dataset.type = "coverpage";
+                coverpageContainer.appendChild(div);
+            }
+        }
+    
+        attachmentContainer = document.getElementById("attachment-container");
+        if (userAttachments.length === 0) {
+            attachmentContainer.innerHTML = "No attachments yet...";
+        } else {
+            attachmentContainer.innerHTML = "";
+            for(let i = 0; i<userAttachments.length; i++) {
+                let div = document.createElement("div");
+                div.className = "course-container";
+                let p = document.createElement("p");
+                p.innerHTML = `Attachment: ${userAttachments[i].name}`;
+                div.appendChild(p);
+                
+                let deleteBtn = document.createElement("button");
+                deleteBtn.className = "remove-btn";
+                deleteBtn.textContent = "Delete Attachment";
+                deleteBtn.onclick = function() { deleteItem(this); };
+                div.appendChild(deleteBtn);
+                
+                div.dataset.index = i;
+                div.dataset.type = "attachment";
+                attachmentContainer.appendChild(div);
+            }
+        }
+    }
+
+    function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) { // if you find the cookie that starts with csrftoken=
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+    }
+
+
+async function updateUserData(){
+    const newPW = document.getElementById("pwchange").value.trim();
+    const PWchecked = document.getElementById("checkPW").checked;
+    const newUN = document.getElementById("unchange").value.trim();
+    const UNchecked = document.getElementById("checkUN").checked;
+    let data = [];
+    
+    let pw = password;  // Default to the existing password
+    let un = username;  // Default to the existing username
+    
+    if(PWchecked){
+        if(newPW == ""){
+            alert("Invalid password");
+            return;
+        }
+        pw = newPW; // Set the new password if checked
+    }
+
+    if(UNchecked){
+        if(newUN == ""){
+            alert("Invalid username");
+            return;
+        }
+        un = newUN; // Set the new username if checked
+    }
+
+    try{
+        const response = await fetch('/api/update_user/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                "username": username,
+                "new_username": un,
+                "new_password": pw,
+                "update_username": UNchecked
+            })
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert(data.message || `User Data successfully changed.`);
+            username = un;
+            password = pw;
+            document.getElementById("searchSelector").value = "UN";
+            document.getElementById("searchField").value = un;
+            filterSearch();
+        } else {
+            alert(data.message || 'An error occurred while changing user data.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while connecting to the server.');
+    }
+}
+
+async function deleteItem(element) {
+    // Get the content type and index from the parent element's data attributes
+    const parentDiv = element.closest('div[data-type]');
+    const type = parentDiv.dataset.type;
+    const index = parseInt(parentDiv.dataset.index);
+    
+    // Get the appropriate item based on type and index
+    let itemToDelete;
+    switch(type) {
+        case 'question':
+            itemToDelete = userQuestions[index];
+            break;
+        case 'test':
+            itemToDelete = userTests[index];
+            break;
+        case 'template':
+            itemToDelete = userTemplates[index];
+            break;
+        case 'coverpage':
+            itemToDelete = userCoverPages[index];
+            break;
+        case 'attachment':
+            itemToDelete = userAttachments[index];
+            break;
+        default:
+            console.error('Unknown item type:', type);
+            return;
+    }
+    
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete this ${type}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/delete_item/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                type: type,
+                item: itemToDelete,
+                username: username
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Remove the item from the local array
+            switch(type) {
+                case 'question':
+                    userQuestions.splice(index, 1);
+                    break;
+                case 'test':
+                    userTests.splice(index, 1);
+                    break;
+                case 'template':
+                    userTemplates.splice(index, 1);
+                    break;
+                case 'coverpage':
+                    userCoverPages.splice(index, 1);
+                    break;
+                case 'attachment':
+                    userAttachments.splice(index, 1);
+                    break;
+            }
+            
+            // Remove the element from the DOM
+            parentDiv.remove();
+            
+            // Show success message
+            alert(data.message || `${type} successfully deleted.`);
+        } else {
+            alert(data.message || 'An error occurred while deleting the item.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while connecting to the server.');
+    }
+}
+
+</script>
+</body>
+</html>
