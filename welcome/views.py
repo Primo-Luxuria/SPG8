@@ -10,13 +10,14 @@ from django.contrib.auth import authenticate, login
 from django.middleware.csrf import get_token
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 
 from welcome.models import *
 
 import json
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from .models import Course  # Import additional models as needed
+from .models import Course#, AnswerOption  # Import additional models as needed
 
 
 def home(request):
@@ -85,6 +86,8 @@ def login_handler(request):
                 return redirect("teacher_dashboard")
             elif role == "publisher":
                 return redirect("publisher_dashboard")
+            elif role == "webmaster":
+                return redirect("webmaster_dashboard")
             else:
                 return redirect("home")  # Default fallback
         else:
@@ -94,11 +97,13 @@ def login_handler(request):
     return redirect("login")  # Redirect if not POST
 
 
+import time
 def parse_qti_xml(request):
     """
     Parses a QTI XML file and saves extracted data to the database.
+    This supports QTI version 1.2 only.
     """
-
+    start_time = time.perf_counter()
     class ImageDataPair:
         def __init__(self, raw_image_data, actual_image_name):
             self.raw_image_data = raw_image_data
@@ -111,21 +116,24 @@ def parse_qti_xml(request):
                 elem.tag = elem.tag.split("}")[-1]
 
     # creates a new question record/entry
-    def create_question(g_course, g_q_type, g_q_text, g_points, g_g_f_t, g_f_g, g_f_t):
+    def create_question(g_course, g_q_type, g_q_text, g_points):
         temp_question_instance = Question.objects.create(
-            course=g_course,
-            question_type=g_q_type,
-            question_text=g_q_text,
-            default_points=g_points,
-            general_feedback_text=g_g_f_t,
-            feedback_graphic=g_f_g,
-            feedback_type=g_f_t,
-            # z
+            course=g_course, # this is because, logically, when questions/tests are uploaded to a course, are they not part of it?
+            qtype=g_q_type,
+            text=g_q_text,
+            score=g_points
         )
+
+        # checks if user is logged in
+        if request.user.is_authenticated:
+            temp_question_instance.author = request.user # sets to the current user
+            temp_question_instance.save()
 
         return temp_question_instance
 
     def check_embedded_graphic(text_q):
+        if text_q is None:
+            return None
         # Parse the HTML using BeautifulSoup4 library
         soup = BeautifulSoup(text_q, 'html.parser')
         # Find the <img> tag
@@ -179,21 +187,30 @@ def parse_qti_xml(request):
             return JsonResponse({"error": f"Element '{my_tag}' not found in XML!"}, status=400)
 
         # Extract 'ident' and 'title' attribute from the element that node represents
-        the_test_title = node.get("title")
+        the_test_title = node.get("title") # test name
         test_identifier = node.get("ident")
 
         # Create a new Test record
         test_instance = Test.objects.create(
             course=the_course,
-            title=the_test_title,
-            test_number=test_identifier,
-            cover_instructions=cover_instructions_text
+            textbook=the_course.textbook,
+            name=the_test_title
         )
+        test_part_instance = TestPart.objects.create(
+            test=test_instance
+        )
+        number_of_sections = 0
 
         for section in root.findall(".//section"):
+            number_of_sections = number_of_sections + 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections
+            )
+
             for item in section.findall(".//item"):
 
-                # all useful metadata fiels are found in the fieldentry elements under itemmetadata
+                # all useful metadata fields are found in the fieldentry elements under itemmetadata
                 node = item.find('itemmetadata')
                 qti_metadata_fields = node.findall(".//fieldentry")
 
@@ -230,22 +247,68 @@ def parse_qti_xml(request):
 
                     # this creates a question record in database
                     question_instance = create_question(the_course, the_question_type, question_text_field,
-                                                        max_points_for_question, None, None, None)
-
+                                                        max_points_for_question)
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
                     image_data_pair = check_embedded_graphic(question_text_field)
                     if image_data_pair is not None:
-                        # Save the image to the embedded_graphic field, then update the record/entry
-                        question_instance.embedded_graphic.save(image_data_pair.actual_image_name,
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
                                                                 ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
-                        print(f"{question_instance.embedded_graphic.url}")
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url # change src attribute
+                        question_text_field = str(html_obj) # save html as string
+                        question_instance.text = question_text_field # update text field
+                        question_instance.save() # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
+                    )
 
                     for key, value in answer_choices_dict.items():
-                        answeroption_instance = AnswerOption.objects.create(
-                            question=question_instance,
-                            text=value,
-                            is_correct=True if key == correct_answer_ident else False  # Inline conditional check
-                        )
+                        if key == correct_answer_ident:
+                            question_instance.answer = value
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = question_instance.ansimg.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                question_instance.answer = value  # update answer text field
+                                question_instance.save()  # save/update entry in database
+
+                            question_instance.save()
+                        else:
+                            options_instance = Options.objects.create(
+                                question=question_instance,
+                                text=value
+                            )
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+                                options_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = options_instance.image.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                options_instance.text = value  # update options text field
+                                options_instance.save()  # save/update entry in database
 
                 elif the_question_type == 'true_false_question':
                     node = node.find('.//response_lid')
@@ -262,34 +325,94 @@ def parse_qti_xml(request):
                             correct_answer_ident = temp_node.text
 
                     question_instance = create_question(the_course, the_question_type, question_text_field,
-                                                        max_points_for_question, None, None, None)
+                                                        max_points_for_question)
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
+                    image_data_pair = check_embedded_graphic(question_text_field)
+                    if image_data_pair is not None:
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
+                                                   ContentFile(image_data_pair.raw_image_data))
+                        question_instance.save()
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
+                    )
 
                     for key, value in answer_choices_dict.items():
-                        answeroption_instance = AnswerOption.objects.create(
-                            question=question_instance,
-                            text=value,
-                            is_correct=True if key == correct_answer_ident else False  # Inline conditional check
-                        )
-                elif the_question_type == 'short_answer_question':  # Fill-in-the-blank question
+                        if key == correct_answer_ident:
+                            question_instance.answer = value
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
+                                                              ContentFile(temp_img_data_pair.raw_image_data))
+
+                            question_instance.save()
+
+                elif the_question_type == 'short_answer_question':  # fill-in-the-blank question (single)
+
+                    the_question_type = "fill_in_the_blank"
 
                     question_instance = create_question(
                         the_course, the_question_type, question_text_field,
-                        max_points_for_question, None, None, None
+                        max_points_for_question
+                    )
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
+                    image_data_pair = check_embedded_graphic(question_text_field)
+                    if image_data_pair is not None:
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
+                                                   ContentFile(image_data_pair.raw_image_data))
+                        question_instance.save()
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
                     )
 
                     node = item.find('resprocessing')
                     for respcondition_elem in node.findall('.//respcondition'):
                         if respcondition_elem.get('continue') == "No":
                             for varequal_elem in respcondition_elem.findall('.//varequal'):
-                                answeroption_instance = AnswerOption.objects.create(
+                                answer_instance = Answers.objects.create(
                                     question=question_instance,
-                                    text=varequal_elem.text,
-                                    is_correct=True
+                                    text=varequal_elem.text
                                 )
+                                temp_img_data_pair = check_embedded_graphic(varequal_elem.text)
+                                if temp_img_data_pair is not None:
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+                                    answer_instance.save()
 
-                elif the_question_type == 'fill_in_multiple_blanks_question':
-                    print('')  # this is placeholder for code to extract info from question for table
                 elif the_question_type == 'multiple_answers_question':
+
+                    the_question_type = "multiple_selection"
+
                     correct_answer_ident_list = []
                     node = node.find('.//response_lid')
                     answer_choices_dict = {}
@@ -306,35 +429,204 @@ def parse_qti_xml(request):
                                 correct_answer_ident_list.append(varequal_elem.text)
 
                     question_instance = create_question(the_course, the_question_type, question_text_field,
-                                                        max_points_for_question, None, None, None)
+                                                        max_points_for_question)
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
+                    image_data_pair = check_embedded_graphic(question_text_field)
+                    if image_data_pair is not None:
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
+                                                   ContentFile(image_data_pair.raw_image_data))
+                        question_instance.save()
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
+                    )
 
                     for key, value in answer_choices_dict.items():
-                        answeroption_instance = AnswerOption.objects.create(
+                        if key in correct_answer_ident_list:
+                            answer_instance = Answers.objects.create(
+                                question=question_instance,
+                                text=value
+                            )
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                    ContentFile(temp_img_data_pair.raw_image_data))
+                                answer_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                answer_instance.text = value  # update answer_instance text field
+                                answer_instance.save()  # save/update entry in database
+
+                        else:
+                            options_instance = Options.objects.create(
+                                question=question_instance,
+                                text=value
+                            )
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+                                options_instance.save()
+
+                                # Parse the HTML using BeautifulSoup4 library
+                                html_obj = BeautifulSoup(value, 'html.parser')
+                                # Find the element with "img" tag
+                                my_img_element = html_obj.find('img')
+                                my_img_element['src'] = options_instance.image.url  # change src attribute
+                                value = str(html_obj)  # save html as string
+                                options_instance.text = value  # update option text field
+                                options_instance.save()  # save/update entry in database
+
+                elif the_question_type == 'matching_question': # this is explicitly stated in rubric to support
+                    # Canvas requires you to add at least one answer
+                    answer_choices_dict = {} # right side options and their ID's
+                    left_side_dict = {}
+
+                    question_instance = create_question(the_course, the_question_type, question_text_field,
+                                                        max_points_for_question)
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
+                    image_data_pair = check_embedded_graphic(question_text_field)
+                    if image_data_pair is not None:
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
+                                                   ContentFile(image_data_pair.raw_image_data))
+                        question_instance.save()
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
+                    )
+
+                    # find left sides
+                    for response_lid_elem in node.findall('response_lid'): # for all response_lid elements in list
+                        side_key = response_lid_elem.get('ident')
+                        side_text = response_lid_elem.find('material').find('mattext').text
+                        left_side_dict[side_key] = side_text
+                    # find right sides
+                    for response_label_elem in node.find('response_lid').find('render_choice').findall('response_label'):
+                        side_key = response_label_elem.get('ident')
+                        side_text = response_label_elem.find('.//mattext').text
+                        answer_choices_dict[side_key] = side_text
+                    # now find out which ones are matching pairs
+                    matching_pairs_dict = {}
+                    node = item.find('resprocessing')
+                    right_side_key_to_delete_list = []
+                    for respcondition_elem in node.findall('respcondition'):
+                        varequal_elem = respcondition_elem.find('conditionvar').find('varequal')
+                        if varequal_elem is not None:
+                            left_key = varequal_elem.get('respident')
+                            right_key = varequal_elem.text
+                            right_side_key_to_delete_list.append(right_key)
+                            # this makes a dictionary of matching pairs
+                            matching_pairs_dict[left_side_dict.get(left_key)] = answer_choices_dict.get(right_key)
+                    unique_key_list_to_del = list(set(right_side_key_to_delete_list)) # this removes duplicate keys from list
+                    for key_string in unique_key_list_to_del:
+                        del answer_choices_dict[key_string]  # deletes a response option that was a correct right side
+                    # now save matching pairs to database
+                    for key, value in matching_pairs_dict.items():
+                        matching_pair_string = ""
+                        if key is not None:
+                            matching_pair_string += key
+                        matching_pair_string += ";;;;; "
+                        if value is None:
+                            matching_pair_string += ";;;;;"
+                        else:
+                            matching_pair_string += value
+
+                        # matching questions CANNOT have embedded graphics in responses
+                        answer_instance = Answers.objects.create(
                             question=question_instance,
-                            text=value,
-                            is_correct=True if key in correct_answer_ident_list else False  # Check if key is in list
+                            text=matching_pair_string
+                        )
+                    # save distractors to database
+                    for value in answer_choices_dict.values():
+                        option_instance = Options.objects.create(
+                            question=question_instance,
+                            text=value
                         )
 
-                elif the_question_type == 'multiple_dropdowns_question':
+                elif the_question_type == 'essay_question':
+                    # mostly done but may need to process feedbacks or comments
+
+                    # this creates a question record in database
+                    question_instance = create_question(the_course, the_question_type, question_text_field,
+                                                        max_points_for_question)
+                    # this block of code checks for an embedded graphic in text, then saves it to field
+                    # is there is a graphic. otherwise it does nothing.
+                    image_data_pair = check_embedded_graphic(question_text_field)
+                    if image_data_pair is not None:
+                        # Save the image to the img field, then update the record/entry
+                        question_instance.img.save(image_data_pair.actual_image_name,
+                                                   ContentFile(image_data_pair.raw_image_data))
+                        question_instance.save()
+                        print(f"{question_instance.img.url}")
+
+                        # Parse the HTML using BeautifulSoup4 library
+                        html_obj = BeautifulSoup(question_text_field, 'html.parser')
+                        # Find the element with "img" tag
+                        my_img_element = html_obj.find('img')
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
+
+                    testquestion_instance = TestQuestion.objects.create(
+                        test=test_instance,
+                        question=question_instance,
+                        assigned_points=max_points_for_question,
+                        section=test_section_instance
+                    )
+
+                # commented out because currently not supported
+                """
+                elif the_question_type == 'fill_in_multiple_blanks_question':
                     print('')  # this is placeholder for code to extract info from question for table
-                elif the_question_type == 'matching_question':
+                elif the_question_type == 'multiple_dropdowns_question':
                     print('')  # this is placeholder for code to extract info from question for table
                 elif the_question_type == 'numerical_question':
                     print('')  # this is placeholder for code to extract info from question for table
                 elif the_question_type == 'calculated_question':
                     print('')  # this is placeholder for code to extract info from question for table
-                elif the_question_type == 'essay_question':
-                    # mostly done but may need to process feedbacks or comments
 
-                    print('')
                 elif the_question_type == 'file_upload_question':
                     # should be done but may need to process feedbacks or comments
-
                     print('')
                 elif the_question_type == 'text_only_question':
                     # placeholder for any future changes, but 99.9% sure this is done
-
                     print('')
+                """
 
                 #
 
@@ -364,28 +656,50 @@ def parse_qti_xml(request):
 
     course_id = request.POST.get("courseID")
     course_name = request.POST.get("courseName")
-    course_crn = request.POST.get("courseCRN")  # not in database
-    course_semester = request.POST.get("courseSemester")  # not in database
+    course_crn = request.POST.get("courseCRN")
+    course_semester = request.POST.get("courseSemester")
     course_textbook_title = request.POST.get("courseTextbookTitle")
     course_textbook_author = request.POST.get("courseTextbookAuthor")
-    course_textbook_version = request.POST.get("courseTextbookVersion")  # not in database
+    course_textbook_version = request.POST.get("courseTextbookVersion")
     course_textbook_isbn = request.POST.get("courseTextbookISBN")
     course_textbook_link = request.POST.get("courseTextbookLink")
 
-    course_instance, created = Course.objects.get_or_create(
-        course_code=course_id,
+    textbook_instance, created = Textbook.objects.get_or_create(
+        title=course_textbook_title,
+        author=course_textbook_author,
+        version=course_textbook_version,
+        isbn=course_textbook_isbn,
         defaults={
-            "course_name": course_name,
-            "textbook_title": course_textbook_title,
-            "textbook_author": course_textbook_author,
-            "textbook_isbn": course_textbook_isbn,
-            "textbook_link": course_textbook_link,
+            "link": course_textbook_link,
         }
     )
 
-    print(course_id)
-    print(course_name)
-    print(course_instance)
+    course_instance, created = Course.objects.get_or_create(
+        course_id=course_id,
+        defaults={
+            "name": course_name,
+            "crn": course_crn,
+            "sem": course_semester,
+            "textbook": textbook_instance
+        }
+    )
+
+    # Check if the user is authenticated (logged in)
+    if request.user.is_authenticated:
+
+        course_instance.user = request.user # sets field to current user
+        course_instance.save()
+
+        current_user = request.user
+        # Check if teacher already in course
+        if current_user in course_instance.teachers.all():
+            print(f'{current_user.username} teacher already in {course_instance.name} course')
+        else:
+            course_instance.teachers.add(current_user)  # Adds teacher if not in course
+            course_instance.save()  # Updates the Course entry in the database (makes sure it's saved)
+            print(f'{current_user.username} teacher ADDED to {course_instance.name} course')
+    else:
+        print("User is not logged in.")
 
     # 00 End
     # """
@@ -397,7 +711,6 @@ def parse_qti_xml(request):
 
         # Get the first available course (REMOVE AFTER TESTING)
         course_instance = Course.objects.first()
-
         # Used for testing. Remove after
         if course_instance is None:
             course_instance = Course.objects.create(
@@ -447,12 +760,18 @@ def parse_qti_xml(request):
                             #
 
     #
-
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print(execution_time)
     # this is here because the javascript that calls the Parser depends on what it returns
     if file_info is None:
+        print("Success! Created test record")
         return JsonResponse({"Success": "created Test record."}, status=555)
+        
     else:
+        print("File processed successfully!")
         return JsonResponse({"message": "File processed successfully!", "file_info": file_info})
+        
 #
 
 
@@ -467,13 +786,20 @@ def login_view(request):
 def signup_view(request):
     return render(request, 'welcome/signup.html')
 
+@login_required
 def teacher_dashboard(request):
-    return render(request, 'welcome/SBteacher.html')
+    context = {'username': request.user.username}
+    return render(request, 'welcome/SBteacher.html', context)
 
+@login_required
 def publisher_dashboard(request):
-    return render(request, 'welcome/SBpublisher.html')
+    context = {'username': request.user.username}
+    return render(request, 'welcome/SBpublisher.html', context)
 
-
+@login_required
+def webmaster_dashboard(request):
+    context = {'username': request.user.username}
+    return render(request, 'welcome/webmaster.html', context)
 
 
 """

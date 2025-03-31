@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'welcome',
-    'django_extensions',
+#    'django_extensions',
     'rest_framework',
 ]
 
@@ -89,8 +89,8 @@ This will need to change once hooked up to AWS
 #         'ENGINE': 'django.db.backends.mysql',
 #         'NAME': 'quizpressdb1',  # Ensure this matches your database name
 #         'USER': 'dbadmin',
-#         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client
-#         'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
+#         'PASSWORD': # Same as the one you used in the MySQL client 
+#          'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
 #         'PORT': '3306',
 #     }
 # }
@@ -99,17 +99,15 @@ This will need to change once hooked up to AWS
 """
 Local test for database
 """
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
-        'USER': 'root',
-        'PASSWORD': '2319',
-        'HOST': 'localhost',  # Keep as 'localhost' for now
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'NAME': 'MyDbTest',  # Your database name
+        'USER': 'test_user',  # Your MySQL username
+        'PASSWORD': 'yourpassword',  # Your MySQL password
+        'HOST': 'localhost',  # Use 'localhost' for local development
+        'PORT': '3306',  # Default MySQL port
     }
 }
 
@@ -161,3 +159,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+

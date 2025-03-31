@@ -3,6 +3,7 @@ from . import views
 
 
 urlpatterns = [
-    path('load_data/', views.load_data, name='load_data'),
-    path('save_data/', views.save_data, name='save_data')
+    path('fetch_user_data/', views.fetch_user_data, name='fetch_user_data'),
+    path('delete_item/', views.delete_item, name='delete_item'),
+    path('update_user/', views.update_user, name='update_user')
 ]
