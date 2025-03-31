@@ -559,9 +559,9 @@ def parse_qti_xml(request):
                         matching_pair_string = ""
                         if key is not None:
                             matching_pair_string += key
-                        matching_pair_string += "; "
+                        matching_pair_string += ";;;;; "
                         if value is None:
-                            matching_pair_string += ";"
+                            matching_pair_string += ";;;;;"
                         else:
                             matching_pair_string += value
 
