@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -169,8 +168,7 @@ function addCourse() {
             <details>
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
-                <input type="file" id="fileInput">
+                <button class="add-btn" onclick="openImporter('Test', '${courseID}')">Import Test</button>
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
@@ -3762,9 +3760,8 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
         .then(response => response.json())
         .then(data => {
         })
-        .catch(error => console.error("Error:", error));
-        alert("We ran into an error:" + error + "Please make sure to insert a valid QTI zip file");
-    }
+        .catch(error => console.error("Error:", error) );
+}
 
 
 </script>
