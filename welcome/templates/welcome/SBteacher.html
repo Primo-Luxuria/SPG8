@@ -280,7 +280,8 @@ function addCourse() {
         pageNumbersInHeader: false,
         headerText: "",
         footerText: "Please read all questions carefully",
-        coverPageType: 0,
+        coverPageID: 0,
+        coverPage: masterCoverPageList[courseID][0],
         bonusSection: false,
         bonusQuestions: [],
         partStructure: [
@@ -299,11 +300,7 @@ function addCourse() {
 
     if(!masterTextbookList[textbookISBN]){
         let textbook = {
-            chapters: [
-                sections = [
-                    questions = []
-                ]
-            ],
+            questions: [],
             title: textbookTitle,
             author: textbookAuthor,  
             version: textbookVersion,    
@@ -856,7 +853,7 @@ function updateAttachments(courseID) {
 */
 function addTemplate(courseID) {
     const templateName = document.getElementById('nameField').value.trim();
-    const coverPageType = document.getElementById('coverPageSelector').value;
+    const coverPageID = document.getElementById('coverPageSelector').value;
 
     const titleFont = document.getElementById('titleFont').value.trim();
     const titleFontSize = parseInt(document.getElementById('titleFontSize').value, 10);
@@ -885,7 +882,7 @@ function addTemplate(courseID) {
         alert("Error: Font sizes must be valid numbers.");
         return;
     }
-    if (!coverPageType) {
+    if (!coverPageID) {
         alert("Error: You must choose a cover page type.");
         return;
     }
@@ -911,7 +908,8 @@ function addTemplate(courseID) {
         pageNumbersInFooter: pageNumbersInFooter,
         headerText: headerText,
         footerText: footerText,
-        coverPageType: coverPageType,
+        coverPageID: coverPageID,
+        coverPage: masterCoverPageList[courseID][coverPageID],
         partStructure: partStructure,
         bonusSection: bonusSection,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
@@ -1306,6 +1304,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
+        template: masterTemplateList[courseID][templateIndex],
         parts: [],
         attachments: [],
         feedback: []
@@ -1407,7 +1406,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
         masterTemplateList[courseID][templateIndex].published = 1;
-        const coverPageIndex = template.coverPageType;
+        const coverPageIndex = template.coverPageID;
         if (masterCoverPageList[courseID][coverPageIndex]) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
@@ -2651,10 +2650,10 @@ function editTemplate(courseID, templateIndex) {
         return;
     }
     let coverPageIndex = 0;
-    if(!template.coverPageType){
-        coverPageType = 0;
+    if(!template.coverPageID){
+        coverPageID = 0;
     }else{
-        coverPageType = template.coverPageType;
+        coverPageID = template.coverPageID;
     }
 
     const formContent = `
@@ -2742,7 +2741,7 @@ function editTemplate(courseID, templateIndex) {
     // Populate the cover page selector
     updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
-    pageSelector.value = coverPageType;
+    pageSelector.value = coverPageID;
     
     // Populate the parts and sections
     updateParts();
@@ -2772,7 +2771,7 @@ function editTemplate(courseID, templateIndex) {
 */
 function submitEditTemplate(courseID, templateIndex) {
     const templateName = document.getElementById('tempTestName').value.trim();
-    const coverPageType = document.getElementById('coverPageSelector').value;
+    const coverPageID = document.getElementById('coverPageSelector').value;
 
     const titleFont = document.getElementById('titleFont').value.trim();
     const titleFontSize = parseInt(document.getElementById('titleFontSize').value, 10);
@@ -2801,7 +2800,7 @@ function submitEditTemplate(courseID, templateIndex) {
         alert("Error: Font sizes must be valid numbers.");
         return;
     }
-    if (!coverPageType) {
+    if (!coverPageID) {
         alert("Error: You must choose a cover page type.");
         return;
     }
@@ -2846,7 +2845,8 @@ function submitEditTemplate(courseID, templateIndex) {
         pageNumbersInFooter: pageNumbersInFooter,
         headerText: headerText,
         footerText: footerText,
-        coverPageType: coverPageType,
+        coverPageID: coverPageID,
+        coverPage: masterCoverPageList[courseID][coverPageID],
         partStructure: partStructure,
         bonusSection: bonusSection,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
@@ -3238,6 +3238,7 @@ function submitEditedTest(courseID, isPublished, testIndex) {
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
+        template: masterTemplateList[courseID][templateIndex],
         attachments: [],
         parts: [],
         feedback: []
@@ -3345,7 +3346,7 @@ function submitEditedTest(courseID, isPublished, testIndex) {
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
         masterTemplateList[courseID][templateIndex].published = 1;
-        const coverPageIndex = template.coverPageType;
+        const coverPageIndex = template.coverPageID;
         if (masterCoverPageList[courseID][coverPageIndex]) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }

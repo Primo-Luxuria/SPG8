@@ -5,7 +5,6 @@ from django.conf import settings
 from django.db.models import Q, Avg
 
 """
-TEXTBOOK MODEL
 Holds textbook/book details. This model serves as a key connection point for publisher content
 and is referenced by teacher courses.
 """

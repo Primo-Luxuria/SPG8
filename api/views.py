@@ -1,28 +1,21 @@
-from django.shortcuts import render
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, action
+from rest_framework import status
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import JSONParser
 from django.db import transaction
-from django.http import JsonResponse
+from django.contrib.auth.models import User
+from django.db.models import Prefetch
 import json, os
+import traceback
+from decimal import Decimal
+from django.db.models.fields.files import FieldFile
 
 from welcome.models import (
     Course, Textbook, Question, Test, Template, CoverPage, 
-    Attachment, TestQuestion, Options, Answers, UserProfile, Feedback, DynamicQuestionParameter,
+    Attachment, TestQuestion, Options, Answers, UserProfile, Feedback,
     TestPart, TestSection, FeedbackResponse
 )
-from .serializers import (
-    CourseSerializer, TextbookSerializer, QuestionSerializer, 
-    TestSerializer, TemplateSerializer, CoverPageSerializer, 
-    AttachmentSerializer, TestSectionSerializer, TestPartSerializer
-)
 
 
-# Webmaster API behavior
-from django.contrib.auth.models import User
-from django.db.models import Prefetch
 
 @api_view(['POST'])
 @transaction.atomic
@@ -235,14 +228,12 @@ def delete_item(request):
                           status=status.HTTP_400_BAD_REQUEST)
     
     except Exception as e:
-        import traceback
+        
         print(traceback.format_exc())
         return Response({"status": "error", "message": f"Error deleting item: {str(e)}"}, 
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return Response({"status": "error", "message": "Failed to delete item"}, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 
 @api_view(['POST'])
@@ -305,23 +296,50 @@ def fetch_user_data(request):
 
     if role == "teacher":
         courses = Course.objects.filter(teachers=user)
-        question_list = get_question_list('author', [user])
-        test_list = get_test_list('course', courses)
+        master_question_list = get_question_list('course', courses)
+        master_test_list = get_test_list('course', courses)
         template_list = get_template_list('course', courses)
         cpage_list = get_cpage_list('course', courses)
         attachment_list = get_attachment_list('course', courses)
-    
+        container_list = []
+        for course in courses:
+            container_list[course.course_id] = {
+                "id": course.course_id,
+                "crn": course.crn,
+                "name": course.name,
+                "sem": course.sem,
+                "textbook": {
+                    "title": course.textbook.title,
+                    "author":course.textbook.author,
+                    "version":course.textbook.version,
+                    "isbn":course.textbook.isbn,
+                    "link": course.textbook.link,
+                    "questions": []
+                }
+            }
+            textbook = []
+            textbook.append(course.textbook)
+            questions = get_question_list('textbook', textbook)
+            container_list[course.course_id]['textbook']['questions'] = questions
     elif role == "publisher":
         textbooks = Textbook.objects.filter(publisher=user)
-        question_list = get_question_list('author', [user])
-        test_list = get_test_list('textbook', textbooks)
+        master_question_list = get_question_list('textbook', textbooks)
+        master_test_list = get_test_list('textbook', textbooks)
         template_list = get_template_list('textbook', textbooks)
         cpage_list = get_cpage_list('textbook', textbooks)
         attachment_list = get_attachment_list('textbook', textbooks)
-    
+        container_list = []
+        for textbook in textbooks:
+            container_list[textbook.isbn] = {
+                'title': textbook.title,
+                'author': textbook.author,
+                'version': textbook.version,
+                'isbn': textbook.isbn,
+                'link': textbook.link
+            }
     elif role == "webmaster":
-        question_list = [] #Dummy values
-        test_list = []
+        master_question_list = [] #Dummy values
+        master_test_list = []
         template_list = []
         attachment_list = []
         cpage_list = []
@@ -333,15 +351,14 @@ def fetch_user_data(request):
         "username": user.username,
         "password": user.password,
         "role": role,
-        "question_list": json.dumps(question_list, cls=CustomJSONEncoder),
-        "test_list": json.dumps(test_list, cls=CustomJSONEncoder),
+        "question_list": json.dumps(master_question_list, cls=CustomJSONEncoder),
+        "test_list": json.dumps(master_test_list, cls=CustomJSONEncoder),
         "template_list": json.dumps(template_list, cls=CustomJSONEncoder),
         "cpage_list": json.dumps(cpage_list, cls=CustomJSONEncoder),
-        "attachment_list": json.dumps(attachment_list, cls=CustomJSONEncoder)
+        "attachment_list": json.dumps(attachment_list, cls=CustomJSONEncoder),
+        "container_list": json.dumps(container_list, cls=CustomJSONEncoder)
     })
 
-from decimal import Decimal
-from django.core.serializers.json import DjangoJSONEncoder
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if obj is None:
@@ -353,7 +370,6 @@ class CustomJSONEncoder(json.JSONEncoder):
         
         # Handle ImageField or FileField objects safely
         # Check if it's a FileField or ImageField without directly accessing .url
-        from django.db.models.fields.files import FieldFile
         if isinstance(obj, FieldFile):
             return obj.url if obj.name else None
         
@@ -363,6 +379,77 @@ class CustomJSONEncoder(json.JSONEncoder):
         
         # For any other unhandled objects, call the default method of the superclass
         return super().default(obj)
+
+@api_view(['GET'])
+@transaction.atomic
+def save_textbook(request):
+    data = request.data
+    datatext = data.get('textbook', {})
+    newtextbook = Textbook.objects.update_or_create(
+            title=datatext.get('title'),
+            author=datatext.get('author'),
+            version=datatext.get('version'),
+            isbn=datatext.get('isbn'),
+            link=datatext.get('link'),
+            defaults={
+                'title': datatext.get('title'),
+                'author': datatext.get('author'),
+                'version':datatext.get('version'),
+                'isbn':datatext.get('isbn'),
+                'link':datatext.get('link'),
+            }
+        )
+    newtextbook.save()
+
+
+@api_view(['GET'])
+@transaction.atomic
+def save_course(request):
+    data = request.data
+    course = data.get('course', {})
+
+    datatext= course.get('textbook')
+    if Textbook.objects.filter(author=datatext.get('author'), title=datatext.get('title'), version=datatext.get('version'), isbn=datatext.get('isbn')):
+        newtextbook = Textbook.objects.filter(author=datatext.get('author'), title=datatext.get('title'), version=datatext.get('version')).first()
+    else:
+        newtextbook = Textbook.objects.update_or_create(
+            title=datatext.get('title'),
+            author=datatext.get('author'),
+            version=datatext.get('version'),
+            isbn=datatext.get('isbn'),
+            link=datatext.get('link'),
+            defaults={
+                'title': datatext.get('title'),
+                'author': datatext.get('author'),
+                'version':datatext.get('version'),
+                'isbn':datatext.get('isbn'),
+                'link':datatext.get('link'),
+            }
+        )
+        newtextbook.save()
+        
+    newCourse, created = CoverPage.objects.update_or_create(
+        course_id=course.get('id'),
+        crn=course.get('crn'),
+        sem=course.get('sem'),
+        name=course.get('name'),
+        defaults={
+            'course_id': course.get('id'),
+            'crn': course.get('crn'),
+            'name': course.get('name'),
+            'textbook': newtextbook,
+            'sem': course.get('sem')
+        }
+    )
+
+    if created:
+        newCourse.set('user', request.user)
+
+    teacher = request.user
+    newCourse.teachers.add(teacher)
+    newCourse.save()
+
+    return Response({'status': 'success', 'created': created})
 
 def get_cpage_list(field, suite):
     cpage_list = []
@@ -382,6 +469,50 @@ def get_cpage_list(field, suite):
             }
             cpage_list.append(cpage_data)
     return cpage_list
+
+@api_view(['GET'])
+@transaction.atomic
+def save_cpage(request):
+    data = request.data
+    cpage = data.get('coverPage', {})
+    owner_id = data.get('ownerID')
+    owner_role = data.get('ownerRole')
+
+    course = None
+    textbook = None
+
+    if(cpage.published=="1"):
+        return Response({'error': 'Already published!'}, status=400)
+
+    if owner_role == 'teacher':
+        try:
+            course = Course.objects.get(course_id=owner_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=400)
+    elif owner_role == 'publisher':
+        try:
+            textbook = Textbook.objects.get(isbn=owner_id)
+        except Textbook.DoesNotExist:
+            return Response({'error': 'Textbook not found'}, status=400)
+
+    newpage, created = CoverPage.objects.update_or_create(
+        name=cpage.get('name'),
+        testNum=cpage.get('testNum'),
+        defaults={
+            'date': cpage.get('date'),
+            'file': cpage.get('file'),
+            'showFilename': cpage.get('showFilename'),
+            'blank': cpage.get('blank'),
+            'instructions': cpage.get('instructions'),
+            'published': cpage.get('published'),
+            'course': course,
+            'textbook': textbook
+        }
+    )
+    newpage.save()
+
+    return Response({'status': 'success', 'created': created})
+
 
 def get_template_list(field, suite):
     template_list = []
@@ -409,10 +540,76 @@ def get_template_list(field, suite):
             template_list.append(template_data)
     return template_list
 
+@api_view(['GET'])
+@transaction.atomic
+def save_template(request):
+    data = request.data
+    template = data.get('template', {})
+    owner_id = data.get('ownerID')
+    owner_role = data.get('ownerRole')
 
-def get_question_list(field, suite):
-    question_list = []
+    course = None
+    textbook = None
+
+    if(template.published=="1"):
+        return Response({'error': 'Already published!'}, status=400)
+
+    if owner_role == 'teacher':
+        try:
+            course = Course.objects.get(course_id=owner_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=400)
+    elif owner_role == 'publisher':
+        try:
+            textbook = Textbook.objects.get(isbn=owner_id)
+        except Textbook.DoesNotExist:
+            return Response({'error': 'Textbook not found'}, status=400)
+
+    newtemplate, created = Template.objects.update_or_create(
+        name=template.get('name'),
+        defaults= {
+            'name': template.get('name'),
+            'titleFont': template.get('titleFont'),
+            'titleFontSize': template.get('titleFontSize'),
+            'subtitleFont': template.get('subtitleFont'),
+            'subtitleFontSize': template.get('subtitleFontSize'),
+            'bodyFont': template.get('bodyFont'),
+            'bodyFontSize': template.get('bodyFontSize'),
+            'pageNumbersInHeader': template.get('pageNumbersInHeader'),
+            'pageNumbersInFooter': template.get('pageNumbersInFooter'),
+            'headerText': template.get('headerText'),
+            'footerText': template.get('footerText'),
+            'coverPage': template.get('coverPageID'), #NEEDS TO BE EDITED TBD
+            'partStructure': template.get('partStructure'),
+            'bonusSection': template.get('bonusSection'),
+            'published': template.get('published'),
+            course: course,
+            textbook: textbook
+        }
+    )
+    newtemplate.save()
+    return Response({'status': 'success', 'created': created})
+
+@transaction.atomic
+def get_question_list(field, suite): # needs to retrieve the questions from related publisher too
+    master_question_list = {}
     for instance in suite:
+        if (field=="course"):
+            identity = instance.course_id
+        else:
+            identity = instance.isbn
+        
+        question_lists = {
+            'tf': [],
+            'mc': [],
+            'sa': [],
+            'es': [],
+            'ma': [],
+            'ms': [],
+            'fb': []
+        }
+
+        master_question_list[identity] = question_lists
         questions = Question.objects.filter(**{field: instance}).prefetch_related(
                         Prefetch('question_answers',queryset=Answers.objects.all(),to_attr="answers"),
                         Prefetch('feedbacks', queryset=Feedback.objects.all(),to_attr="feedback"))
@@ -448,8 +645,101 @@ def get_question_list(field, suite):
                     "responses": [{"username": r.user.username, "text":r.text,"date":r.date}for r in FeedbackResponse.objects.filter(feedback=f)]
                 }
                 question_data['feedback'].append(feedback_data)
-            question_list.append(question_data)
-    return question_list
+            master_question_list[identity][q.qtype].append(question_data)
+    return master_question_list
+
+@api_view(['GET'])
+@transaction.atomic
+def save_question(request):
+    data = request.data
+    question = data.get('question', {})
+    owner_id = data.get('ownerID')
+    owner_role = data.get('ownerRole')
+
+    course = None
+    textbook = None
+
+    if(question.published=="1"):
+        return Response({'error': 'Already published!'}, status=400)
+
+    if owner_role == 'teacher':
+        try:
+            course = Course.objects.get(course_id=owner_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=400)
+    elif owner_role == 'publisher':
+        try:
+            textbook = Textbook.objects.get(isbn=owner_id)
+        except Textbook.DoesNotExist:
+            return Response({'error': 'Textbook not found'}, status=400)
+
+    newQ, created = Question.objects.update_or_create(
+        name=question.get('text'),
+        course=course,
+        textbook=textbook,
+        defaults= {
+            'text': question.get('text'),
+            'qtype': question.get('qtype'),
+            'score': question.get('score'),
+            'directions': question.get('directions'),
+            'reference': question.get('reference'),
+            'eta': question.get('eta'),
+            'img': question.get('img'),
+            'ansimg': question.get('ansimg'),
+            'comments': question.get('comments'),
+            'chapter': question.get('chapter'),
+            'section': question.get('section'),
+            'published': question.get('published'),
+            'course': course,
+            'textbook': textbook
+        }
+    )
+    newQ.save()
+
+    feedback = question.get('feedback', [])
+    for f in feedback:
+        user = User.objects.filter(username=f['username']) or "UNKNOWN USER"
+        newF, created = Feedback.objects.update_or_create(
+            user=user,
+            comments= f['comments'],
+            defaults={
+                'user': user,
+                'question': newQ,
+                'rating': f.get('rating'),
+                'averageScore': f.get('averageScore'),
+                'comments': f.get('comments'),
+            }
+        )
+        newF.save()
+        responses = f['responses']
+        for r in responses:
+            user = User.objects.filter(username=r['username']) or "UNKNOWN USER"
+            newR, created = Response.objects.update_or_create(
+                user = user,
+                text = r['text'],
+                defaults={
+                    'user': user,
+                    'text': r.get('text'),
+                    'date': r.get('date'),
+                    'feedback': newF
+                }
+            )
+            newR.save()
+
+    options = question.get('options')
+    for o in options:
+        newOption, created = Options.objects.update_or_create(
+            question=newQ,
+            text=o,
+            defaults={
+                'question':newQ,
+                'text':o
+            }
+        )
+        newOption.save()
+
+    return Response({'status': 'success', 'created': created})
+
 
 def get_attachment_list(field, suite):
     attachment_list = []
@@ -463,9 +753,59 @@ def get_attachment_list(field, suite):
             attachment_list.append(attachment_data)
     return attachment_list
 
+@api_view(['GET'])
+@transaction.atomic
+def save_attachment(request):
+    data = request.data
+    attachment = data.get('attachment', {})
+    owner_id = data.get('ownerID')
+    owner_role = data.get('ownerRole')
+
+    course = None
+    textbook = None
+
+    if(attachment.published=="1"):
+        return Response({'error': 'Already published!'}, status=400)
+
+    if owner_role == 'teacher':
+        try:
+            course = Course.objects.get(course_id=owner_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=400)
+    elif owner_role == 'publisher':
+        try:
+            textbook = Textbook.objects.get(isbn=owner_id)
+        except Textbook.DoesNotExist:
+            return Response({'error': 'Textbook not found'}, status=400)
+
+    newattachment, created = Attachment.objects.update_or_create(
+        name=attachment.get('name'),
+        file=attachment.get('file'),
+        defaults={
+            'name': attachment.get('name'),
+            'file': attachment.get('file'),
+            'published': attachment.get('published'),
+            'course': course,
+            'textbook': textbook
+        }
+    )
+    newattachment.save()
+
+    return Response({'status': 'success', 'created': created})
+
+
 def get_test_list(field, suite):
-    test_list = []
+    master_test_list = {}
     for instance in suite:
+        if(field == 'textbook'):
+            identity = instance.isbn
+        else:
+            identity = instance.course_id
+        test_list = {
+            'published': [],
+            'drafts': []
+        }
+        master_test_list[identity] = test_list
         tests = Test.objects.filter(**{field: instance}).select_related('template').prefetch_related(
             'attachments',
             Prefetch('feedbacks', queryset=Feedback.objects.select_related('user'), to_attr="feedback_list"),
@@ -486,7 +826,8 @@ def get_test_list(field, suite):
                 'templateName': t.template.name if t.template else None,
                 'templateIndex': t.templateIndex,
                 'attachments': [{'name': a.name, 'file': str(a.file)} for a in t.attachments.all()],
-                'parts': []
+                'parts': [],
+                'published': t.is_final
             }
 
             # Create a map of test_questions by section for easy access
@@ -550,7 +891,164 @@ def get_test_list(field, suite):
                                  for r in FeedbackResponse.objects.filter(feedback=f).select_related('user')]
                 }
                 test_data['feedback'].append(feedback_data)
-            
-            test_list.append(test_data)
+            if(t.is_final):
+                test_list['published'].append(test_data)
+            else:
+                test_list['published'].append(test_data)
     
-    return test_list
+    return master_test_list
+
+@api_view(['GET'])
+@transaction.atomic
+def save_test(request):
+    data = request.data
+    test = data.get('test', {})
+    owner_id = data.get('ownerID')
+    owner_role = data.get('ownerRole')
+
+    course = None
+    textbook = None
+
+    if(test.published=="1"):
+        return Response({'error': 'Already published!'}, status=400)
+
+    if owner_role == 'teacher':
+        try:
+            course = Course.objects.get(course_id=owner_id)
+        except Course.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=400)
+    elif owner_role == 'publisher':
+        try:
+            textbook = Textbook.objects.get(isbn=owner_id)
+        except Textbook.DoesNotExist:
+            return Response({'error': 'Textbook not found'}, status=400)
+
+    cpage = test.get('template').get('coverpage')
+    newpage, created = CoverPage.objects.update_or_create(
+        name=cpage.get('name'),
+        testNum=cpage.get('testNum'),
+        defaults={
+            'date': cpage.get('date'),
+            'file': cpage.get('file'),
+            'showFilename': cpage.get('showFilename'),
+            'blank': cpage.get('blank'),
+            'instructions': cpage.get('instructions'),
+            'published': cpage.get('published'),
+            'course': course,
+            'textbook': textbook
+        }
+    )
+    newpage.save()
+
+    template = test.get('template')
+    newtemp, created = Template.objects.update_or_create(
+        name=template.get('name'),
+        defaults= {
+            'name': template.get('name'),
+            'titleFont': template.get('titleFont'),
+            'titleFontSize': template.get('titleFontSize'),
+            'subtitleFont': template.get('subtitleFont'),
+            'subtitleFontSize': template.get('subtitleFontSize'),
+            'bodyFont': template.get('bodyFont'),
+            'bodyFontSize': template.get('bodyFontSize'),
+            'pageNumbersInHeader': template.get('pageNumbersInHeader'),
+            'pageNumbersInFooter': template.get('pageNumbersInFooter'),
+            'headerText': template.get('headerText'),
+            'footerText': template.get('footerText'),
+            'coverPage': newpage,
+            'partStructure': template.get('partStructure'),
+            'bonusSection': template.get('bonusSection'),
+            'published': template.get('published'),
+            course: course,
+            textbook: textbook
+        }
+    )
+    newtemp.save()
+
+    newtest, created = Test.objects.update_or_create(
+        name=test.get('name'),
+        testNum=test.get('testNum'),
+        defaults={
+            'name': test.get('name'),
+            'date': test.get('date'),
+            'filename': newpage.file,
+            'is_final': test.get('published'),
+            'course': course,
+            'textbook': textbook
+        }
+    )
+    newtest.save()
+
+    parts = test.get('parts', [])
+    for p in parts:
+        newpart,created = TestPart.objects.update_or_create(
+            test=newtest,
+            defaults={
+                'test': newtest,
+                'part_number': p['partNumber']
+            }
+        )
+        newpart.save()
+        sections = p.get('sections')
+        for s in sections:
+            newsection,created = TestSection.objects.update_or_create(
+                part=newpart,
+                section_number = s.get('sectionNumber'),
+                question_type = s.get('questionType'),
+                defaults={
+                    'part': newpart,
+                    'section_number': s.get('sectionNumber'),
+                    'question_type': s.get('questionType')
+                }
+            )
+            newsection.save()
+            testquestions = s.get('questions')
+            for tq in testquestions:
+                newQ, created = Question.objects.update_or_create(
+                    name=tq.get('text'),
+                    defaults= {
+                        'text': tq.get('text'),
+                        'qtype': tq.get('qtype'),
+                        'score': tq.get('score'),
+                        'directions': tq.get('directions'),
+                        'reference': tq.get('reference'),
+                        'eta': tq.get('eta'),
+                        'img': tq.get('img'),
+                        'ansimg': tq.get('ansimg'),
+                        'comments': tq.get('comments'),
+                        'chapter': tq.get('chapter'),
+                        'section': tq.get('section'),
+                        'published': tq.get('published'),
+                        course: course,
+                        textbook: textbook
+                    }
+                )
+                newQ.save()
+
+                options = tq.get('options')
+                for o in options:
+                    newOption, created = Options.objects.update_or_create(
+                        question=newQ,
+                        text=o,
+                        defaults={
+                            'question':newQ,
+                            'text':o
+                        }
+                    )
+                    newOption.save()
+                
+                newtq, created = TestQuestion.objects.update_or_create(
+                    test=newtest,
+                    section=newsection,
+                    question=newQ,
+                    defaults={
+                        'test':newtest,
+                        'section':newsection,
+                        'question':newQ,
+                        'assigned_points': newQ.score
+                    }
+                )
+                newtq.save()
+
+
+    return Response({'status': 'success', 'created': created})
