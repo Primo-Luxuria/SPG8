@@ -3764,6 +3764,133 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
         .catch(error => console.error("Error:", error) );
 }
 
+    function exportTestToHTML(courseID, testIndex) {
+        // Retrieve the test data from the published tests
+        const publishedTests = masterTestList[courseID].published;
+        if (!publishedTests || publishedTests.length <= testIndex) {
+            alert("Test not found!");
+            return;
+        }
+        const test = publishedTests[testIndex];
+
+        // Build the HTML string for the test export
+        let htmlOutput = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${test.name} - Exported Test</title>
+      <style>
+        body { font-family: Arial, sans-serif; }
+        .test-title { font-size: 24px; color: #0077C8; }
+        .question { margin-bottom: 20px; }
+        .correct-answer { color: red; }
+        .grading-instructions { color: blue; }
+      </style>
+    </head>
+    <body>
+      <h1 class="test-title">${test.name}</h1>
+  `;
+
+        test.parts.forEach(part => {
+            htmlOutput += `<div class="part"><h2>Part ${part.partNumber}</h2>`;
+            part.sections.forEach(section => {
+                htmlOutput += `<div class="section"><h3>Section ${section.sectionNumber} (${section.questionType.toUpperCase()})</h3>`;
+                section.questions.forEach(question => {
+                    htmlOutput += `
+          <div class="question">
+            <p>${question.text}</p>
+            <p class="grading-instructions">${question.directions}</p>
+            <p class="correct-answer">Correct Answer: ${question.answer}</p>
+          </div>
+        `;
+                });
+                htmlOutput += `</div>`;
+            });
+            htmlOutput += `</div>`;
+        });
+
+        htmlOutput += `
+    </body>
+    </html>
+  `;
+
+        // Create a blob and trigger a download
+        const blob = new Blob([htmlOutput], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${test.name}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function exportTestKeyToHTML(courseID, testIndex) {
+        // Retrieve the test data from the published tests
+        const publishedTests = masterTestList[courseID].published;
+        if (!publishedTests || publishedTests.length <= testIndex) {
+            alert("Test not found!");
+            return;
+        }
+        const test = publishedTests[testIndex];
+
+        // Build the HTML string for the test key export
+        let htmlOutput = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${test.name} - Exported Test Key</title>
+      <style>
+        body { font-family: Arial, sans-serif; }
+        .test-title { font-size: 24px; color: #0077C8; }
+        .question { margin-bottom: 20px; }
+        .correct-answer { color: red; }
+        .grading-instructions { color: blue; }
+      </style>
+    </head>
+    <body>
+      <h1 class="test-title">${test.name} - Answer Key</h1>
+  `;
+
+        test.parts.forEach(part => {
+            htmlOutput += `<div class="part"><h2>Part ${part.partNumber}</h2>`;
+            part.sections.forEach(section => {
+                htmlOutput += `<div class="section"><h3>Section ${section.sectionNumber} (${section.questionType.toUpperCase()})</h3>`;
+                section.questions.forEach(question => {
+                    htmlOutput += `
+          <div class="question">
+            <p>${question.text}</p>
+            <p class="correct-answer">Correct Answer: ${question.answer}</p>
+            <p class="grading-instructions">Grading Instructions: ${question.directions}</p>
+          </div>
+        `;
+                });
+                htmlOutput += `</div>`;
+            });
+            htmlOutput += `</div>`;
+        });
+
+        htmlOutput += `
+    </body>
+    </html>
+  `;
+
+        // Create a blob and trigger a download
+        const blob = new Blob([htmlOutput], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${test.name}-Key.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+
 
 </script>
 </body>
