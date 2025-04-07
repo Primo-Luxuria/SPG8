@@ -31,6 +31,9 @@
         <button onclick="filterSearch()">Filter</button>
         <div id="searchContent"></div>
     </div>
+    <div>
+        <button onclick="ajaxExportCsv()">Export Database</button>
+    </div>
 
 <script>
     var userQuestions = {};
@@ -420,7 +423,7 @@ async function deleteItem(element) {
         const course = ["2", 1];
         const test = ["5"];
         const questions = ["1", "2"];
-        const typeOfExport = ["question"];
+        const typeOfExport = ["course"];
 
         // console.log("got here");
 
