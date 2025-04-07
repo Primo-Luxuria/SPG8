@@ -306,6 +306,7 @@ class Template(models.Model):
     headerText = models.TextField(null=True, blank=True)
     footerText = models.TextField(null=True, blank=True)
     coverPage = models.IntegerField(default=0)
+    coverPageData = models.CharField(max_length=1000, unique=False, null=False, default="{name: 'Default 1st Test',testNum: 1,date: `${year}-${month}-${date}`,file: 'defaultpage',showFilename: true, blank: 'TR',instructions: 'Grade according to the rubric, giving partial credit where indicated',published: 1,}", help_text="cover page settings.")
     partStructure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
     bonusSection = models.BooleanField(default=False)
     published = models.BooleanField(default=False)
