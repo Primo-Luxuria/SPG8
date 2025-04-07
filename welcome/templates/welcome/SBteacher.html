@@ -2439,10 +2439,12 @@ function updateTestTabs(courseID) {
             testDiv.dataset.testType = 'published';
 
             testDiv.innerHTML = `
-                <p><strong>${test.name}</strong></p>
-                <p>Template: ${test.templateName}</p>
-                <p>Parts: ${test.parts.length}</p>
-            `;
+      <p><strong>${test.name}</strong></p>
+      <p>Template: ${test.templateName}</p>
+      <p>Parts: ${test.parts.length}</p>
+      <button class="add-btn" onclick="exportTestToHTML('${courseID}', ${index})">Export Test</button>
+      <button class="add-btn" onclick="exportTestKeyToHTML('${courseID}', ${index})">Export Test Key</button>
+    `;
 
             publishedContainer.appendChild(testDiv);
         });
