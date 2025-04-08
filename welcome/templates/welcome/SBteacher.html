@@ -57,6 +57,7 @@
     <button onclick="addCourse()">Add Course</button>
     </div>
 
+    <p style="color:aliceblue" id="errorText"></p>
     <div id="courseList"></div>
 
     <!-- Context Menu for Questions -->
@@ -103,7 +104,7 @@ var masterTextbookList = {};
  * Preconditions: requires users provide all of the course addition data
  * Postconditions: Creates a course UI with tabbed panes for question and test data
 */
-function addCourse() {
+async function addCourse() {
     const courseID = document.getElementById('courseID').value.trim();
     const courseName = document.getElementById('courseName').value.trim();
     const courseCRN = document.getElementById('courseCRN').value.trim();
@@ -265,9 +266,6 @@ function addCourse() {
         published: 1,
     };
 
-    masterCoverPageList[courseID].push(coverPageDefault, coverPageDefault2, coverPageDefault3);
-    updateCoverPages(courseID);
-
     const templateDefault = {
         name: "System Default",
         titleFont: "Times New Roman",
@@ -280,7 +278,8 @@ function addCourse() {
         pageNumbersInHeader: false,
         headerText: "",
         footerText: "Please read all questions carefully",
-        coverPageType: 0,
+        coverPageID: 0,
+        coverPage: masterCoverPageList[courseID][0],
         bonusSection: false,
         bonusQuestions: [],
         partStructure: [
@@ -294,16 +293,10 @@ function addCourse() {
         published: 1 
     };
 
-    masterTemplateList[courseID].push(templateDefault);
-    updateTemplates(courseID);
-
+   
     if(!masterTextbookList[textbookISBN]){
         let textbook = {
-            chapters: [
-                sections = [
-                    questions = []
-                ]
-            ],
+            questions: [],
             title: textbookTitle,
             author: textbookAuthor,  
             version: textbookVersion,    
@@ -319,13 +312,37 @@ function addCourse() {
     }
 
     const thisCourse = {
-        id: courseID,
+        course_id: courseID,
         name: courseName,
         crn: courseCRN,
         sem: courseSemester,
         textbook: masterTextbookList[textbookISBN]
     };
     courseList[courseID] = thisCourse;
+
+    try {
+        await saveData("course", courseList[courseID], courseID);
+        
+        masterCoverPageList[courseID].push(coverPageDefault);
+        await saveData("coverPage", coverPageDefault, courseID);
+        
+        masterCoverPageList[courseID].push(coverPageDefault2);
+        await saveData("coverPage", coverPageDefault2, courseID);
+        
+        masterCoverPageList[courseID].push(coverPageDefault3);
+        await saveData("coverPage", coverPageDefault3, courseID);
+        
+        masterTemplateList[courseID].push(templateDefault);
+        await saveData("template", templateDefault, courseID);
+        updateCoverPages(courseID);
+        updateTemplates(courseID); 
+    } catch (error) {
+        console.error("Error saving course data:", error);
+        alert("There was an error saving your course. Please try again.");
+    }
+    
+ 
+
 }
 
 /**
@@ -477,6 +494,13 @@ function openEditor(type, courseID) {
                     <option value="" disabled selected>Please Select a Template</option>
                 </select> <button id=templateSelection onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"> </div>
+
+            <!-- Test summary section inserted here -->
+            <div id="testSummary">
+            <p><strong>Total Points:</strong> <span id="totalPoints">0</span></p>
+            <p><strong>Estimated Time:</strong> <span id="estimatedTime">0</span> minutes</p>
+            </div>
+
             </div>
             <button class="add-btn" id="testDraftButton" onclick="saveTest('${courseID}', '${false}')">Save as Draft</button>
             <button class="add-btn" id="testPublishButton" onclick="saveTest('${courseID}', '${true}')">Publish Test</button>
@@ -786,7 +810,9 @@ function submitCoverPage(courseID) {
     };
 
     masterCoverPageList[courseID].push(coverPage);
+    let index = masterCoverPageList[courseID].length-1;
     updateCoverPages(courseID);
+    saveData("coverPage", masterCoverPageList[courseID][index], courseID)
     closeModal();
     alert("Added a cover page");
 }
@@ -811,6 +837,8 @@ function submitAttachment(courseID) {
 
     masterAttachmentList[courseID].push({ name: name, file: attachment });
     updateAttachments(courseID);
+    let index = masterAttachmentList[courseID].length-1;
+    saveData("attachment", masterAttachmentList[courseID][index], courseID)
     closeModal();
     alert("Attachment added successfully!");
 }
@@ -856,7 +884,7 @@ function updateAttachments(courseID) {
 */
 function addTemplate(courseID) {
     const templateName = document.getElementById('nameField').value.trim();
-    const coverPageType = document.getElementById('coverPageSelector').value;
+    const coverPageID = document.getElementById('coverPageSelector').value;
 
     const titleFont = document.getElementById('titleFont').value.trim();
     const titleFontSize = parseInt(document.getElementById('titleFontSize').value, 10);
@@ -885,7 +913,7 @@ function addTemplate(courseID) {
         alert("Error: Font sizes must be valid numbers.");
         return;
     }
-    if (!coverPageType) {
+    if (!coverPageID) {
         alert("Error: You must choose a cover page type.");
         return;
     }
@@ -911,10 +939,12 @@ function addTemplate(courseID) {
         pageNumbersInFooter: pageNumbersInFooter,
         headerText: headerText,
         footerText: footerText,
-        coverPageType: coverPageType,
+        coverPageID: coverPageID,
+        coverPage: masterCoverPageList[courseID][coverPageID],
         partStructure: partStructure,
         bonusSection: bonusSection,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        published: 0,
         feedback: []
     };
 
@@ -924,11 +954,12 @@ function addTemplate(courseID) {
 
     masterTemplateList[courseID].bonusQuestions
     masterTemplateList[courseID].push(templateData);
-
+    let templateIndex = masterTemplateList[courseID].length-1;
     alert("Template added successfully!");
     console.log("Saved Template:", templateData);
 
     updateTemplates(courseID);
+    saveData("template", masterTemplateList[courseID][templateIndex], courseID)
     closeModal();
 }
 
@@ -1145,9 +1176,10 @@ function addQuestion(courseID) {
     }
 
     masterQuestionList[courseID][type].push(question);
+    let questionIndex = masterQuestionList[courseID][type].length - 1;
     updateQuestionTabs(type, courseID);
     alert(`Added the ${type.toUpperCase()} Question: \n"${question.text}"\n (Worth ${question.score} points!)`);
-
+    saveData("question", masterQuestionList[courseID][type][questionIndex], courseID);
     closeModal();
 }
 
@@ -1306,6 +1338,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
+        template: masterTemplateList[courseID][templateIndex],
         parts: [],
         attachments: [],
         feedback: []
@@ -1400,14 +1433,17 @@ function saveTest(courseID, isPublished, testIndex = null) {
     const targetList = isPublished === 'true' ? masterTestList[courseID].published : masterTestList[courseID].drafts;
     if (testIndex !== null) {
         targetList[testIndex] = testData;
+        saveData("test", targetList[testIndex], courseID);
     } else {
         targetList.push(testData);
+        let index = targetList.length -1;
+        saveData("test", targetList[index], courseID);
     }
     
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
         masterTemplateList[courseID][templateIndex].published = 1;
-        const coverPageIndex = template.coverPageType;
+        const coverPageIndex = template.coverPageID;
         if (masterCoverPageList[courseID][coverPageIndex]) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
@@ -1421,6 +1457,7 @@ function saveTest(courseID, isPublished, testIndex = null) {
 
     alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
     updateTestTabs(courseID);
+    
     closeModal();
 }
 
@@ -2380,6 +2417,7 @@ function submitEditQuestion(courseID, questionType, questionIndex) {
     
 
     updateQuestionTabs(questionType, courseID);
+    saveData("question", masterQuestionList[courseID][questionType][questionIndex], courseID);
     closeModal();
     alert("Question edited successfully!");
 }
@@ -2653,10 +2691,10 @@ function editTemplate(courseID, templateIndex) {
         return;
     }
     let coverPageIndex = 0;
-    if(!template.coverPageType){
-        coverPageType = 0;
+    if(!template.coverPageID){
+        coverPageID = 0;
     }else{
-        coverPageType = template.coverPageType;
+        coverPageID = template.coverPageID;
     }
 
     const formContent = `
@@ -2744,7 +2782,7 @@ function editTemplate(courseID, templateIndex) {
     // Populate the cover page selector
     updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
-    pageSelector.value = coverPageType;
+    pageSelector.value = coverPageID;
     
     // Populate the parts and sections
     updateParts();
@@ -2774,7 +2812,7 @@ function editTemplate(courseID, templateIndex) {
 */
 function submitEditTemplate(courseID, templateIndex) {
     const templateName = document.getElementById('tempTestName').value.trim();
-    const coverPageType = document.getElementById('coverPageSelector').value;
+    const coverPageID = document.getElementById('coverPageSelector').value;
 
     const titleFont = document.getElementById('titleFont').value.trim();
     const titleFontSize = parseInt(document.getElementById('titleFontSize').value, 10);
@@ -2803,7 +2841,7 @@ function submitEditTemplate(courseID, templateIndex) {
         alert("Error: Font sizes must be valid numbers.");
         return;
     }
-    if (!coverPageType) {
+    if (!coverPageID) {
         alert("Error: You must choose a cover page type.");
         return;
     }
@@ -2848,9 +2886,11 @@ function submitEditTemplate(courseID, templateIndex) {
         pageNumbersInFooter: pageNumbersInFooter,
         headerText: headerText,
         footerText: footerText,
-        coverPageType: coverPageType,
+        coverPageID: coverPageID,
+        coverPage: masterCoverPageList[courseID][coverPageID],
         partStructure: partStructure,
         bonusSection: bonusSection,
+        published: 0,
         bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
         feedback: []
     };
@@ -2862,6 +2902,7 @@ function submitEditTemplate(courseID, templateIndex) {
     console.log("Edited Template:", templateData);
 
     updateTemplates(courseID);
+    saveData("template", masterTemplateList[courseID][templateIndex], courseID)
     closeModal();
 }
 
@@ -2922,7 +2963,7 @@ function editTest(courseID, testIndex) {
     // Set the selected template
     const templateSelector = document.getElementById('templateSelector');
     templateSelector.value = test.templateIndex;
-
+    
     // Populate the test parts
     updateTestParts(courseID);
 
@@ -3195,6 +3236,7 @@ function submitEditAttachment(courseID, attachmentIndex) {
 
     masterAttachmentList[courseID][attachmentIndex].name = newName;
     updateAttachments(courseID);
+    saveData("attachment", masterAttachmentList[courseID][attachmentIndex], courseID);
     closeModal();
     alert("Attachment renamed successfully!");
 }
@@ -3240,6 +3282,7 @@ function submitEditedTest(courseID, isPublished, testIndex) {
         template: template,
         templateName: template.name,
         templateIndex: templateIndex,
+        template: masterTemplateList[courseID][templateIndex],
         attachments: [],
         parts: [],
         feedback: []
@@ -3339,15 +3382,20 @@ function submitEditedTest(courseID, isPublished, testIndex) {
         draftsList.splice(testIndex, 1);
         testData.published = 1;
         publishedList.push(testData);
+        let index = publishedList.length-1;
+        publishedList[index].published = 1;
+        saveData("test", publishedList[index], courseID);
     } else {
         // Update the draft test
         draftsList[testIndex] = testData;
+        draftsList[testIndex].published = 0;
+        saveData("test", draftsList[testIndex], courseID);
     }
 
     // Set the published key for the template and cover page if the test is published
     if (isPublished === 'true') {
         masterTemplateList[courseID][templateIndex].published = 1;
-        const coverPageIndex = template.coverPageType;
+        const coverPageIndex = template.coverPageID;
         if (masterCoverPageList[courseID][coverPageIndex]) {
             masterCoverPageList[courseID][coverPageIndex].published = 1;
         }
@@ -3892,6 +3940,351 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
         URL.revokeObjectURL(url);
     }
 
+
+
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) { // if you find the cookie that starts with csrftoken=
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+    }
+
+document.addEventListener("DOMContentLoaded", reloadData);
+
+async function reloadData() {
+        const searchType = "UN";
+        const searchValue = "{{ username }}";
+        
+        const requestData = {
+            type: searchType,
+            value: searchValue
+        };
+        
+        try {
+            const response = await fetch('/api/fetch_user_data/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify(requestData)
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                renderUserData(data);
+            } else {
+                document.getElementById('errorText').innerText = data.message || 'An error occurred.';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('errorText').innerText = 'An error occurred while fetching data.';
+        }
+}
+
+async function saveData(type, entry, courseID) {
+        let api_call = "";
+        let requestData = {};
+        let headers = {
+            'X-CSRFToken': getCSRFToken()
+        };
+        const formData = new FormData();
+        switch(type){
+            case "course":
+                api_call = "/api/save_course/";
+                requestData.course = entry;
+                headers['Content-Type'] = 'application/json';
+                break;
+            case "question":
+                api_call = "/api/save_question/";
+                requestData.question = entry;
+                headers['Content-Type'] = 'application/json';
+                break;
+            case "template":
+                api_call = "/api/save_template/";
+                requestData.template = entry;
+                headers['Content-Type'] = 'application/json';
+                break;
+            case "coverPage":
+                api_call = "/api/save_cpage/";
+                requestData.coverPage = entry;
+                headers['Content-Type'] = 'application/json';
+                break;
+            case "test":
+                api_call = "/api/save_test/";
+                requestData.test = entry;
+                requestData.template = entry.template;
+                requestData.coverPage = entry.template.coverPage;
+                headers['Content-Type'] = 'application/json';
+                break;
+            case "attachment":
+                api_call = "/api/save_attachment/";
+                formData.append('attachment_name', entry.name);
+                formData.append('attachment_file', entry.file);
+                formData.append('courseID', courseID);
+                formData.append('ownerRole', "teacher");
+                break;
+            default:
+                alert("invalid type to save");
+                return;
+        }
+        
+        
+        requestData.courseID = courseID;
+        requestData.ownerRole = "teacher";
+
+        try {
+            if(type=="attachment"){
+                bodyData = formData;
+            }else{
+                bodyData = JSON.stringify(requestData);
+            }
+            const response = await fetch(`${api_call}`, {
+                method: 'POST',
+                headers: headers,
+                body: bodyData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert(`Saved ${type} successfully!`)
+            } else {
+                document.getElementById('errorText').innerText = data.message || 'An error occurred while saving your data.';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('errorText').innerText = 'An error occurred while fetching the saving service.';
+        }
+}
+
+
+
+function renderUserData(data){
+        masterQuestionList = JSON.parse(data.question_list);
+        masterAttachmentList = JSON.parse(data.attachment_list);
+        masterTemplateList = JSON.parse(data.template_list);
+        masterTestList = JSON.parse(data.test_list);
+        courseList = JSON.parse(data.container_list);
+        masterCoverPageList = JSON.parse(data.cpage_list);
+        console.log("Cover Pages:", masterCoverPageList);
+
+        const courseContainer = document.getElementById("courseList");
+        courseContainer.innerHTML = "";
+        const courseID = document.getElementById('courseID').value.trim();
+        const courseName = document.getElementById('courseName').value.trim();
+        const courseCRN = document.getElementById('courseCRN').value.trim();
+        const courseSemester = document.getElementById('courseSemester').value;
+        const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
+        const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
+        const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
+        const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
+        const textbookLink = document.getElementById('courseTextbookLink').value.trim();
+        for(const [key, value] of Object.entries(courseList)){
+            loadCourse(key);
+        }
+        
+}
+
+function loadCourse(courseID){
+    course = courseList[courseID];
+    courseName = course.name;
+    courseCRN = course.crn;
+    courseSemester = course.sem;
+    textbookTitle = course.textbook.title;
+    textbookAuthor = course.textbook.author;
+    textbookVersion = course.textbook.version;
+    textbookISBN = course.textbook.isbn;
+    textbookLink = course.textbook.link;
+
+    const courseContainer = document.createElement('div');
+        courseContainer.classList.add('course-container');
+        courseContainer.innerHTML = `
+        <details>
+            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+            <details>
+                <summary>Questions</summary>
+            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                </div>
+                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Cover Pages</summary>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
+                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+            </details>
+
+            <details>
+                <summary>Templates</summary>
+                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
+                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+            </details>
+
+            <details>
+                <summary>Tests</summary>
+                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <input type="file" id="fileInput">
+                <div class="tab-container">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                </div>
+                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+            </div>
+            </details>
+
+            <details>
+                <summary>Attachments</summary>
+                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
+                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
+            </details>
+            <button class="remove-btn" onclick="confirmRemoveCourse(this)">Remove Course</button>
+        </details>
+        `;
+
+        document.getElementById('courseList').appendChild(courseContainer);
+        document.getElementById('courseID').value = "";
+        document.getElementById('courseName').value = "";
+        document.getElementById('courseCRN').value = "";
+        document.getElementById('courseSemester').value = "";
+        document.getElementById('courseTextbookTitle').value = "";
+        document.getElementById('courseTextbookAuthor').value = "";
+        document.getElementById('courseTextbookVersion').value = "";
+        document.getElementById('courseTextbookISBN').value = "";
+        document.getElementById('courseTextbookLink').value = "";
+
+        updateCoverPages(courseID);
+        updateTemplates(courseID);
+        updateQuestionTabs("tf",courseID);
+        updateQuestionTabs("ma",courseID);
+        updateQuestionTabs("es",courseID);
+        updateQuestionTabs("sa",courseID);
+        updateQuestionTabs("ms",courseID);
+        updateQuestionTabs("fb",courseID);
+        updateQuestionTabs("mc",courseID);
+        updateTestTabs(courseID);
+        updateAttachments(courseID);
+}
+
+
+// Recalculate total points and estimated time from current question inputs.
+function updateTestSummary() {
+    let totalPoints = 0;
+    let totalTime = 0;
+    
+    document.querySelectorAll('.question-points').forEach(input => {
+      totalPoints += parseInt(input.value, 10) || 0;
+    });
+    document.querySelectorAll('.question-time').forEach(span => {
+      totalTime += parseInt(span.textContent, 10) || 0;
+    });
+    
+    document.getElementById('totalPoints').textContent = totalPoints;
+    document.getElementById('estimatedTime').textContent = totalTime;
+  }
+  
+  // Render selected questions into the test editor, including an editable points input and a non-editable time display.
+  function addSelectedQuestions() {
+    const modalBody = document.getElementById("questionModalBody");
+    const courseID = modalBody.dataset.courseID;
+    const partNum = parseInt(modalBody.dataset.partNum);
+    const sectionNum = parseInt(modalBody.dataset.sectionNum);
+    const type = modalBody.dataset.questionType;
+    
+    const checkboxes = document.querySelectorAll('#questionModalBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+      alert("Please select at least one question.");
+      return;
+    }
+    
+    const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const questions = selectedIndices.map(index => masterQuestionList[courseID][type][index]);
+    
+    const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
+    const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
+    selectedQuestionsDiv.innerHTML = ''; // Clear existing content
+    
+    // Section-wide points input to apply a uniform point value.
+    const sectionSummaryDiv = document.createElement("div");
+    sectionSummaryDiv.innerHTML = `
+        <label>Set All Points for This Section: </label>
+        <input type="number" id="section-${partNum}-${sectionNum}-points" min="1" value="1" style="width: 60px;">
+        <button onclick="updateSectionPoints(${partNum}, ${sectionNum})">Apply</button>
+        <hr>
+    `;
+    selectedQuestionsDiv.prepend(sectionSummaryDiv);
+    
+    // Create UI elements for each selected question.
+    questions.forEach(question => {
+      const questionElement = document.createElement("div");
+      questionElement.style.padding = "8px";
+      questionElement.style.margin = "5px 0";
+      questionElement.style.backgroundColor = "#f0f0f0";
+      questionElement.style.borderRadius = "4px";
+      
+      questionElement.innerHTML = `
+        <p>${question.text}</p>
+        <label>Points: </label>
+        <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;">
+        <br/>
+        <label>Time (minutes): </label>
+        <span class="question-time">${question.eta}</span>
+      `;
+      selectedQuestionsDiv.appendChild(questionElement);
+      
+      // Update totals when a question's points change.
+      const pointsInput = questionElement.querySelector('.question-points');
+      pointsInput.addEventListener('input', updateTestSummary);
+    });
+    
+    updateTestSummary();
+    closeQuestionModal();
+  }
+  
+  // Set all point inputs in the section to a new value and refresh the summary.
+  function updateSectionPoints(partNum, sectionNum) {
+    const newPointValue = document.getElementById(`section-${partNum}-${sectionNum}-points`).value;
+    if (!newPointValue || newPointValue < 1) {
+      alert("Please enter a valid point value.");
+      return;
+    }
+    
+    const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
+    const pointInputs = sectionContainer.querySelectorAll('.question-points');
+    pointInputs.forEach(input => {
+      input.value = newPointValue;
+    });
+    
+    updateTestSummary();
+    alert(`Updated all questions in Part ${partNum + 1}, Section ${sectionNum + 1} to ${newPointValue} points each.`);
+  }
 
 
 </script>

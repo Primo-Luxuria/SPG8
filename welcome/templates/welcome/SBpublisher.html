@@ -3745,6 +3745,14 @@ function addTextbook() {
     const link = document.getElementById('link').value.trim();
     const chapters = document.getElementById('chapters').value.trim();
 
+    const textbook = {
+        'title': title,
+        'author': author,
+        'version': version,
+        'isbn': isbn,
+        'link': link
+    }
+
     if (!title || !author || !version || !isbn || !link || !chapters) {
         alert("All fields (Title, Author, Version, ISBN, Link, and Number of Chapters) are required.");
         return;
@@ -3827,6 +3835,8 @@ function addTextbook() {
     document.getElementById('isbn').value = "";
     document.getElementById('link').value = "";
     document.getElementById('chapters').value = "";
+
+    
 
     const questionList = {
         'tf': [],
