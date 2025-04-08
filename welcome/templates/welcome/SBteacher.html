@@ -494,6 +494,13 @@ function openEditor(type, courseID) {
                     <option value="" disabled selected>Please Select a Template</option>
                 </select> <button id=templateSelection onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"> </div>
+
+            <!-- Test summary section inserted here -->
+            <div id="testSummary">
+            <p><strong>Total Points:</strong> <span id="totalPoints">0</span></p>
+            <p><strong>Estimated Time:</strong> <span id="estimatedTime">0</span> minutes</p>
+            </div>
+
             </div>
             <button class="add-btn" id="testDraftButton" onclick="saveTest('${courseID}', '${false}')">Save as Draft</button>
             <button class="add-btn" id="testPublishButton" onclick="saveTest('${courseID}', '${true}')">Publish Test</button>
@@ -4056,6 +4063,100 @@ function loadCourse(courseID){
         updateTestTabs(courseID);
         updateAttachments(courseID);
 }
+
+
+// Recalculate total points and estimated time from current question inputs.
+function updateTestSummary() {
+    let totalPoints = 0;
+    let totalTime = 0;
+    
+    document.querySelectorAll('.question-points').forEach(input => {
+      totalPoints += parseInt(input.value, 10) || 0;
+    });
+    document.querySelectorAll('.question-time').forEach(span => {
+      totalTime += parseInt(span.textContent, 10) || 0;
+    });
+    
+    document.getElementById('totalPoints').textContent = totalPoints;
+    document.getElementById('estimatedTime').textContent = totalTime;
+  }
+  
+  // Render selected questions into the test editor, including an editable points input and a non-editable time display.
+  function addSelectedQuestions() {
+    const modalBody = document.getElementById("questionModalBody");
+    const courseID = modalBody.dataset.courseID;
+    const partNum = parseInt(modalBody.dataset.partNum);
+    const sectionNum = parseInt(modalBody.dataset.sectionNum);
+    const type = modalBody.dataset.questionType;
+    
+    const checkboxes = document.querySelectorAll('#questionModalBody input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+      alert("Please select at least one question.");
+      return;
+    }
+    
+    const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const questions = selectedIndices.map(index => masterQuestionList[courseID][type][index]);
+    
+    const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
+    const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
+    selectedQuestionsDiv.innerHTML = ''; // Clear existing content
+    
+    // Section-wide points input to apply a uniform point value.
+    const sectionSummaryDiv = document.createElement("div");
+    sectionSummaryDiv.innerHTML = `
+        <label>Set All Points for This Section: </label>
+        <input type="number" id="section-${partNum}-${sectionNum}-points" min="1" value="1" style="width: 60px;">
+        <button onclick="updateSectionPoints(${partNum}, ${sectionNum})">Apply</button>
+        <hr>
+    `;
+    selectedQuestionsDiv.prepend(sectionSummaryDiv);
+    
+    // Create UI elements for each selected question.
+    questions.forEach(question => {
+      const questionElement = document.createElement("div");
+      questionElement.style.padding = "8px";
+      questionElement.style.margin = "5px 0";
+      questionElement.style.backgroundColor = "#f0f0f0";
+      questionElement.style.borderRadius = "4px";
+      
+      questionElement.innerHTML = `
+        <p>${question.text}</p>
+        <label>Points: </label>
+        <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;">
+        <br/>
+        <label>Time (minutes): </label>
+        <span class="question-time">${question.eta}</span>
+      `;
+      selectedQuestionsDiv.appendChild(questionElement);
+      
+      // Update totals when a question's points change.
+      const pointsInput = questionElement.querySelector('.question-points');
+      pointsInput.addEventListener('input', updateTestSummary);
+    });
+    
+    updateTestSummary();
+    closeQuestionModal();
+  }
+  
+  // Set all point inputs in the section to a new value and refresh the summary.
+  function updateSectionPoints(partNum, sectionNum) {
+    const newPointValue = document.getElementById(`section-${partNum}-${sectionNum}-points`).value;
+    if (!newPointValue || newPointValue < 1) {
+      alert("Please enter a valid point value.");
+      return;
+    }
+    
+    const sectionContainer = document.getElementById(`part-${partNum}-section-${sectionNum}-container`);
+    const pointInputs = sectionContainer.querySelectorAll('.question-points');
+    pointInputs.forEach(input => {
+      input.value = newPointValue;
+    });
+    
+    updateTestSummary();
+    alert(`Updated all questions in Part ${partNum + 1}, Section ${sectionNum + 1} to ${newPointValue} points each.`);
+  }
+
 
 </script>
 </body>
