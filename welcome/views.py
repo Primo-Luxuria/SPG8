@@ -4,6 +4,7 @@ import zipfile
 import openpyxl
 from openpyxl.utils import get_column_letter
 from django.db import connection
+import copy
 
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
@@ -235,6 +236,9 @@ def parse_qti_xml(request):
                 # MultiChoice & TF might be able to be combined. For now, they are separate
                 if the_question_type == 'multiple_choice_question':
                     #
+
+                    the_question_type = 'mc'
+
                     node = node.find('.//response_lid')
                     answer_choices_dict = {}
                     for response_label_elem in node.findall('.//response_label'):
@@ -314,6 +318,8 @@ def parse_qti_xml(request):
                                 options_instance.save()  # save/update entry in database
 
                 elif the_question_type == 'true_false_question':
+                    the_question_type = 'tf'
+
                     node = node.find('.//response_lid')
                     answer_choices_dict = {}
                     for response_label_elem in node.findall('.//response_label'):
@@ -369,6 +375,8 @@ def parse_qti_xml(request):
 
                     the_question_type = "fill_in_the_blank"
 
+                    the_question_type = 'fb'
+
                     question_instance = create_question(
                         the_course, the_question_type, question_text_field,
                         max_points_for_question
@@ -412,9 +420,9 @@ def parse_qti_xml(request):
                                     answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
                                     answer_instance.save()
 
-                elif the_question_type == 'multiple_answers_question':
+                elif the_question_type == 'multiple_answers_question': # Multiple Selections question
 
-                    the_question_type = "multiple_selection"
+                    the_question_type = 'ms'
 
                     correct_answer_ident_list = []
                     node = node.find('.//response_lid')
@@ -501,6 +509,9 @@ def parse_qti_xml(request):
 
                 elif the_question_type == 'matching_question': # this is explicitly stated in rubric to support
                     # Canvas requires you to add at least one answer
+
+                    the_question_type = 'ma'
+
                     answer_choices_dict = {} # right side options and their ID's
                     left_side_dict = {}
 
@@ -582,6 +593,8 @@ def parse_qti_xml(request):
 
                 elif the_question_type == 'essay_question':
                     # mostly done but may need to process feedbacks or comments
+
+                    the_question_type = 'es'
 
                     # this creates a question record in database
                     question_instance = create_question(the_course, the_question_type, question_text_field,
@@ -778,6 +791,30 @@ def parse_qti_xml(request):
 #
 
 
+
+def export_preview(request):
+    if request.method == 'POST':
+
+        type_of_preview = request.body.decode('utf-8')  # decode the byte string to normal string
+        print(type_of_preview)
+
+        courses = list(Course.objects.all().values('id', 'name'))
+
+        tests = list(Test.objects.all().values('id', 'name'))
+
+        questions = list(Question.objects.all().values('id', 'text'))
+        options = list(Options.objects.all().values('id', 'text', 'question_id'))
+        answers = list(Answers.objects.all().values('id', 'text', 'question_id'))
+
+        return JsonResponse({
+            'courses': courses,
+            'tests': tests,
+            'questions': questions,
+            'options': options,
+            'answers': answers
+        })
+
+
 def export_csv(request):
     #
 
@@ -889,6 +926,8 @@ def export_csv(request):
                 if id_name not in cache_of_ids_dict and value:  # check if already have id list. also check if result value is not empty
                     cache_of_ids_dict[id_name] = value
         print('')  # just used to space things out for debugging
+
+    print(request.method)
 
     if request.method == "POST":
         try:  # json.loads() will cause an error if the json is invalid or empty
