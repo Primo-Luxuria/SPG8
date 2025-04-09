@@ -8,6 +8,7 @@ import json, os
 import traceback
 from decimal import Decimal
 from django.db.models.fields.files import FieldFile
+from django.apps import apps
 
 from welcome.models import (
     Course, Textbook, Question, Test, Template, CoverPage, 
@@ -15,12 +16,24 @@ from welcome.models import (
     TestPart, TestSection, FeedbackResponse
 )
 
+
+
+def filter_model_data(model_name, incoming_data):
+    Model = apps.get_model('welcome', model_name)
+    model_fields = set(f.name for f in Model._meta.fields)
+    
+    # Keeping only keys that are valid fields for this model
+    filter_data = {k: v for k, v in incoming_data.items() if k in model_fields}
+    
+    return Model.objects.filter(**filter_data)
+
+
 @api_view(['POST'])
 @transaction.atomic
 def delete_item(request):
     data = request.data
-    type = data.get("type", "")
-    if type == "":
+    datatype = data.get("type", "")
+    if datatype == "":
         return Response({"status": "error", "message": "Invalid type"}, status=status.HTTP_400_BAD_REQUEST)
     
     item = data.get("item", "")
@@ -43,24 +56,46 @@ def delete_item(request):
     if role not in ['webmaster', 'teacher', 'publisher']:
         return Response({"status": "error", "message": "Insufficient permissions"}, status=status.HTTP_403_FORBIDDEN)
     
+    if datatype=="course":
+        item["course_id"] = item.pop("id")
+        item.pop("textbook")
+        crn = item["crn"]
+        if type(crn)!='int':
+            item.pop("crn")
+        print(json.dumps(item))
+        courses = filter_model_data("Course", item)
+        for course in courses:
+            course.teachers.remove(user)
+        return Response({"status": "success", "message": "Removed you from Course!"})
+    elif datatype=="textbook":
+        textbook = filter_model_data("Textbook", item)
+        textbook.delete()
+        return Response({"status": "success", "message": "Textbook successfully deleted!"})
+
+    if role=='teacher':
+        courseID = data.get("identity", "")
+        try: 
+            parent = Course.objects.get(course_id=courseID)
+            item["course"]=parent
+        except Course.DoesNotExist:
+            return Response({"status": "error", "message": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
+    elif role=='publisher':
+        isbn = data.get("identity","")
+        try: 
+            parent = Textbook.objects.get(isbn=isbn)
+            item["textbook"] = parent
+        except Textbook.DoesNotExist:
+            return Response({"status": "error", "message": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
+
     try:
         # Handle different item types
-        if type == "test":
+        if datatype == "test":
             test_id = item.get('id') if isinstance(item, dict) else None
             if not test_id:
                 # Try to find test by name and other attributes
                 name = item.get('name')
                 if name:
-                    # For teacher
-                    if role == 'teacher':
-                        tests = Test.objects.filter(name=name, course__teachers=user)
-                    # For publisher
-                    elif role == 'publisher':
-                        tests = Test.objects.filter(name=name, textbook__publisher=user)
-                    # For webmaster
-                    else:
-                        tests = Test.objects.filter(name=name)
-                    
+                    tests = filter_model_data("Test", item)                    
                     if tests.exists():
                         tests.delete()
                         return Response({"status": "success", "message": "Test successfully deleted!"})
@@ -80,21 +115,13 @@ def delete_item(request):
                 test.delete()
                 return Response({"status": "success", "message": "Test successfully deleted!"})
         
-        elif type == "attachment":
+        elif datatype == "attachment":
             attachment_id = item.get('id') if isinstance(item, dict) else None
             if not attachment_id:
                 # Try to find attachment by name
                 name = item.get('name')
                 if name:
-                    # For teacher
-                    if role == 'teacher':
-                        attachments = Attachment.objects.filter(name=name, course__teachers=user)
-                    # For publisher
-                    elif role == 'publisher':
-                        attachments = Attachment.objects.filter(name=name, textbook__publisher=user)
-                    # For webmaster
-                    else:
-                        attachments = Attachment.objects.filter(name=name)
+                    attachments = filter_model_data("Attachment", item)
                     
                     if attachments.exists():
                         for attachment in attachments:
@@ -124,7 +151,7 @@ def delete_item(request):
                 attachment.delete()
                 return Response({"status": "success", "message": "Attachment successfully deleted!"})
         
-        elif type == "question":
+        elif datatype == "question":
             question_id = item.get('id') if isinstance(item, dict) else None
             if not question_id:
                 # Try to find question by text
@@ -132,11 +159,12 @@ def delete_item(request):
                 if text:
                     # For teacher/publisher, only delete their own questions
                     if role in ['teacher', 'publisher']:
-                        questions = Question.objects.filter(text=text, author=user)
-                    # For webmaster
-                    else:
-                        questions = Question.objects.filter(text=text)
-                    
+                        item["author"] = user
+                        test = item
+                        test.pop("course")
+                        test.pop("author")
+                        print(json.dumps(test))
+                        questions = filter_model_data("Question", item)
                     if questions.exists():
                         questions.delete()
                         return Response({"status": "success", "message": "Question successfully deleted!"})
@@ -151,21 +179,14 @@ def delete_item(request):
                 question.delete()
                 return Response({"status": "success", "message": "Question successfully deleted!"})
         
-        elif type == "coverpage":
+        elif datatype == "coverpage":
             coverpage_id = item.get('id') if isinstance(item, dict) else None
             if not coverpage_id:
                 # Try to find coverpage by name
                 name = item.get('name')
                 if name:
                     # For teacher
-                    if role == 'teacher':
-                        coverpages = CoverPage.objects.filter(name=name, course__teachers=user)
-                    # For publisher
-                    elif role == 'publisher':
-                        coverpages = CoverPage.objects.filter(name=name, textbook__publisher=user)
-                    # For webmaster
-                    else:
-                        coverpages = CoverPage.objects.filter(name=name)
+                    coverpages = filter_model_data("CoverPage", item)
                     
                     if coverpages.exists():
                         coverpages.delete()
@@ -186,22 +207,14 @@ def delete_item(request):
                 coverpage.delete()
                 return Response({"status": "success", "message": "Cover page successfully deleted!"})
         
-        elif type == "template":
+        elif datatype == "template":
             template_id = item.get('id') if isinstance(item, dict) else None
             if not template_id:
                 # Try to find template by name
                 name = item.get('name')
                 if name:
-                    # For teacher
-                    if role == 'teacher':
-                        templates = Template.objects.filter(name=name, course__teachers=user)
-                    # For publisher
-                    elif role == 'publisher':
-                        templates = Template.objects.filter(name=name, textbook__publisher=user)
-                    # For webmaster
-                    else:
-                        templates = Template.objects.filter(name=name)
-                    
+                    item["coverPageData"] = item.pop("coverPage")
+                    templates = filter_model_data("Template", item)
                     if templates.exists():
                         templates.delete()
                         return Response({"status": "success", "message": "Template successfully deleted!"})
@@ -222,7 +235,7 @@ def delete_item(request):
                 return Response({"status": "success", "message": "Template successfully deleted!"})
         
         else:
-            return Response({"status": "error", "message": f"Unknown item type: {type}"}, 
+            return Response({"status": "error", "message": f"Unknown item type: {datatype}"}, 
                           status=status.HTTP_400_BAD_REQUEST)
     
     except Exception as e:
@@ -319,6 +332,11 @@ def fetch_user_data(request):
             textbook.append(course.textbook)
             questions = get_question_list('textbook', textbook)
             container_list[course.course_id]['textbook']['questions'] = questions
+            print(json.dumps(master_attachment_list, cls=CustomJSONEncoder) + "\n\n")
+            print(json.dumps(master_question_list, cls=CustomJSONEncoder) + "\n\n")
+            print(json.dumps(master_test_list, cls=CustomJSONEncoder) + "\n\n")
+            print(json.dumps(master_template_list, cls=CustomJSONEncoder) + "\n\n")
+            print(json.dumps(master_cpage_list, cls=CustomJSONEncoder) + "\n\n")
     elif role == "publisher":
         textbooks = Textbook.objects.filter(publisher=user)
         master_question_list = get_question_list('textbook', textbooks)
@@ -341,6 +359,7 @@ def fetch_user_data(request):
         master_template_list = []
         master_attachment_list = []
         master_cpage_list = []
+        container_list = {}
     else:
         return Response({"status": "Failed due to invalid user role"}, status=400)
     

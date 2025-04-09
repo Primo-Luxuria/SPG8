@@ -67,7 +67,11 @@
             const data = await response.json();
 
             if (response.ok) {
-                renderUserData(data);
+                if(data.role!="webmaster"){
+                    renderUserData(data);
+                }else{
+                    document.getElementById('searchContent').innerText = 'Please edit webmaster account info in the shell.';
+                }
             } else {
                 document.getElementById('searchContent').innerText = data.message || 'An error occurred.';
             }
@@ -85,14 +89,27 @@
     }
 
     function renderUserData(data) {
-        userAttachments = JSON.parse(data.attachment_list);
-        userQuestions = JSON.parse(data.question_list);
-        userTemplates = JSON.parse(data.template_list);
-        userCoverPages = JSON.parse(data.cpage_list);
-        userTests = JSON.parse(data.test_list);
+        unsorted_userAttachments = JSON.parse(data.attachment_list);
+        unsorted_userQuestions = JSON.parse(data.question_list);
+        unsorted_userTemplates = JSON.parse(data.template_list);
+        unsorted_userCoverPages = JSON.parse(data.cpage_list);
+        unsorted_userTests = JSON.parse(data.test_list);
         role = data.role;
         username = data.username;
         password = data.password;
+
+
+        console.log(unsorted_userQuestions);
+        console.log(unsorted_userTests);
+        console.log(unsorted_userCoverPages);
+
+        userAttachments = sortList(unsorted_userAttachments, "");
+        userQuestions = sortList(unsorted_userQuestions, "question");
+        userCoverpages = sortList(unsorted_userCoverPages, "");
+        userTemplates = sortList(unsorted_userTemplates, "");
+        userTests = sortList(unsorted_userTests, "test");
+
+
         const container = document.getElementById('searchContent');
         container.innerHTML = `
             <details open>
@@ -370,7 +387,8 @@ async function deleteItem(element) {
             body: JSON.stringify({
                 type: type,
                 item: itemToDelete,
-                username: username
+                username: username,
+                identity: itemToDelete.courseID
             })
         });
         
@@ -401,6 +419,7 @@ async function deleteItem(element) {
             
             // Show success message
             alert(data.message || `${type} successfully deleted.`);
+            updateUserData();
         } else {
             alert(data.message || 'An error occurred while deleting the item.');
         }
@@ -409,6 +428,37 @@ async function deleteItem(element) {
         alert('An error occurred while connecting to the server.');
     }
 }
+
+
+    function sortList(list, type){
+        //Lists are objects sorted by courseID. Each object value is an array containing a list for that course's elements
+        // The exception to this is test/questions, in which each list is an object containing an object containing arrays listing the elements 
+        let newList = []
+        for(courseID in list){
+            switch(type){
+            case "test":
+            case "question": 
+                course = list[courseID];
+                for(subList in course){
+                    for(let i=0;i<course[subList].length;i++){
+                        newList.push(course[subList][i]);
+                        newList[newList.length-1].courseID = courseID
+                    }
+                }
+            break;
+            default: 
+                for(let i = 0;i<list[courseID].length;i++){
+                        newList.push(list[courseID][i]);
+                        newList[newList.length-1].courseID = courseID
+                }
+            }    
+        }
+        return newList;
+    }
+
+
+
+
 
     // function to export parts of database or entire database
     // cannot do multiple export types
