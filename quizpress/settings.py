@@ -27,6 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['54.156.75.85', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -94,6 +95,8 @@ DATABASES = {
         'PORT': '3306',
     }
 }
+
+
 
 
 
