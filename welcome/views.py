@@ -791,6 +791,30 @@ def parse_qti_xml(request):
 #
 
 
+
+def export_preview(request):
+    if request.method == 'POST':
+
+        type_of_preview = request.body.decode('utf-8')  # decode the byte string to normal string
+        print(type_of_preview)
+
+        courses = list(Course.objects.all().values('id', 'name'))
+
+        tests = list(Test.objects.all().values('id', 'name'))
+
+        questions = list(Question.objects.all().values('id', 'text'))
+        options = list(Options.objects.all().values('id', 'text', 'question_id'))
+        answers = list(Answers.objects.all().values('id', 'text', 'question_id'))
+
+        return JsonResponse({
+            'courses': courses,
+            'tests': tests,
+            'questions': questions,
+            'options': options,
+            'answers': answers
+        })
+
+
 def export_csv(request):
     #
 
@@ -902,6 +926,8 @@ def export_csv(request):
                 if id_name not in cache_of_ids_dict and value:  # check if already have id list. also check if result value is not empty
                     cache_of_ids_dict[id_name] = value
         print('')  # just used to space things out for debugging
+
+    print(request.method)
 
     if request.method == "POST":
         try:  # json.loads() will cause an error if the json is invalid or empty

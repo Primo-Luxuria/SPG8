@@ -32,7 +32,7 @@
         <div id="searchContent"></div>
     </div>
     <div>
-        <button onclick="ajaxExportCsv()">Export Database</button>
+        <button onclick="openPreviewMenu()">Export Database</button>
     </div>
 
 <script>
@@ -47,17 +47,17 @@
     async function filterSearch() {
         const searchType = document.getElementById("searchSelector").value;
         const searchValue = document.getElementById("searchField").value.trim();
-        
+
         if (!searchValue) {
             alert("Please enter a search value.");
             return;
         }
-        
+
         const requestData = {
             type: searchType,
             value: searchValue
         };
-        
+
         try {
             const response = await fetch('/api/fetch_user_data/', {
                 method: 'POST',
@@ -70,7 +70,11 @@
             const data = await response.json();
 
             if (response.ok) {
-                renderUserData(data);
+                if(data.role!="webmaster"){
+                    renderUserData(data);
+                }else{
+                    document.getElementById('searchContent').innerText = 'Please edit webmaster account info in the shell.';
+                }
             } else {
                 document.getElementById('searchContent').innerText = data.message || 'An error occurred.';
             }
@@ -88,23 +92,36 @@
     }
 
     function renderUserData(data) {
-        userAttachments = JSON.parse(data.attachment_list);
-        userQuestions = JSON.parse(data.question_list);
-        userTemplates = JSON.parse(data.template_list);
-        userCoverPages = JSON.parse(data.cpage_list);
-        userTests = JSON.parse(data.test_list);
+        unsorted_userAttachments = JSON.parse(data.attachment_list);
+        unsorted_userQuestions = JSON.parse(data.question_list);
+        unsorted_userTemplates = JSON.parse(data.template_list);
+        unsorted_userCoverPages = JSON.parse(data.cpage_list);
+        unsorted_userTests = JSON.parse(data.test_list);
         role = data.role;
         username = data.username;
         password = data.password;
+
+
+        console.log(unsorted_userQuestions);
+        console.log(unsorted_userTests);
+        console.log(unsorted_userCoverPages);
+
+        userAttachments = sortList(unsorted_userAttachments, "");
+        userQuestions = sortList(unsorted_userQuestions, "question");
+        userCoverpages = sortList(unsorted_userCoverPages, "");
+        userTemplates = sortList(unsorted_userTemplates, "");
+        userTests = sortList(unsorted_userTests, "test");
+
+
         const container = document.getElementById('searchContent');
         container.innerHTML = `
             <details open>
                 <summary>User Information</summary>
                 <p>Enter New Username for ${username}</p>
-                <input id="unchange" type="text" value="${data.username}"> 
+                <input id="unchange" type="text" value="${data.username}">
                 <input type="checkbox" id="checkUN">
                 <p>Enter New Password:</p>
-                <input id="pwchange" type="text"> 
+                <input id="pwchange" type="text">
                 <input type="checkbox" id="checkPW"><br>
                 <p>"Check the box of either (or both) field(s) you wish to update"</p>
                 <button onclick="updateUserData()">Update User Data</button><br>
@@ -141,20 +158,20 @@
             let p = document.createElement("p");
             p.innerHTML = `Question: ${userQuestions[i].text}`;
             div.appendChild(p);
-            
+
             // Add delete button
             let deleteBtn = document.createElement("button");
             deleteBtn.className = "remove-btn";
             deleteBtn.textContent = "Delete Question";
             deleteBtn.onclick = function() { deleteItem(this); };
             div.appendChild(deleteBtn);
-            
+
             div.dataset.index = i;
             div.dataset.type = "question";
             questionContainer.appendChild(div);
             }
         }
-    
+
         // Similar updates for other content types
         testContainer = document.getElementById("test-container");
         if (userTests.length === 0) {
@@ -167,20 +184,20 @@
                 let p = document.createElement("p");
                 p.innerHTML = `Test: ${userTests[i].name}`;
                 div.appendChild(p);
-            
+
                 // Add delete button
                 let deleteBtn = document.createElement("button");
                 deleteBtn.className = "remove-btn";
                 deleteBtn.textContent = "Delete Test";
                 deleteBtn.onclick = function() { deleteItem(this); };
                 div.appendChild(deleteBtn);
-            
+
                 div.dataset.index = i;
                 div.dataset.type = "test";
                 testContainer.appendChild(div);
             }
         }
-    
+
         // Repeat similar pattern for templates, cover pages, and attachments
         templateContainer = document.getElementById("template-container");
         if (userTemplates.length === 0) {
@@ -193,19 +210,19 @@
                 let p = document.createElement("p");
                 p.innerHTML = `Template: ${userTemplates[i].name}`;
                 div.appendChild(p);
-                
+
                 let deleteBtn = document.createElement("button");
                 deleteBtn.className = "remove-btn";
                 deleteBtn.textContent = "Delete Template";
                 deleteBtn.onclick = function() { deleteItem(this); };
                 div.appendChild(deleteBtn);
-                
+
                 div.dataset.index = i;
                 div.dataset.type = "template";
                 templateContainer.appendChild(div);
             }
         }
-        
+
         coverpageContainer = document.getElementById("coverpage-container");
         if (userCoverPages.length === 0) {
             coverpageContainer.innerHTML = "No cover pages yet...";
@@ -217,19 +234,19 @@
                 let p = document.createElement("p");
                 p.innerHTML = `Cover Page: ${userCoverPages[i].name}`;
                 div.appendChild(p);
-                
+
                 let deleteBtn = document.createElement("button");
                 deleteBtn.className = "remove-btn";
                 deleteBtn.textContent = "Delete Cover Page";
                 deleteBtn.onclick = function() { deleteItem(this); };
                 div.appendChild(deleteBtn);
-                
+
                 div.dataset.index = i;
                 div.dataset.type = "coverpage";
                 coverpageContainer.appendChild(div);
             }
         }
-    
+
         attachmentContainer = document.getElementById("attachment-container");
         if (userAttachments.length === 0) {
             attachmentContainer.innerHTML = "No attachments yet...";
@@ -241,13 +258,13 @@
                 let p = document.createElement("p");
                 p.innerHTML = `Attachment: ${userAttachments[i].name}`;
                 div.appendChild(p);
-                
+
                 let deleteBtn = document.createElement("button");
                 deleteBtn.className = "remove-btn";
                 deleteBtn.textContent = "Delete Attachment";
                 deleteBtn.onclick = function() { deleteItem(this); };
                 div.appendChild(deleteBtn);
-                
+
                 div.dataset.index = i;
                 div.dataset.type = "attachment";
                 attachmentContainer.appendChild(div);
@@ -278,10 +295,10 @@ async function updateUserData(){
     const newUN = document.getElementById("unchange").value.trim();
     const UNchecked = document.getElementById("checkUN").checked;
     let data = [];
-    
+
     let pw = password;  // Default to the existing password
     let un = username;  // Default to the existing username
-    
+
     if(PWchecked){
         if(newPW == ""){
             alert("Invalid password");
@@ -334,35 +351,40 @@ async function deleteItem(element) {
     const parentDiv = element.closest('div[data-type]');
     const type = parentDiv.dataset.type;
     const index = parseInt(parentDiv.dataset.index);
-    
+
     // Get the appropriate item based on type and index
     let itemToDelete;
     switch(type) {
         case 'question':
+            type="Question";
             itemToDelete = userQuestions[index];
             break;
         case 'test':
+            type="Test";
             itemToDelete = userTests[index];
             break;
         case 'template':
+            type="Template";
             itemToDelete = userTemplates[index];
             break;
         case 'coverpage':
+            type="CoverPage";
             itemToDelete = userCoverPages[index];
             break;
         case 'attachment':
+            type="Attachment";
             itemToDelete = userAttachments[index];
             break;
         default:
             console.error('Unknown item type:', type);
             return;
     }
-    
+
     // Confirm deletion
     if (!confirm(`Are you sure you want to delete this ${type}?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch('/api/delete_item/', {
             method: 'POST',
@@ -371,14 +393,15 @@ async function deleteItem(element) {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
-                type: type,
-                item: itemToDelete,
-                username: username
+                model_type: type,
+                id: itemToDelete.id,
+                username: username,
+                identity: itemToDelete.courseID
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
             // Remove the item from the local array
             switch(type) {
@@ -398,12 +421,13 @@ async function deleteItem(element) {
                     userAttachments.splice(index, 1);
                     break;
             }
-            
+
             // Remove the element from the DOM
             parentDiv.remove();
-            
+
             // Show success message
             alert(data.message || `${type} successfully deleted.`);
+            updateUserData();
         } else {
             alert(data.message || 'An error occurred while deleting the item.');
         }
@@ -413,19 +437,79 @@ async function deleteItem(element) {
     }
 }
 
+
+    function sortList(list, type){
+        //Lists are objects sorted by courseID. Each object value is an array containing a list for that course's elements
+        // The exception to this is test/questions, in which each list is an object containing an object containing arrays listing the elements 
+        let newList = []
+        for(courseID in list){
+            switch(type){
+            case "test":
+            case "question": 
+                course = list[courseID];
+                for(subList in course){
+                    for(let i=0;i<course[subList].length;i++){
+                        newList.push(course[subList][i]);
+                        newList[newList.length-1].courseID = courseID
+                    }
+                }
+            break;
+            default: 
+                for(let i = 0;i<list[courseID].length;i++){
+                        newList.push(list[courseID][i]);
+                        newList[newList.length-1].courseID = courseID
+                }
+            }    
+        }
+        return newList;
+    }
+
+
+
+
+
     // function to export parts of database or entire database
     // cannot do multiple export types
     // valid export types are: 'course', 'test', 'question', 'all courses', 'everything'
     // 'everything' is meant ONLY for WEBMASTER
+    // for now, THERE IS NO 'all courses' EXPORT TYPE (in javascript)
     // relies on a list of ids being sent. only 1 list of ids should be sent
-    function ajaxExportCsv() {
-        // these are lists of IDs for each (1st column in database)
-        const course = ["2", 1];
-        const test = ["5"];
-        const questions = ["1", "2"];
-        const typeOfExport = ["course"];
+    function ajaxExportCsv(exportType) {
 
-        // console.log("got here");
+        // /*
+        // these are lists of IDs for each (1st column in database)
+        let course = [];
+        let test = [];
+        let questions = [];
+        // const typeOfExport = ["course"]; // used for testing just backend
+        // */
+
+        if (exportType === 'course') {
+            const checkboxes = document.querySelectorAll('input[name="courseExportSelect"]:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            course = selectedIds;
+        }
+        else if (exportType === 'test') {
+            const checkboxes = document.querySelectorAll('input[name="testExportSelect"]:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            test = selectedIds;
+        }
+        else if (exportType === 'question') {
+            const checkboxes = document.querySelectorAll('input[name="questionExportSelect"]:checked');
+            const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+            questions = selectedIds;
+        }
+        else if (exportType === 'all courses') {
+            //
+        }
+        else if (exportType === 'everything') {
+            //
+        }
+        else {
+            // wrong type handling goes here
+        }
+
+        const typeOfExport = [exportType]
 
         fetch("/export-csv/", {
             method: "POST",
@@ -460,6 +544,120 @@ async function deleteItem(element) {
 
     }
 
+    function openPreviewMenu() {
+        document.getElementById("previewMenu").style.display = "flex";
+    }
+
+    function closePreviewMenu() {
+        document.getElementById("previewMenu").style.display = "none";
+        document.getElementById("selectionMenu").style.display = "none";
+        document.getElementById("selectionMenu").innerHTML = "";
+    }
+
+    function loadActualPreview(whatToLoad) {
+        document.getElementById("selectionMenu").style.display = "flex";
+
+        fetch('/export_preview/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: whatToLoad
+        })
+
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById("selectionMenu");
+            container.innerHTML = ""; // Clear
+
+            // If Courses
+            if (whatToLoad === 'courses') {
+                container.innerHTML += `<h3>Courses</h3>`;
+                if (data.courses && data.courses.length > 0) {
+                    data.courses.forEach(course => {
+                        container.innerHTML += `<div><input type="checkbox" name="courseExportSelect" value="${course.id}"><strong>${course.name}</strong></input></div>`;
+                    });
+                    container.innerHTML += '<button onclick="ajaxExportCsv(\'course\')">Export</button>';
+                } else {
+                    container.innerHTML += `<p>No courses found.</p>`;
+                }
+            }
+
+            // If Tests
+            else if (whatToLoad === 'tests') {
+                container.innerHTML += `<h3>Tests</h3>`;
+                if (data.tests && data.tests.length > 0) {
+                    data.tests.forEach(test => {
+                        container.innerHTML += `<div><input type="checkbox" name="testExportSelect" value="${test.id}"><strong>${test.name}</strong></input></div>`;
+                    });
+                    container.innerHTML += '<button onclick="ajaxExportCsv(\'test\')">Export</button>';
+                } else {
+                    container.innerHTML += `<p>No tests found.</p>`;
+                }
+            }
+
+            // If Questions
+            else if (whatToLoad === 'questions') {
+                container.innerHTML += `<h3>Questions</h3>`;
+                if (data.questions && data.questions.length > 0) {
+                    data.questions.forEach(q => {
+                        container.innerHTML += `<div><input type="checkbox" name="questionExportSelect" value="${q.id}">${q.text}</input></div>`;
+
+                        /*
+                        // options and answers SHOULD go here
+                        data.options.forEach(o => {
+                            if (o.question_id === q.id) {
+                                container.innerHTML += `<div>${o.text}</div>`;
+                            }
+                        });
+
+                        data.answers.forEach(a => {
+                            if (a.question_id === q.id) {
+                                container.innerHTML += `<div>${a.text}</div>`;
+                            }
+                        });
+                        // end of q & a here
+                         */
+
+                    });
+                    container.innerHTML += '<button onclick="ajaxExportCsv(\'question\')">Export</button>';
+                } else {
+                    container.innerHTML += `<p>No questions found.</p>`;
+                }
+            }
+            else {
+                console.log("Wrong parameter value given to loadActualPreview function");
+            }
+
+        })
+        .catch(err => {
+            console.error("Error fetching [] preview:", err);
+            document.getElementById("selectionMenu").innerHTML = "<p>Failed to load [] data.</p>";
+        });
+    }
+
+
 </script>
+
+    <div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
+            <h2>Export Preview Menu</h2>
+            <button onclick="closePreviewMenu()" style="float:right;">Close</button>
+            <div>
+                <button onclick="loadActualPreview('courses')">Courses</button>
+                <button onclick="loadActualPreview('tests')">Tests</button>
+                <button onclick="loadActualPreview('questions')">Questions</button>
+                <button onclick="ajaxExportCsv('all courses')">All Courses</button>
+                <button onclick="ajaxExportCsv('everything')">Entire Database</button>
+            </div>
+            <!-- since this div container style's display will be set to "flex", flex-direction: column makes it so
+                 the items will be populated/grow vertically. by default, flex-container items grow horizontally -->
+            <div id="selectionMenu" style="display:none; flex-direction: column; gap: 10px;">
+                <!-- placeholder -->
+            </div>
+        </div>
+    </div>
+
+
 </body>
 </html>

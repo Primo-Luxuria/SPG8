@@ -12,7 +12,7 @@ class Textbook(models.Model):
     title = models.CharField(max_length=300)
     author = models.CharField(max_length=300, blank=True, null=True)
     version = models.CharField(max_length=300, blank=True, null=True)
-    isbn = models.CharField(max_length=300, blank=True, null=True)
+    isbn = models.CharField(max_length=300, blank=True, null=True, unique=True)
     link = models.URLField(blank=True, null=True)
     publisher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -77,7 +77,8 @@ class Course(models.Model):
     course_id = models.CharField(
         max_length=50,
         help_text='e.g: CS499',
-        default='CS499'
+        default='CS499',
+        unique=True
     )
     name = models.CharField(
         max_length=250,
@@ -223,7 +224,8 @@ class Options(models.Model):
     )
     text = models.TextField(help_text="Answer option text", null=True)
     image = models.ImageField(upload_to='option_images/', null=True, blank=True, help_text="Optional image for the option (extra support).")
-
+    pair = models.JSONField(null=True, blank=True, help_text="JSON representation of matching pairs")
+    order = models.IntegerField(default=0)
     def __str__(self):
         return self.text or "Option"
 
@@ -245,6 +247,8 @@ class Answers(models.Model):
     answer_graphic = models.ImageField(upload_to='answer_graphics/', null=True, blank=True)
     response_feedback_text = models.TextField(null=True, blank=True)
     response_feedback_graphic = models.ImageField(null=True, blank=True)
+    pair = models.JSONField(null=True, blank=True, help_text="JSON representation of matching pairs")
+    
 
     def __str__(self):
         return self.text or "Answer"
@@ -294,7 +298,10 @@ class Template(models.Model):
         blank=True,
         help_text="Textbook associated with this template (publisher content)."
     )
-    name = models.CharField(max_length=200, unique=True, help_text="Template name.")
+    name = models.CharField(max_length=200, help_text="Template name.", null=True, blank=True)
+    nameTag = models.CharField(max_length=200, help_text="Template name tag.", null=True, blank=True)
+    dateTag = models.CharField(max_length=200, help_text="Template date tag.", null=True, blank=True)
+    courseTag = models.CharField(max_length=200, help_text="Template course tag.", null=True, blank=True)
     titleFont = models.CharField(max_length=100, default="Arial")
     titleFontSize = models.IntegerField(default=48)
     subtitleFont = models.CharField(max_length=100, default="Arial")
@@ -305,11 +312,11 @@ class Template(models.Model):
     pageNumbersInFooter = models.BooleanField(default=False)
     headerText = models.TextField(null=True, blank=True)
     footerText = models.TextField(null=True, blank=True)
-    coverPage = models.IntegerField(default=0)
-    coverPageData = models.CharField(max_length=1000, unique=False, null=False, default="{name: 'Default 1st Test',testNum: 1,date: `${year}-${month}-${date}`,file: 'defaultpage',showFilename: true, blank: 'TR',instructions: 'Grade according to the rubric, giving partial credit where indicated',published: 1,}", help_text="cover page settings.")
+    coverPageID = models.IntegerField(default=0)
     partStructure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
     bonusSection = models.BooleanField(default=False)
     published = models.BooleanField(default=False)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -353,6 +360,7 @@ class CoverPage(models.Model):
     )
     instructions = models.TextField(blank=True, null=True, help_text="Grading instructions for the answer key.")
     published = models.BooleanField(default=False)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} - {self.testNum}"
@@ -383,7 +391,8 @@ class Attachment(models.Model):
     name = models.CharField(max_length=300, help_text="Attachment name")
     file = models.FileField(upload_to="attachments/")
     published = models.BooleanField(default=False)
-    
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
     def __str__(self):
         return self.file.name
 
@@ -420,6 +429,8 @@ class Test(models.Model):
         null=True,
         blank=True
     )
+
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     attachments = models.ManyToManyField(Attachment, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -522,6 +533,7 @@ class Feedback(models.Model):
     rating = models.IntegerField(choices=RATING_CHOICES, null=True, blank=True)
     averageScore = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     comments = models.TextField(null=True, blank=True)
+    time = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
