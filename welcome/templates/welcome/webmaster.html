@@ -356,18 +356,23 @@ async function deleteItem(element) {
     let itemToDelete;
     switch(type) {
         case 'question':
+            type="Question";
             itemToDelete = userQuestions[index];
             break;
         case 'test':
+            type="Test";
             itemToDelete = userTests[index];
             break;
         case 'template':
+            type="Template";
             itemToDelete = userTemplates[index];
             break;
         case 'coverpage':
+            type="CoverPage";
             itemToDelete = userCoverPages[index];
             break;
         case 'attachment':
+            type="Attachment";
             itemToDelete = userAttachments[index];
             break;
         default:
@@ -388,8 +393,8 @@ async function deleteItem(element) {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
-                type: type,
-                item: itemToDelete,
+                model_type: type,
+                id: itemToDelete.id,
                 username: username,
                 identity: itemToDelete.courseID
             })

@@ -16,6 +16,19 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+# Static URL for referencing in templates
+STATIC_URL = '/static/'
+
+# This is where collectstatic will copy files 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# This is where Django will look for static files in development
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'welcome/static'),
+]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -37,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'welcome',
-#    'django_extensions',
+   # 'django_extensions',
     'rest_framework',
 ]
 
@@ -115,9 +128,9 @@ DATABASES = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'MyDbTest',  # Your database name
-        'USER': 'test_user',  # Your MySQL username
-        'PASSWORD': 'yourpassword',  # Your MySQL password
+        'NAME': 'quizpressdb',  # Your database name
+        'USER': 'root',  # Your MySQL username
+        'PASSWORD': 'Conductorofmanydreams1!',  # Your MySQL password
         'HOST': 'localhost',  # Use 'localhost' for local development
         'PORT': '3306',  # Default MySQL port
     }

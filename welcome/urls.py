@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
-
+from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -11,4 +12,4 @@ urlpatterns = [
     path('webmaster-dashboard/', views.webmaster_dashboard, name='webmaster_dashboard'),
     path('login-handler/', views.login_handler, name='login_handler'),
     path('signup-handler/', views.signup_handler, name='signup_handler'),
-]
+]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
