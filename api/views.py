@@ -147,34 +147,32 @@ def update_user(request):
     return Response({"status": "success", "message": "User updated successfully"})
 
 @api_view(['POST'])
-@transaction.atomic
 def fetch_user_data(request):
     data = request.data
     request_type = data.get('type', '')
     value = data.get('value', '')
 
-    if request_type == "UN":
-        try:
+    # Step 1: Get user
+    try:
+        if request_type == "UN":
             user = User.objects.get(username=value)
-        except User.DoesNotExist:
-            return Response({"status": "User not found"}, status=404)
-
-    elif request_type == "ID":
-        try:
+        elif request_type == "ID":
             user = User.objects.get(id=value)
-        except User.DoesNotExist:
-            return Response({"status": "User not found"}, status=404)
-    else:
-        return Response({"status": "INVALID REQUEST TYPE"}, status=400)
-    
+        else:
+            return Response({"status": "INVALID REQUEST TYPE"}, status=400)
+    except User.DoesNotExist:
+        return Response({"status": "User not found"}, status=404)
+
+    # Step 2: Get UserProfile
     try:
         userpf = UserProfile.objects.get(user=user)
     except UserProfile.DoesNotExist:
         return Response({"status": "UserProfile not found"}, status=404)
-    
+
     role = userpf.role
-    
-    # Initialize data structures
+    print("Role:", role)
+
+    # Initialize shared vars
     master_question_list = {}
     master_test_list = {}
     master_template_list = {}
@@ -185,100 +183,92 @@ def fetch_user_data(request):
     try:
         if role == "teacher":
             courses = Course.objects.filter(teachers=user).select_related('textbook')
-            
-            if not courses:
-                return Response({"status": "No courses found for this teacher"}, status=404)
-                
+
+            # Run this OUTSIDE the atomic block
             master_question_list = get_question_list('course', courses)
-            master_test_list = get_test_list('course', courses)
-            master_template_list = get_template_list('course', courses)
-            master_cpage_list = get_cpage_list('course', courses)
-            master_attachment_list = get_attachment_list('course', courses)
-            
-            for course in courses:
-                if not course.textbook:
+
+            with transaction.atomic():
+                master_test_list = get_test_list('course', courses)
+                master_template_list = get_template_list('course', courses)
+                master_cpage_list = get_cpage_list('course', courses)
+                master_attachment_list = get_attachment_list('course', courses)
+
+                for course in courses:
+                    textbook_data = None
+                    if course.textbook:
+                        textbook_data = {
+                            "title": course.textbook.title,
+                            "author": course.textbook.author,
+                            "version": course.textbook.version,
+                            "isbn": course.textbook.isbn,
+                            "link": course.textbook.link
+                        }
+
                     container_list[course.course_id] = {
                         "id": course.course_id,
                         "crn": course.crn,
                         "name": course.name,
                         "sem": course.sem,
-                        "textbook": None
-                    }
-                    continue
-                    
-                container_list[course.course_id] = {
-                    "id": course.course_id,
-                    "crn": course.crn,
-                    "name": course.name,
-                    "sem": course.sem,
-                    "textbook": {
-                        "title": course.textbook.title,
-                        "author": course.textbook.author,
-                        "version": course.textbook.version,
-                        "isbn": course.textbook.isbn,
-                        "link": course.textbook.link
-                    },
+                        "textbook": textbook_data,
                         "dbid": course.id
-                }
-                
-                # Get the textbook's questions if a textbook exists
-                if course.textbook:
-                    textbook = Textbook.objects.get(isbn=course.textbook.isbn)
-                    if textbook:
-                        master_question_list = add_textbook_questions(textbook, master_question_list, course.course_id) 
-                    
+                    }
+
+                    if course.textbook:
+                        textbook = Textbook.objects.filter(isbn=course.textbook.isbn).first()
+                        if textbook:
+                            master_question_list = add_textbook_questions(
+                                textbook, master_question_list, course.course_id
+                            )
+
         elif role == "publisher":
             textbooks = Textbook.objects.filter(publisher=user)
-            
-            if not textbooks:
-                return Response({"status": "No textbooks found for this publisher"}, status=404)
-                
-            master_question_list = get_question_list('textbook', textbooks)
-            master_test_list = get_test_list('textbook', textbooks)
-            master_template_list = get_template_list('textbook', textbooks)
-            master_cpage_list = get_cpage_list('textbook', textbooks)
-            master_attachment_list = get_attachment_list('textbook', textbooks)
-            
-            # Fix: Initialize container_list as a dictionary, not a list
-            for textbook in textbooks:
-                container_list[textbook.isbn] = {
-                    'title': textbook.title,
-                    'author': textbook.author,
-                    'version': textbook.version,
-                    'isbn': textbook.isbn,
-                    'link': textbook.link,
-                    "id": textbook.id
-                }
-                
-        elif role == "webmaster":
-            # Use empty dictionaries for webmasters
-            pass
-            
-        else:
-            return Response({"status": "Failed due to invalid user role"}, status=400)
-    
-    except Exception as e:
-        # Log the error for debugging
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error in fetch_user_data: {str(e)}")
-        return Response({"status": f"An error occurred: {str(e)}"}, status=500)
-    
-    # Return direct data rather than JSON strings
-    # DRF will handle serialization properly
-    print(master_test_list)
-    return Response({
-        "status": "success",
-        "username": user.username,
-        "role": role,
-        "question_list": master_question_list,  
-        "test_list": master_test_list,          
-        "template_list": master_template_list,  
-        "cpage_list": master_cpage_list,        
-        "attachment_list": master_attachment_list,  
-        "container_list": container_list       
-    })
+            if not textbooks.exists():
+                raise Exception("No textbooks found for this publisher")
 
+            print("Calling get_question_list for publisher...")
+            master_question_list = get_question_list('textbook', textbooks)
+
+            with transaction.atomic():
+                master_test_list = get_test_list('textbook', textbooks)
+                master_template_list = get_template_list('textbook', textbooks)
+                master_cpage_list = get_cpage_list('textbook', textbooks)
+                master_attachment_list = get_attachment_list('textbook', textbooks)
+
+                for textbook in textbooks:
+                    container_list[textbook.isbn] = {
+                        'title': textbook.title,
+                        'author': textbook.author,
+                        'version': textbook.version,
+                        'isbn': textbook.isbn,
+                        'link': textbook.link,
+                        "id": textbook.id
+                    }
+
+        elif role == "webmaster":
+            # Allow login but return empty structures
+            pass
+
+        else:
+            raise Exception("Invalid user role")
+
+        
+        response_data = {
+            "status": "success",
+            "username": user.username,
+            "role": role,
+            "question_list": master_question_list,
+            "test_list": master_test_list,
+            "template_list": master_template_list,
+            "cpage_list": master_cpage_list,
+            "attachment_list": master_attachment_list,
+            "container_list": container_list
+        }
+
+    except Exception as e:
+        print("Atomic block failed:", str(e))
+        return Response({"status": f"An error occurred: {str(e)}"}, status=500)
+
+    return Response(response_data)
 
 
 @api_view(['POST'])
@@ -1076,6 +1066,8 @@ def save_template(request):
     except Exception as e:
         return Response({'error': str(e)}, status=400)
 
+from django.core.files.uploadedfile import InMemoryUploadedFile
+
 @api_view(['POST'])
 @transaction.atomic
 def save_question(request):
@@ -1088,7 +1080,7 @@ def save_question(request):
 
     course = None
     textbook = None
-    
+
     if question_data.get("published") == True:
         return Response({'error': 'Already published!'}, status=400)
 
@@ -1106,142 +1098,135 @@ def save_question(request):
             return Response({'error': 'Textbook not found'}, status=400)
 
     try:
-        # Update or create the question
-        newQ, created = Question.objects.update_or_create(
-            id=question_data.get('id') if question_data.get('id') else None,
-            defaults={
-                'text': question_data.get('text', ''),
-                'qtype': question_data.get('qtype', 'mc'),
-                'score': question_data.get('score', 1.0),
-                'directions': question_data.get('directions'),
-                'reference': question_data.get('reference'),
-                'eta': question_data.get('eta', 1),
-                'img': question_data.get('img'),
-                'ansimg': question_data.get('ansimg'),
-                'comments': question_data.get('comments'),
-                'chapter': question_data.get('chapter', 0),
-                'section': question_data.get('section', 0),
-                'published': question_data.get('published', False),
-                'course': course,
-                'textbook': textbook
-            }
-        )
+        # Handle create or update
+        if question_data.get('id'):
+            newQ = Question.objects.get(id=question_data['id'])
+            created = False
+        else:
+            newQ = Question()
+            created = True
+
+        # Assign fields
+        newQ.text = question_data.get('text', '')
+        newQ.qtype = question_data.get('qtype', 'mc')
+        newQ.score = question_data.get('score', 1.0)
+        newQ.directions = question_data.get('directions')
+        newQ.reference = question_data.get('reference')
+        newQ.eta = question_data.get('eta', 1)
+        newQ.comments = question_data.get('comments')
+        newQ.chapter = question_data.get('chapter', 0)
+        newQ.section = question_data.get('section', 0)
+        newQ.published = question_data.get('published', False)
+        newQ.course = course
+        newQ.textbook = textbook
+
+        # Safe image field handling
+        img = question_data.get('img')
+        newQ.img = img if isinstance(img, (InMemoryUploadedFile, type(None))) else None
+
+        ansimg = question_data.get('ansimg')
+        newQ.ansimg = ansimg if isinstance(ansimg, (InMemoryUploadedFile, type(None))) else None
 
         if created:
             newQ.author = request.user
         newQ.save()
-        
-        # Handle answer data based on question type
+
+        # Save Answers
         if answer_data:
-            # First, remove any existing answers for this question
             Answers.objects.filter(question=newQ).delete()
-            
-            if question_data.get('qtype') in ['tf', 'mc', 'sa', 'es']:
-                # These question types have a single answer
-                Answers.objects.create(
-                    question=newQ,
-                    text=answer_data.get('value'),
-                )
-            elif question_data.get('qtype') == 'fb':
-                # Fill in the blank can have multiple answers
-                for key, value in answer_data.items():
-                    Answers.objects.create(
-                        question=newQ,
-                        text=value.get('value'),
-                    )
-            elif question_data.get('qtype') == 'ma':
-                # Matching has pairs
-                for key, value in answer_data.items():
-                    Answers.objects.create(
-                        question=newQ,
-                        text=value.get('text')
-                    )
-            elif question_data.get('qtype') == 'ms':
-                # Multiple selection can have multiple correct answers
-                for key, value in answer_data.items():
-                    Answers.objects.create(
-                        question=newQ,
-                        text=value.get('value'),
-                    )
-        
-        # Handle options data
+            qtype = question_data.get('qtype')
+
+            if qtype in ['tf', 'mc', 'sa', 'es']:
+                Answers.objects.create(question=newQ, text=answer_data.get('value'))
+            elif qtype in ['fb', 'ms']:
+                for val in answer_data.values():
+                    Answers.objects.create(question=newQ, text=val.get('value'))
+            elif qtype == 'ma':
+                for val in answer_data.values():
+                    Answers.objects.create(question=newQ, text=val.get('text'))
+
+        # Save Options
         if options_data:
-            # First, remove any existing options for this question
             Options.objects.filter(question=newQ).delete()
-            
-            if question_data.get('qtype') == 'tf':
-                Options.objects.create(
-                    question=newQ,
-                    text='True',
-                    order=1
-                )
-                Options.objects.create(
-                    question=newQ,
-                    text='False',
-                    order=2
-                )
-            elif question_data.get('qtype') == 'mc':
-                for key, value in options_data.items():
-                    if key in ['A', 'B', 'C', 'D'] and value:
+            qtype = question_data.get('qtype')
+
+            if qtype == 'tf':
+                Options.objects.create(question=newQ, text='True', order=1)
+                Options.objects.create(question=newQ, text='False', order=2)
+            elif qtype == 'mc':
+                for key, val in options_data.items():
+                    if key in ['A', 'B', 'C', 'D'] and val:
                         Options.objects.create(
                             question=newQ,
-                            text=value.get('text'),
-                            order=value.get('order', 0)
+                            text=val.get('text'),
+                            order=val.get('order', 0)
                         )
-            elif question_data.get('qtype') == 'ms':
-                for key, value in options_data.items():
-                    if key.startswith('option') and value:
+            elif qtype == 'ms':
+                for key, val in options_data.items():
+                    if key.startswith('option') and val:
                         Options.objects.create(
                             question=newQ,
-                            text=value.get('text'),
-                            order=value.get('order', 0)
+                            text=val.get('text'),
+                            order=val.get('order', 0)
                         )
-            elif question_data.get('qtype') == 'ma':
-                for key, value in options_data.items():
-                    if key.startswith('pair') and value:
+            elif qtype == 'ma':
+                for key, val in options_data.items():
+                    if key.startswith('pair') and val:
                         Options.objects.create(
                             question=newQ,
                             text=None,
                             pair={
-                                'left': value.get('left'),
-                                'right': value.get('right'),
-                                'pairNum': value.get('pairNum')
+                                'left': val.get('left'),
+                                'right': val.get('right'),
+                                'pairNum': val.get('pairNum')
                             },
-                            order=value.get('pairNum', 0)
+                            order=val.get('pairNum', 0)
                         )
-                    elif key.startswith('distraction') and value:
+                    elif key.startswith('distraction') and val:
                         Options.objects.create(
                             question=newQ,
-                            text=value.get('text'),
-                            order=value.get('order', 0)
+                            text=val.get('text'),
+                            order=val.get('order', 0)
                         )
-        
-        # Handle feedback data
+
+        # Save Feedback
         if feedback_data:
             for fb_item in feedback_data:
+                try:
+                    fb_user = User.objects.get(username=fb_item.get('username')) if fb_item.get('username') else None
+                except User.DoesNotExist:
+                    fb_user = None
+
                 feedback = Feedback.objects.create(
                     question=newQ,
-                    user=User.objects.get(username=fb_item.get('username')) if fb_item.get('username') else None,
+                    user=fb_user,
                     rating=fb_item.get('rating'),
                     averageScore=fb_item.get('averageScore'),
                     comments=fb_item.get('comments'),
-                    item=fb_item.get('time')
+                    time=fb_item.get('time')
                 )
-                
-                # Handle responses to feedback
-                if fb_item.get('responses'):
-                    for resp_item in fb_item.get('responses'):
-                        FeedbackResponse.objects.create(
-                            feedback=feedback,
-                            user=User.objects.get(username=resp_item.get('username')) if resp_item.get('username') else None,
-                            text=resp_item.get('text'),
-                            date=resp_item.get('date')
-                        )
-        
+
+                for resp in fb_item.get('responses', []):
+                    try:
+                        resp_user = User.objects.get(username=resp.get('username')) if resp.get('username') else None
+                    except User.DoesNotExist:
+                        resp_user = None
+
+                    FeedbackResponse.objects.create(
+                        feedback=feedback,
+                        user=resp_user,
+                        text=resp.get('text'),
+                        date=resp.get('date')
+                    )
+
         return Response({'status': 'success', 'created': created, 'question_id': newQ.id})
-    
+
     except Exception as e:
+        import traceback
+        print("Error in save_question:", traceback.format_exc())
         return Response({'error': f'Error saving question: {str(e)}'}, status=500)
+
+
 
 @api_view(['POST'])
 @transaction.atomic
@@ -1328,15 +1313,17 @@ def get_template_list(field, suite):
             master_template_list[identity][str(template_data["id"])] = template_data
     return master_template_list
 
-@transaction.atomic
 def get_question_list(field, suite):
     master_question_list = {}
+
     for instance in suite:
-        if field == "course":
-            identity = instance.course_id
-        else:
-            identity = instance.isbn
-        
+        if not instance:
+            print("[get_question_list] Skipping null instance")
+            continue
+
+        # Identify the object
+        identity = instance.course_id if field == "course" else instance.isbn
+
         question_lists = {
             'tf': {},
             'mc': {},
@@ -1345,190 +1332,140 @@ def get_question_list(field, suite):
             'ma': {},
             'ms': {},
             'fb': {},
-            'dy': {}  # Dynamic questions
+            'dy': {}
         }
-
         master_question_list[identity] = question_lists
-        
-        # Use select_related for foreign keys and prefetch_related for related objects
-        questions = Question.objects.filter(**{field: instance}).select_related(
-            'author'
-        ).prefetch_related(
-            'question_answers',
-            'question_options',
-            'feedbacks__user',
-            'feedbacks__responses__user'
-        )
-        
+
+        try:
+            questions = Question.objects.filter(**{field: instance}).select_related(
+                'author'
+            ).prefetch_related(
+                'question_answers',
+                'question_options',
+                'feedbacks__user',
+                'feedbacks__responses__user'
+            )
+        except Exception as e:
+            print(f"[get_question_list] Failed to fetch questions for {identity}: {str(e)}")
+            continue  # Skip to next instance
+
         for q in questions:
-            # Format answers based on question type
-            if q.qtype in ['tf', 'mc', 'es', 'sa']:
-                # These types use a single answer with a 'value' property
-                answer_obj = q.question_answers.first()
-                answer = {
-                    'value': answer_obj.text if answer_obj else None
-                }
-            elif q.qtype == 'fb':
-                # Fill in the blank can have multiple blanks
-                answer = {}
-                for i, ans in enumerate(q.question_answers.all()):
-                    answer[f'blank{i+1}'] = {
-                        'value': ans.text
-                    }
-            elif q.qtype == 'ms':
-                # Multiple selection has multiple values
-                answer = {}
-                for i, ans in enumerate(q.question_answers.all()):
-                    answer[f'option{i+1}'] = {
-                        'value': ans.text
-                    }
-            elif q.qtype == 'ma':
-                # Matching question has pairs
-                answer = {}
-                for i, ans in enumerate(q.question_answers.all()):
-                    answer[f'pair{i+1}'] = {
-                        'text': ans.text
-                    }
-            else:
-                # Default format for other question types
-                answer = {}
-                for i, ans in enumerate(q.question_answers.all()):
-                    answer[f'answer{i+1}'] = {
-                        'value': ans.text
-                    }
-            
-            # Format options based on question type
-            if q.qtype == 'tf':
-                options = {
-                    'true': {'text': 'True', 'order': 1},
-                    'false': {'text': 'False', 'order': 2}
-                }
-            elif q.qtype == 'mc':
+            try:
+                # === Answers ===
+                if q.qtype in ['tf', 'mc', 'es', 'sa']:
+                    answer_obj = q.question_answers.first()
+                    answer = {'value': answer_obj.text if answer_obj else None}
+                elif q.qtype == 'fb':
+                    answer = {f'blank{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
+                elif q.qtype == 'ms':
+                    answer = {f'option{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
+                elif q.qtype == 'ma':
+                    answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
+                else:
+                    answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
+
+                # === Options ===
                 options = {}
-                mc_letters = ['A', 'B', 'C', 'D']
-                for i, opt in enumerate(q.question_options.all()):
-                    if i < len(mc_letters):
-                        letter = mc_letters[i]
-                        options[letter] = {
+                if q.qtype == 'tf':
+                    options = {
+                        'true': {'text': 'True', 'order': 1},
+                        'false': {'text': 'False', 'order': 2}
+                    }
+                elif q.qtype == 'mc':
+                    mc_letters = ['A', 'B', 'C', 'D']
+                    for i, opt in enumerate(q.question_options.all()):
+                        if i < len(mc_letters):
+                            letter = mc_letters[i]
+                            options[letter] = {
+                                'text': opt.text,
+                                'order': i + 1,
+                                'image': getattr(opt.image, 'url', None) if hasattr(opt, 'image') else None
+                            }
+                elif q.qtype == 'ms':
+                    for i, opt in enumerate(q.question_options.all()):
+                        options[f'option{i+1}'] = {
                             'text': opt.text,
-                            'order': i + 1
+                            'order': i + 1,
+                            'image': getattr(opt.image, 'url', None) if hasattr(opt, 'image') else None
                         }
-                        if hasattr(opt, 'image') and opt.image and opt.image.name:
-                            try:
-                                options[letter]['image'] = opt.image.url
-                            except:
-                                options[letter]['image'] = None
-            elif q.qtype == 'ms':
-                options = {}
-                for i, opt in enumerate(q.question_options.all()):
-                    options[f'option{i+1}'] = {
-                        'text': opt.text,
-                        'order': i + 1
+                elif q.qtype == 'ma':
+                    pair_count, distraction_count = 0, 0
+                    for opt in q.question_options.all():
+                        if hasattr(opt, 'pair') and isinstance(opt.pair, dict):
+                            pair_count += 1
+                            options[f'pair{pair_count}'] = {
+                                'left': opt.pair.get('left'),
+                                'right': opt.pair.get('right'),
+                                'pairNum': pair_count
+                            }
+                        else:
+                            distraction_count += 1
+                            options[f'distraction{distraction_count}'] = {
+                                'text': opt.text,
+                                'order': distraction_count
+                            }
+                    options['numPairs'] = pair_count
+                    options['numDistractions'] = distraction_count
+
+                # === Images ===
+                img_url = getattr(q.img, 'url', None) if q.img and q.img.name else None
+                ansimg_url = getattr(q.ansimg, 'url', None) if q.ansimg and q.ansimg.name else None
+
+                # === Feedback ===
+                feedback_list = []
+                for f in q.feedbacks.all():
+                    feedback_data = {
+                        "id": f.id,
+                        "username": f.user.username if f.user else "Anonymous",
+                        "rating": f.rating,
+                        "averageScore": float(f.averageScore) if f.averageScore else None,
+                        "comments": f.comments,
+                        "time": float(f.time) if f.time else None,
+                        "responses": [
+                            {
+                                "id": r.id,
+                                "username": r.user.username if r.user else "Anonymous",
+                                "text": r.text,
+                                "date": r.date.isoformat() if r.date else None
+                            } for r in f.responses.all()
+                        ]
                     }
-                    if hasattr(opt, 'image') and opt.image and opt.image.name:
-                        try:
-                            options[f'option{i+1}']['image'] = opt.image.url
-                        except:
-                            options[f'option{i+1}']['image'] = None
-            elif q.qtype == 'ma':
-                options = {}
-                pair_count = 0
-                distraction_count = 0
-                
-                for opt in q.question_options.all():
-                    if hasattr(opt, 'pair') and opt.pair:
-                        pair_count += 1
-                        options[f'pair{pair_count}'] = {
-                            'left': opt.pair.get('left') if isinstance(opt.pair, dict) else None,
-                            'right': opt.pair.get('right') if isinstance(opt.pair, dict) else None,
-                            'pairNum': pair_count
-                        }
-                    else:
-                        distraction_count += 1
-                        options[f'distraction{distraction_count}'] = {
-                            'text': opt.text,
-                            'order': distraction_count
-                        }
-                
-                options['numPairs'] = pair_count
-                options['numDistractions'] = distraction_count
-            else:
-                # For question types without specific option formatting
-                options = {}
-            
-            # Safely get image URLs
-            img_url = None
-            if q.img and q.img.name:
-                try:
-                    img_url = q.img.url
-                except:
-                    img_url = None
-                    
-            ansimg_url = None
-            if q.ansimg and q.ansimg.name:
-                try:
-                    ansimg_url = q.ansimg.url
-                except:
-                    ansimg_url = None
-            
-            # Create question data object
-            question_data = {
-                'id': q.id,
-                'text': q.text,
-                'answer': answer,  # Using the reformatted answer object
-                'qtype': q.qtype,
-                'score': float(q.score) if q.score else 0.0,
-                'directions': q.directions,
-                'reference': q.reference,
-                'eta': q.eta,
-                'img': img_url,
-                'ansimg': ansimg_url,
-                'comments': q.comments,
-                'options': options,  # Using the reformatted options object
-                'chapter': q.chapter,
-                'section': q.section,
-                'published': q.published,
-                'author': q.author.username if q.author else None
-            }
-            
-            # Format feedback in the way expected by save_question
-            feedback_list = []
-            for f in q.feedbacks.all():
-                feedback_data = {
-                    "id": f.id,
-                    "username": f.user.username if f.user else "Anonymous",
-                    "rating": f.rating,
-                    "averageScore": float(f.averageScore) if f.averageScore else None,
-                    "comments": f.comments,
-                    "time": float(f.time) if f.time else None,
-                    "responses": []
+                    feedback_list.append(feedback_data)
+
+                # === Final data ===
+                question_data = {
+                    'id': q.id,
+                    'text': q.text,
+                    'answer': answer,
+                    'qtype': q.qtype,
+                    'score': float(q.score) if q.score else 0.0,
+                    'directions': q.directions,
+                    'reference': q.reference,
+                    'eta': q.eta,
+                    'img': img_url,
+                    'ansimg': ansimg_url,
+                    'comments': q.comments,
+                    'options': options,
+                    'chapter': q.chapter,
+                    'section': q.section,
+                    'published': q.published,
+                    'author': q.author.username if q.author else None,
+                    'feedback': feedback_list
                 }
-                
-                # Process responses to feedback
-                for r in f.responses.all():
-                    response_data = {
-                        "id": r.id,
-                        "username": r.user.username if r.user else "Anonymous",
-                        "text": r.text,
-                        "date": r.date.isoformat() if r.date else None
-                    }
-                    feedback_data["responses"].append(response_data)
-                
-                feedback_list.append(feedback_data)
-            
-            # Add feedback list to question data
-            question_data['feedback'] = feedback_list
-            
-            # Add to appropriate dictionary based on question type, indexed by id
-            if q.qtype in question_lists:
-                master_question_list[identity][q.qtype][q.id] = question_data
-            else:
-                # Handle any question type not explicitly defined in question_lists
-                if 'other' not in master_question_list[identity]:
-                    master_question_list[identity]['other'] = {}
-                master_question_list[identity]['other'][q.id] = question_data
-    
+
+                if q.qtype in question_lists:
+                    master_question_list[identity][q.qtype][q.id] = question_data
+                else:
+                    if 'other' not in master_question_list[identity]:
+                        master_question_list[identity]['other'] = {}
+                    master_question_list[identity]['other'][q.id] = question_data
+
+            except Exception as inner_error:
+                print(f"[get_question_list] Error processing question {q.id}: {str(inner_error)}")
+                continue
+
     return master_question_list
+
 
 def get_attachment_list(field, suite):
     master_attachment_list = {}
