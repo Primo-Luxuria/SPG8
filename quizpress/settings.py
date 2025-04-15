@@ -38,8 +38,8 @@ SECRET_KEY = 'django-insecure-s@@-gq^j3(rkb!e(9one-4lw49b12+&633-yy90*4$a1((88$=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['54.156.75.85', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
-
+# ALLOWED_HOSTS = ['54.156.75.85', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
+ALLOWED_HOST = []
 
 # Application definition
 
@@ -113,29 +113,29 @@ This will need to change once hooked up to AWS
 """
 Local test for database
 """
-"""
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'quizpressdb',  # Your database name
         'USER': 'root',  # Your MySQL username
-        'PASSWORD': 'Conductorofmanydreams1!',  # Your MySQL password
+        'PASSWORD': '2319isuck',  # Your MySQL password
         'HOST': 'localhost',  # Use 'localhost' for local development
         'PORT': '3306',  # Default MySQL port
     }
 }
-"""
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpressdb1',  # Ensure this matches your database name
-        'USER': 'dbadmin',
-        'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
-         'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
-        'PORT': '3306',
-    }
-}
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'quizpressdb1',  # Ensure this matches your database name
+#         'USER': 'dbadmin',
+#         'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
+#          'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
+#         'PORT': '3306',
+#     }
+# }
 
 
 
