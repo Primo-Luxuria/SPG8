@@ -1226,7 +1226,7 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
     }
 
     let formData = new FormData();
-    formData.append("file", file);  // Append the file
+    formData.append("file", file);
     formData.append("courseID", id);
     formData.append("courseName", name);
     formData.append("courseCRN", crn);
@@ -1237,18 +1237,21 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
     formData.append("courseTextbookISBN", isbn);
     formData.append("courseTextbookLink", link);
 
-    fetch("{% url 'parse_qti_xml' %}", {
+    fetch(window.quizpressSettings.parseQTIUrl, {
         method: "POST",
         body: formData,
         headers: {
-            "X-CSRFToken": "{{ csrf_token }}"  
+            "X-CSRFToken": window.quizpressSettings.csrfToken
         }
     })
     .then(response => response.json())
     .then(data => {
+        console.log("Imported questions:", data);
+        // You could loop through data.questions and inject them into the DOM here
     })
-    .catch(error => console.error("Error:", error) );
+    .catch(error => console.error("Error:", error));
 }
+
 
 
 

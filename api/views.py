@@ -1313,57 +1313,58 @@ def get_template_list(field, suite):
             master_template_list[identity][str(template_data["id"])] = template_data
     return master_template_list
 
-@transaction.atomic
 def get_question_list(field, suite):
     master_question_list = {}
-    for instance in suite:
-        if field == "course":
-            identity = instance.course_id
-        else:
-            identity = instance.isbn
-        
-        question_lists = {
-            'tf': {}, 'mc': {}, 'sa': {}, 'es': {}, 
-            'ma': {}, 'ms': {}, 'fb': {}, 'dy': {}
-        }
 
+    for instance in suite:
+        if not instance:
+            print("[get_question_list] Skipping null instance")
+            continue
+
+        # Identify the object
+        identity = instance.course_id if field == "course" else instance.isbn
+
+        question_lists = {
+            'tf': {},
+            'mc': {},
+            'sa': {},
+            'es': {},
+            'ma': {},
+            'ms': {},
+            'fb': {},
+            'dy': {}
+        }
         master_question_list[identity] = question_lists
 
-        questions = Question.objects.filter(**{field: instance}).select_related(
-            'author'
-        ).prefetch_related(
-            'question_answers', 'question_options',
-            'feedbacks__user', 'feedbacks__responses__user'
-        )
+        try:
+            questions = Question.objects.filter(**{field: instance}).select_related(
+                'author'
+            ).prefetch_related(
+                'question_answers',
+                'question_options',
+                'feedbacks__user',
+                'feedbacks__responses__user'
+            )
+        except Exception as e:
+            print(f"[get_question_list] Failed to fetch questions for {identity}: {str(e)}")
+            continue  # Skip to next instance
 
         for q in questions:
             try:
-                # Format answers
+                # === Answers ===
                 if q.qtype in ['tf', 'mc', 'es', 'sa']:
-                    ans = q.question_answers.first()
-                    answer = {'value': ans.text if ans else None}
+                    answer_obj = q.question_answers.first()
+                    answer = {'value': answer_obj.text if answer_obj else None}
                 elif q.qtype == 'fb':
-                    answer = {
-                        f'blank{i+1}': {'value': a.text}
-                        for i, a in enumerate(q.question_answers.all())
-                    }
+                    answer = {f'blank{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
                 elif q.qtype == 'ms':
-                    answer = {
-                        f'option{i+1}': {'value': a.text}
-                        for i, a in enumerate(q.question_answers.all())
-                    }
+                    answer = {f'option{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
                 elif q.qtype == 'ma':
-                    answer = {
-                        f'pair{i+1}': {'text': a.text}
-                        for i, a in enumerate(q.question_answers.all())
-                    }
+                    answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
                 else:
-                    answer = {
-                        f'answer{i+1}': {'value': a.text}
-                        for i, a in enumerate(q.question_answers.all())
-                    }
+                    answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
 
-                # Format options
+                # === Options ===
                 options = {}
                 if q.qtype == 'tf':
                     options = {
@@ -1374,28 +1375,19 @@ def get_question_list(field, suite):
                     mc_letters = ['A', 'B', 'C', 'D']
                     for i, opt in enumerate(q.question_options.all()):
                         if i < len(mc_letters):
-                            key = mc_letters[i]
-                            options[key] = {
+                            letter = mc_letters[i]
+                            options[letter] = {
                                 'text': opt.text,
-                                'order': i + 1
+                                'order': i + 1,
+                                'image': opt.image.url if opt.image and hasattr(opt.image, 'url') and opt.image.name else None
                             }
-                            if opt.image and hasattr(opt.image, 'url'):
-                                try:
-                                    options[key]['image'] = opt.image.url
-                                except Exception:
-                                    options[key]['image'] = None
                 elif q.qtype == 'ms':
                     for i, opt in enumerate(q.question_options.all()):
-                        key = f'option{i+1}'
-                        options[key] = {
+                        options[f'option{i+1}'] = {
                             'text': opt.text,
-                            'order': i + 1
+                            'order': i + 1,
+                            'image': opt.image.url if opt.image and hasattr(opt.image, 'url') and opt.image.name else None
                         }
-                        if opt.image and hasattr(opt.image, 'url'):
-                            try:
-                                options[key]['image'] = opt.image.url
-                            except Exception:
-                                options[key]['image'] = None
                 elif q.qtype == 'ma':
                     pair_count, distraction_count = 0, 0
                     for opt in q.question_options.all():
@@ -1415,21 +1407,32 @@ def get_question_list(field, suite):
                     options['numPairs'] = pair_count
                     options['numDistractions'] = distraction_count
 
-                # Safely get image URLs
-                img_url, ansimg_url = None, None
-                try:
-                    if q.img and hasattr(q.img, 'url'):
-                        img_url = q.img.url
-                except Exception:
-                    img_url = None
+                # === Images ===
+                img_url = q.img.url if q.img and hasattr(q.img, 'url') and q.img.name else None
+                ansimg_url = q.ansimg.url if q.ansimg and hasattr(q.ansimg, 'url') and q.ansimg.name else None
 
-                try:
-                    if q.ansimg and hasattr(q.ansimg, 'url'):
-                        ansimg_url = q.ansimg.url
-                except Exception:
-                    ansimg_url = None
+                # === Feedback ===
+                feedback_list = []
+                for f in q.feedbacks.all():
+                    feedback_data = {
+                        "id": f.id,
+                        "username": f.user.username if f.user else "Anonymous",
+                        "rating": f.rating,
+                        "averageScore": float(f.averageScore) if f.averageScore else None,
+                        "comments": f.comments,
+                        "time": float(f.time) if f.time else None,
+                        "responses": [
+                            {
+                                "id": r.id,
+                                "username": r.user.username if r.user else "Anonymous",
+                                "text": r.text,
+                                "date": r.date.isoformat() if r.date else None
+                            } for r in f.responses.all()
+                        ]
+                    }
+                    feedback_list.append(feedback_data)
 
-                # Build question object
+                # === Final data ===
                 question_data = {
                     'id': q.id,
                     'text': q.text,
@@ -1446,32 +1449,10 @@ def get_question_list(field, suite):
                     'chapter': q.chapter,
                     'section': q.section,
                     'published': q.published,
-                    'author': q.author.username if q.author else None
+                    'author': q.author.username if q.author else None,
+                    'feedback': feedback_list
                 }
 
-                # Format feedback
-                feedback_list = []
-                for f in q.feedbacks.all():
-                    fb = {
-                        "id": f.id,
-                        "username": f.user.username if f.user else "Anonymous",
-                        "rating": f.rating,
-                        "averageScore": float(f.averageScore) if f.averageScore else None,
-                        "comments": f.comments,
-                        "time": float(f.time) if f.time else None,
-                        "responses": []
-                    }
-                    for r in f.responses.all():
-                        fb["responses"].append({
-                            "id": r.id,
-                            "username": r.user.username if r.user else "Anonymous",
-                            "text": r.text,
-                            "date": r.date.isoformat() if r.date else None
-                        })
-                    feedback_list.append(fb)
-                question_data['feedback'] = feedback_list
-
-                # Store it
                 if q.qtype in question_lists:
                     master_question_list[identity][q.qtype][q.id] = question_data
                 else:
@@ -1479,12 +1460,12 @@ def get_question_list(field, suite):
                         master_question_list[identity]['other'] = {}
                     master_question_list[identity]['other'][q.id] = question_data
 
-            except Exception as e:
-                print(f"[get_question_list] Error processing question {q.id}: {e}")
+            except Exception as inner_error:
+                if "has no file associated with it" not in str(inner_error):
+                    print(f"[get_question_list] Error processing question {q.id}: {str(inner_error)}")
+                continue
 
     return master_question_list
-
-
 
 def get_attachment_list(field, suite):
     master_attachment_list = {}
@@ -1670,21 +1651,20 @@ def get_test_list(field, suite):
                             options_data['numDistractions'] = distraction_count
                         
                         # Safe handling of image fields
-                        # Safely get image URLs
                         img_url = None
-                        if q.img and q.img.name:
+                        if question.img and question.img.name:
                             try:
-                                img_url = q.img.url
+                                img_url = question.img.url
                             except:
                                 img_url = None
-
+                                
                         ansimg_url = None
-                        if q.ansimg and q.ansimg.name:
+                        if question.ansimg and question.ansimg.name:
                             try:
-                                ansimg_url = q.ansimg.url
+                                ansimg_url = question.ansimg.url
                             except:
                                 ansimg_url = None
-                                        
+                
                         # Format question with the structure expected by the front-end
                         question_data = {
                             'id': question.id,
