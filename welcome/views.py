@@ -1149,6 +1149,7 @@ def teacher_dashboard(request):
     context = {'username': request.user.username}
     return render(request, 'welcome/SBteacher.html', context)
 
+
 @login_required
 def publisher_dashboard(request):
     context = {'username': request.user.username}

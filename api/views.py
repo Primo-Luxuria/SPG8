@@ -1379,14 +1379,14 @@ def get_question_list(field, suite):
                             options[letter] = {
                                 'text': opt.text,
                                 'order': i + 1,
-                                'image': getattr(opt.image, 'url', None) if hasattr(opt, 'image') else None
+                                'image': opt.image.url if opt.image and hasattr(opt.image, 'url') and opt.image.name else None
                             }
                 elif q.qtype == 'ms':
                     for i, opt in enumerate(q.question_options.all()):
                         options[f'option{i+1}'] = {
                             'text': opt.text,
                             'order': i + 1,
-                            'image': getattr(opt.image, 'url', None) if hasattr(opt, 'image') else None
+                            'image': opt.image.url if opt.image and hasattr(opt.image, 'url') and opt.image.name else None
                         }
                 elif q.qtype == 'ma':
                     pair_count, distraction_count = 0, 0
@@ -1408,8 +1408,8 @@ def get_question_list(field, suite):
                     options['numDistractions'] = distraction_count
 
                 # === Images ===
-                img_url = getattr(q.img, 'url', None) if q.img and q.img.name else None
-                ansimg_url = getattr(q.ansimg, 'url', None) if q.ansimg and q.ansimg.name else None
+                img_url = q.img.url if q.img and hasattr(q.img, 'url') and q.img.name else None
+                ansimg_url = q.ansimg.url if q.ansimg and hasattr(q.ansimg, 'url') and q.ansimg.name else None
 
                 # === Feedback ===
                 feedback_list = []
@@ -1461,7 +1461,8 @@ def get_question_list(field, suite):
                     master_question_list[identity]['other'][q.id] = question_data
 
             except Exception as inner_error:
-                print(f"[get_question_list] Error processing question {q.id}: {str(inner_error)}")
+                if "has no file associated with it" not in str(inner_error):
+                    print(f"[get_question_list] Error processing question {q.id}: {str(inner_error)}")
                 continue
 
     return master_question_list

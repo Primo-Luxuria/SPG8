@@ -289,6 +289,19 @@
 <script>
     window.username = "{{username}}"
 </script>
+
+<!-- Define settings before JS files -->
+<script>
+    window.quizpressSettings = {
+      parseQTIUrl: "{% url 'parse_qti_xml' %}",
+      csrfToken: "{{ csrf_token }}"
+    };
+    console.log("DEBUG parseQTIUrl:", window.quizpressSettings.parseQTIUrl);
+  </script>
+  
+
+  
+
 <script src="{% static 'welcome/js/init.js' %}"></script>
 <script src="{% static  'welcome/js/add.js' %}"></script>
 <script src="{% static 'welcome/js/edit.js' %}"></script>
