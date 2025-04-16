@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Courses</title>
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Manage Courses</title>
+<style>
         body { font-family: Arial, sans-serif; }
         .error-message{color:red;}   
         textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
@@ -19,23 +20,46 @@
     </style>
 </head>
 <body style="background-color: #2e3a42;">
-    <div style="background:#e0e0e0;padding:20px;" id="userLookup">
-        <h3>Choose your Search Query</h3>
-        <select id="searchSelector" onchange="updateSearchInput()">
-            <option value="UN">Search by Username</option>
-            <option value="ID">Search for User ID</option>
-        </select>
-        <div id="searchInput">
-            <input type="text" id="searchField" placeholder="Enter Username" />
-        </div>
-        <button onclick="filterSearch()">Filter</button>
-        <div id="searchContent"></div>
-    </div>
-    <div>
-        <button onclick="openPreviewMenu()">Export Database</button>
-    </div>
-
+<div id="userLookup" style="background:#e0e0e0;padding:20px;">
+<h3>Choose your Search Query</h3>
+<select id="searchSelector" onchange="updateSearchInput()">
+<option value="UN">Search by Username</option>
+<option value="ID">Search for User ID</option>
+</select>
+<div id="searchInput">
+<input id="searchField" placeholder="Enter Username" type="text"/>
+</div>
+<button onclick="filterSearch()">Filter</button>
+<div id="searchContent"></div>
+</div>
+<div>
+<button onclick="openPreviewMenu()">Export Database</button>
+</div>
 <script>
+function flattenQuestionList(questionList) {
+    let flat = {};
+    for (const courseID in questionList) {
+        for (const qtype in questionList[courseID]) {
+            for (const qid in questionList[courseID][qtype]) {
+                flat[qid] = questionList[courseID][qtype][qid];
+            }
+        }
+    }
+    return Object.values(flat);
+}
+
+function flattenByCourse(dataObj) {
+    let flatList = [];
+    for (const courseID in dataObj) {
+        for (const itemID in dataObj[courseID]) {
+            flatList.push(dataObj[courseID][itemID]);
+        }
+    }
+    return flatList;
+}
+
+
+
     var userQuestions = {};
     var userTests = {};
     var userCoverPages = {};
@@ -92,25 +116,26 @@
     }
 
     function renderUserData(data) {
-        unsorted_userAttachments = JSON.parse(data.attachment_list);
-        unsorted_userQuestions = JSON.parse(data.question_list);
-        unsorted_userTemplates = JSON.parse(data.template_list);
-        unsorted_userCoverPages = JSON.parse(data.cpage_list);
-        unsorted_userTests = JSON.parse(data.test_list);
+        console.log("Full user data received:", data);
+        console.log("Flattened questions:", userQuestions);
+        console.log("Parsed tests:", sortList(data.test_list, "test"));
+        console.log("Parsed templates:", sortList(data.template_list, ""));
+        console.log("Parsed coverpages:", sortList(data.cpage_list, ""));
+        console.log("Parsed attachments:", sortList(data.attachment_list, ""));
+
         role = data.role;
         username = data.username;
         password = data.password;
 
 
-        console.log(unsorted_userQuestions);
-        console.log(unsorted_userTests);
-        console.log(unsorted_userCoverPages);
+        userQuestions = flattenQuestionList(data.question_list);
+        userTests = flattenByCourse(data.test_list);
+        userTemplates = flattenByCourse(data.template_list);
+        userCoverPages = flattenByCourse(data.cpage_list);
+        userAttachments = flattenByCourse(data.attachment_list);
 
-        userAttachments = sortList(unsorted_userAttachments, "");
-        userQuestions = sortList(unsorted_userQuestions, "question");
-        userCoverpages = sortList(unsorted_userCoverPages, "");
-        userTemplates = sortList(unsorted_userTemplates, "");
-        userTests = sortList(unsorted_userTests, "test");
+
+
 
 
         const container = document.getElementById('searchContent');
@@ -638,26 +663,23 @@ async function deleteItem(element) {
 
 
 </script>
-
-    <div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
-        <div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
-            <h2>Export Preview Menu</h2>
-            <button onclick="closePreviewMenu()" style="float:right;">Close</button>
-            <div>
-                <button onclick="loadActualPreview('courses')">Courses</button>
-                <button onclick="loadActualPreview('tests')">Tests</button>
-                <button onclick="loadActualPreview('questions')">Questions</button>
-                <button onclick="ajaxExportCsv('all courses')">All Courses</button>
-                <button onclick="ajaxExportCsv('everything')">Entire Database</button>
-            </div>
-            <!-- since this div container style's display will be set to "flex", flex-direction: column makes it so
+<div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
+<div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
+<h2>Export Preview Menu</h2>
+<button onclick="closePreviewMenu()" style="float:right;">Close</button>
+<div>
+<button onclick="loadActualPreview('courses')">Courses</button>
+<button onclick="loadActualPreview('tests')">Tests</button>
+<button onclick="loadActualPreview('questions')">Questions</button>
+<button onclick="ajaxExportCsv('all courses')">All Courses</button>
+<button onclick="ajaxExportCsv('everything')">Entire Database</button>
+</div>
+<!-- since this div container style's display will be set to "flex", flex-direction: column makes it so
                  the items will be populated/grow vertically. by default, flex-container items grow horizontally -->
-            <div id="selectionMenu" style="display:none; flex-direction: column; gap: 10px;">
-                <!-- placeholder -->
-            </div>
-        </div>
-    </div>
-
-
+<div id="selectionMenu" style="display:none; flex-direction: column; gap: 10px;">
+<!-- placeholder -->
+</div>
+</div>
+</div>
 </body>
 </html>
