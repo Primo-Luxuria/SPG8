@@ -372,43 +372,36 @@ async function updateUserData(){
 }
 
 async function deleteItem(element) {
-    // Get the content type and index from the parent element's data attributes
     const parentDiv = element.closest('div[data-type]');
     const type = parentDiv.dataset.type;
     const index = parseInt(parentDiv.dataset.index);
 
-    // Get the appropriate item based on type and index
+    // Use a separate variable for model_type to avoid breaking the switch
+    const modelType = type.charAt(0).toUpperCase() + type.slice(1); // "test" -> "Test"
+
     let itemToDelete;
     switch(type) {
         case 'question':
-            type="Question";
-            itemToDelete = userQuestions[index];
+            itemToDelete = { ...userQuestions[index] }; // clone
             break;
         case 'test':
-            type="Test";
-            itemToDelete = userTests[index];
+            itemToDelete = { ...userTests[index] };
             break;
         case 'template':
-            type="Template";
-            itemToDelete = userTemplates[index];
+            itemToDelete = { ...userTemplates[index] };
             break;
         case 'coverpage':
-            type="CoverPage";
-            itemToDelete = userCoverPages[index];
+            itemToDelete = { ...userCoverPages[index] };
             break;
         case 'attachment':
-            type="Attachment";
-            itemToDelete = userAttachments[index];
+            itemToDelete = { ...userAttachments[index] };
             break;
         default:
             console.error('Unknown item type:', type);
             return;
     }
 
-    // Confirm deletion
-    if (!confirm(`Are you sure you want to delete this ${type}?`)) {
-        return;
-    }
+    if (!confirm(`Are you sure you want to delete this ${modelType}?`)) return;
 
     try {
         const response = await fetch('/api/delete_item/', {
@@ -418,7 +411,7 @@ async function deleteItem(element) {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({
-                model_type: type,
+                model_type: modelType,
                 id: itemToDelete.id,
                 username: username,
                 identity: itemToDelete.courseID
@@ -428,39 +421,28 @@ async function deleteItem(element) {
         const data = await response.json();
 
         if (response.ok) {
-            // Remove the item from the local array
+            // Remove item from the local list
             switch(type) {
-                case 'question':
-                    userQuestions.splice(index, 1);
-                    break;
-                case 'test':
-                    userTests.splice(index, 1);
-                    break;
-                case 'template':
-                    userTemplates.splice(index, 1);
-                    break;
-                case 'coverpage':
-                    userCoverPages.splice(index, 1);
-                    break;
-                case 'attachment':
-                    userAttachments.splice(index, 1);
-                    break;
+                case 'question': userQuestions.splice(index, 1); break;
+                case 'test': userTests.splice(index, 1); break;
+                case 'template': userTemplates.splice(index, 1); break;
+                case 'coverpage': userCoverPages.splice(index, 1); break;
+                case 'attachment': userAttachments.splice(index, 1); break;
             }
 
-            // Remove the element from the DOM
             parentDiv.remove();
-
-            // Show success message
-            alert(data.message || `${type} successfully deleted.`);
-            updateUserData();
+            alert(data.message || `${modelType} successfully deleted.`);
+            updateUserData();  // optional refresh
         } else {
             alert(data.message || 'An error occurred while deleting the item.');
         }
+
     } catch (error) {
         console.error('Error:', error);
         alert('An error occurred while connecting to the server.');
     }
 }
+
 
 
     function sortList(list, type){
