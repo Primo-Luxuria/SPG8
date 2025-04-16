@@ -874,19 +874,26 @@ def export_csv(request):
         if ids_to_grab_list is not None:
             dict_to_return = {}  # dictionary of lists
             for index, column_id in enumerate(ids_to_grab_list, 0):
-                # dict_to_return.append([]) # (BEFORE). useless right now. might need later
                 desired_id = ids_to_grab_list[index]
-                dict_to_return[desired_id] = []  # (AFTER)
-                desired_id_column_letter = None  # this is just to initialize and keep value outside the loop
-                for first_row_cell in sheet[1]:  # Gets all cells in row 1 of sheet and iterates
-                    if first_row_cell.value == desired_id:  # if we found the column of the desired id
+                dict_to_return[desired_id] = []
+                desired_id_column_letter = None
+
+                # Find the column letter by matching the column header
+                for first_row_cell in sheet[1]:
+                    if first_row_cell.value == desired_id:
                         desired_id_column_letter = get_column_letter(first_row_cell.column)
-                alleged_cell_column = sheet[desired_id_column_letter]  # get entire column of cells
-                i = 1
-                for cell_in_column in alleged_cell_column:
-                    if i > 1 and cell_in_column.value is not None:
-                        dict_to_return.get(desired_id).append(cell_in_column.value)
-                    i += 1
+                        break  # exit loop after finding match
+
+                # Skip if column is not found
+                if desired_id_column_letter is None:
+                    print(f"[export_csv] Column '{desired_id}' not found in sheet '{sheet.title}'")
+                    continue
+
+                alleged_cell_column = sheet[desired_id_column_letter]
+                for i, cell in enumerate(alleged_cell_column):
+                    if i > 0 and cell.value is not None:  # skip header
+                        dict_to_return[desired_id].append(cell.value)
+
 
         return dict_to_return
 

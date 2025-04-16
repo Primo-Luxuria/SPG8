@@ -41,6 +41,9 @@ DEBUG = True
 # ALLOWED_HOSTS = ['54.156.75.85', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
 ALLOWED_HOST = []
 
+CORS_ALLOW_CREDENTIALS = True
+
+
 # Application definition
 
 INSTALLED_APPS = [

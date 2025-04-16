@@ -8,6 +8,8 @@ from decimal import Decimal
 from django.db.models.fields.files import FieldFile
 from django.apps import apps
 from datetime import datetime
+from django.views.decorators.http import require_POST
+
 
 from welcome.models import (
     Course, Textbook, Question, Test, Template, CoverPage, 
@@ -147,6 +149,7 @@ def update_user(request):
     return Response({"status": "success", "message": "User updated successfully"})
 
 @api_view(['POST'])
+@require_POST
 def fetch_user_data(request):
     data = request.data
     request_type = data.get('type', '')
