@@ -32,7 +32,8 @@ urlpatterns = [
     path('parse_qti_xml/', views.parse_qti_xml, name='parse_qti_xml'), # Process file (AJAX)
     path('api/', include('api.urls')),
     path("export-csv/", views.export_csv, name="export_csv"),
-    path('export_preview/', views.export_preview, name='export_preview')
+    path('export_preview/', views.export_preview, name='export_preview'),
+    path('import_csv/', views.import_csv, name='import_csv')
 ]
 
 if settings.DEBUG:
