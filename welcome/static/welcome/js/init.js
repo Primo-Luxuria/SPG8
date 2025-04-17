@@ -7,6 +7,23 @@ var courseList = {};
 var masterCoverPageList = {};
 var masterTextbookList = {};
 
+/**
+* getUserIdentity(courseID, isbn)
+* Helper function to determine the identity based
+* on user role
+*/
+function getUserIdentity(courseID, isbn) {
+  const ownerRole = document.getElementById('userRole')?.value;
+  if (ownerRole === 'teacher' || ownerRole === 'webmaster') {
+    return courseID;
+  } else if (ownerRole === 'publisher') {
+    return isbn;
+  }
+  // resort to whichever is defined
+  return courseID || isbn;
+}
+
+
 
 /**
  * This function is called to update the question content inside the question containers whenever a question is saved
