@@ -8,24 +8,25 @@ function editItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
+    const identity = contextMenu.dataset.identity;
     const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     switch (itemType) {
         case 'question':
-            editQuestion(courseID, questionType, itemID);
+            editQuestion(identity, questionType, itemID);
             break;
         case 'coverPage':
-            editCoverPage(courseID, itemID);
+            editCoverPage(identity, itemID);
             break;
         case 'template':
-            editTemplate(courseID, itemID);
+            editTemplate(identity, itemID);
             break;
         case 'test':
-            editTest(courseID, itemID);
+            editTest(identity, itemID);
             break;
         case 'attachment':
-            editAttachment(courseID, itemID);
+            editAttachment(identity, itemID);
             break;
         default:
             console.error('Unknown item type:', itemType);
