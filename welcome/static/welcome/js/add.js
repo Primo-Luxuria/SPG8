@@ -229,6 +229,7 @@ formContent += `
 <option value="True">Bonus Section</option>
 <option value="False" selected>No Bonus Section</option>
 </select><br/><br/>
+<div id="selectedBonusQuestionsContainer"><p>"No bonus questions selected"</p></div>
 <button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
 <button class="save-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
 `;
@@ -662,7 +663,7 @@ function updateTemplateSelection(courseID){
 if(!masterTemplateList[courseID]){
     masterTemplateList[courseID] = {};
 }else if(Object.keys(masterTemplateList[courseID]).length==0){
-    alert("No templates available for this course!");
+    console.log("No templates available for this course!");
 }else{
 const templateList = masterTemplateList[courseID];
 for(const key in templateList){
@@ -790,12 +791,13 @@ closeModal();
 * Postconditions: Populated testeditor with all of the appropriate parts and sections
 */
 function updateTestParts(courseID) {  
-const templateIndex = document.getElementById("templateSelector").value;
-if (!templateIndex) {
+const templateID = document.getElementById("templateSelector").value;
+if (!templateID) {
+    alert("You need to choose a template!");
 return;
 }
 
-const template = masterTemplateList[courseID][templateIndex];
+const template = masterTemplateList[courseID][templateID];
 const partStructure = template.partStructure;
 
 let test = document.getElementById("testParts");
@@ -808,6 +810,8 @@ partContainer.style.padding = '5px';
 partContainer.style.marginBottom = '8px';
 partContainer.style.borderBottom = '1px solid #ccc';
 partContainer.id = `part-${i}-container`;
+
+
 
 let partNum = i + 1;
 partContainer.innerHTML = `<h2>Part ${partNum}</h2>`;
@@ -838,71 +842,69 @@ test.appendChild(partContainer);
 }
 
 // Add bonus part if it exists
-if (template.bonusQuestions && template.bonusQuestions.length > 0) {
-const bonusPartContainer = document.createElement("div");
-bonusPartContainer.style.padding = '5px';
-bonusPartContainer.style.marginBottom = '8px';
-bonusPartContainer.style.borderBottom = '1px solid #ccc';
-bonusPartContainer.id = `part-bonus-container`;
+if (template && template.bonusSection && template.bonusQuestions && template.bonusQuestions.length > 0) {
+    const testPartsContainer = document.getElementById("testParts");
+    if (!testPartsContainer) {
+        console.error("Test parts container not found");
+        return;
+    }
 
-bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
+    const bonusPartContainer = document.createElement("div");
+    bonusPartContainer.style.padding = '5px';
+    bonusPartContainer.style.marginBottom = '8px';
+    bonusPartContainer.style.borderBottom = '1px solid #ccc';
+    bonusPartContainer.id = `part-bonus-container`;
 
-const bonusSectionContainer = document.createElement('div');
-bonusSectionContainer.style.padding = '5px';
-bonusSectionContainer.style.marginBottom = '8px';
-bonusSectionContainer.style.borderBottom = '1px solid #ccc';
-bonusSectionContainer.style.backgroundColor = '#d3d3d3';
-bonusSectionContainer.id = `bonus-container`;
+    bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
 
-bonusSectionContainer.innerHTML = `
-    <h3>Bonus Section: Bonus Questions</h3>
-    <div class="selected-questions"></div>
-`;
+    const bonusSectionContainer = document.createElement('div');
+    bonusSectionContainer.style.padding = '5px';
+    bonusSectionContainer.style.marginBottom = '8px';
+    bonusSectionContainer.style.borderBottom = '1px solid #ccc';
+    bonusSectionContainer.style.backgroundColor = '#d3d3d3';
+    bonusSectionContainer.id = `bonus-container`;
 
-// Create selectedQuestionsDiv and add bonus questions to it
-const selectedQuestionsDiv = document.createElement('div');
-
-template.bonusQuestions.forEach((questionID, questionIndex) => {
-    const [type, index] = questionID.split('-');
-    const question = masterQuestionList[courseID][type][index];
-    
-    const questionElement = document.createElement("div");
-    questionElement.style.padding = "8px";
-    questionElement.style.margin = "5px 0";
-    questionElement.style.backgroundColor = "#f0f0f0";
-    questionElement.style.borderRadius = "4px";
-    questionElement.dataset.questionIndex = questionIndex; // Store original index
-    questionElement.dataset.questionID = questionID; // Store the question ID
-
-    questionElement.innerHTML = `
-        <p>${question.text}</p>
-        <label>Points: </label>
-        <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
+    bonusSectionContainer.innerHTML = `
+        <h3>Bonus Section: Bonus Questions</h3>
     `;
 
-    selectedQuestionsDiv.appendChild(questionElement);
-});
+    const selectedQuestionsDiv = document.createElement('div');
+    selectedQuestionsDiv.className = 'selected-questions';
+    
+    template.bonusQuestions.forEach((questionID) => {
+        
+        id = questionID;
+        const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
+        let question = {};
+        for (const t of types) {
+            if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
+                question = masterQuestionList[courseID][t][id];
+            }
+        }            
+        if (!question) {
+            console.error(`Bonus question not found: ${questionID}`);
+            return;
+        }
+        
+        const questionElement = document.createElement("div");
+        questionElement.style.padding = "8px";
+        questionElement.style.margin = "5px 0";
+        questionElement.style.backgroundColor = "#f0f0f0";
+        questionElement.style.borderRadius = "4px";
+        questionElement.dataset.questionID = question.id; 
 
-// Find the selected-questions div and append our content
-const selectedQuestionsContainer = bonusSectionContainer.querySelector('.selected-questions');
-selectedQuestionsContainer.appendChild(selectedQuestionsDiv);
+        questionElement.innerHTML = `
+            <p>${question.text || 'Question text not available'}</p>
+            <label>Points: </label>
+            <input type="number" class="question-points" min="1" value="${question.score || 1}" style="width: 60px;" disabled>
+        `;
 
-bonusPartContainer.appendChild(bonusSectionContainer);
-test.appendChild(bonusPartContainer);
-} else {
-// Add a button to add bonus questions if none exist yet
-const bonusPartContainer = document.createElement("div");
-bonusPartContainer.style.padding = '5px';
-bonusPartContainer.style.marginBottom = '8px';
-bonusPartContainer.style.borderBottom = '1px solid #ccc';
-bonusPartContainer.id = `part-bonus-container`;
+        selectedQuestionsDiv.appendChild(questionElement);
+    });
 
-bonusPartContainer.innerHTML = `
-    <h2>Bonus Part</h2>
-    <button class="add-btn" onclick="openBonusQuestionModal('${courseID}')">Add Bonus Questions</button>
-`;
-
-test.appendChild(bonusPartContainer);
+    bonusSectionContainer.appendChild(selectedQuestionsDiv);
+    bonusPartContainer.appendChild(bonusSectionContainer);
+    testPartsContainer.appendChild(bonusPartContainer);
 }
 }
 
@@ -932,7 +934,6 @@ name: testName,
 template: template,
 templateName: template.name,
 templateID: templateID,
-template: masterTemplateList[courseID][templateID],
 parts: [],
 attachments: [],
 feedback: []
@@ -940,8 +941,9 @@ feedback: []
 
 // Loop through all parts and sections rendered in the UI
 const testParts = document.getElementById("testParts");
-const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
+const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]:not([id*="-section-"])');
 let noquestions = true;
+
 partContainers.forEach((partContainer, partIndex) => {
 const partData = {
     partNumber: partIndex + 1,
@@ -972,21 +974,16 @@ sectionContainers.forEach((sectionContainer, sectionIndex) => {
     questionDivs.forEach((questionDiv) => {
         const questionID = questionDiv.dataset.questionID;
         const pointsInput = questionDiv.querySelector('.question-points');
-        const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
+        const points = pointsInput ? parseInt(pointsInput.value) : 1; 
 
-        // Get the question from master list and clone it
-        const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionID]));
-
-        // Update points for this clone if they were changed
-        question.score = points;
+        let question = {
+            "id": questionID,
+            "assigned_points": points
+        }
         usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionID]);
         // Add to the questions for this section
         sectionData.questions.push(question);
         noquestions=false;
-        // Set the published key to 1 if the test is published
-        if (isPublished === 'true') {
-            masterQuestionList[courseID][questionType.toLowerCase()][questionID].published = 1;
-        }
     });
     if(noquestions){
         alert("Please select questions for each section");
@@ -1000,55 +997,18 @@ sectionContainers.forEach((sectionContainer, sectionIndex) => {
 testData.parts.push(partData);
 });
 
-if (template.bonusSection) {
-const bonusPart = {
-    partNumber: testData.parts.length + 1,
-    sections: [{
-        sectionNumber: 1,
-        questionType: 'bonus',
-        questions: template.bonusQuestions.map(q => {
-            const [type, index] = q.split('-');
-            const question = masterQuestionList[courseID][type][index];
-            if (isPublished === 'true') {
-                question.published = 1;
-            }
-            return question;
-        })
-    }]
-};
-testData.parts.push(bonusPart);
-}
-
 if (isPublished === 'true'){
 testData.published = 1;
 }else{
 testData.published = 0;
 }
-if(confirm(JSON.stringify(testData))){
-    console.log(JSON.stringify(testData))
-    saveData("test", testData, courseID);
-}
 
 
+confirm(JSON.stringify(testData));
 
-// Set the published key for the template and cover page if the test is published
-if (isPublished === 'true') {
-masterTemplateList[courseID][templateID].published = 1;
-const coverPageID = template.coverPageID;
-if (masterCoverPageList[courseID][coverPageID]) {
-    masterCoverPageList[courseID][coverPageID].published = 1;
-}
-}
+saveData("test", testData, courseID);
 
-usedQuestions.forEach(question => {
-// question.tests.push(testData.id); TODO TBD
-console.log("Updated question:", question);
-console.log("Question published value:", question.published);
-});
-
-alert(`Test "${testName}" saved successfully as ${isPublished === 'true' ? "Published" : "Draft"}!`);
 updateTestTabs(courseID);
-
 closeModal();
 }
 
@@ -1456,8 +1416,8 @@ function openBonusQuestionModal(courseID) {
             element.style.backgroundColor = '#f0f0f0';
             element.style.borderRadius = '4px';
             element.innerHTML = `
-                <input type="checkbox" id="q-${type}-${index}" value="${type}-${index}">
-                <label for="q-${type}-${index}">${question.text} (${question.score} Points)</label>
+                <input type="checkbox" id="q-${type}-${question.id}" value="${type}-${question.id}">
+                <label for="q-${type}-${question.id}">${question.text} (${question.score} Points)</label>
             `;   
             questionContainer.appendChild(element);
         }
@@ -1487,7 +1447,15 @@ function openBonusQuestionModal(courseID) {
  * Postcondition: bonus questions are added to the template or test
 */
 function addSelectedBonusQuestions(courseID) {
+    console.log("Starting addSelectedBonusQuestions function");
+    
     const modalBody = document.getElementById("questionModalBody");
+    if (!modalBody) {
+        console.error("Question modal body not found!");
+        alert("Error: Question modal body not found");
+        return;
+    }
+    
     const checkboxes = modalBody.querySelectorAll('input[type="checkbox"]:checked');
     const selectedQuestions = Array.from(checkboxes).map(cb => cb.value);
 
@@ -1496,8 +1464,120 @@ function addSelectedBonusQuestions(courseID) {
         return;
     }
 
-    masterTemplateList[courseID].bonusQuestions = selectedQuestions;
+    console.log(`Selected ${selectedQuestions.length} questions for bonus`);
+    
+    // Save to master list
+    masterTemplateList[courseID].bonusQuestions = [];
+    
+    // Create a container for the selected questions
+    const selectedQuestionsDiv = document.createElement('div');
+    selectedQuestionsDiv.className = "bonus-questions-container";
+
+    // Add each question to the container
+    selectedQuestions.forEach((q, questionIndex) => {
+        const [type, id] = q.split('-');
+        const question = masterQuestionList[courseID][type][id];
+        console.log(`Processing question: ${question.text.substring(0, 20)}...`);
+        masterTemplateList[courseID].bonusQuestions.push(id);
+        const questionElement = document.createElement("div");
+        questionElement.style.padding = "8px";
+        questionElement.style.margin = "5px 0";
+        questionElement.style.backgroundColor = "#f0f0f0";
+        questionElement.style.borderRadius = "4px";
+        questionElement.dataset.questionIndex = questionIndex; 
+        questionElement.dataset.questionID = question.id; 
+
+        questionElement.innerHTML = `
+            <p>${question.text}</p>
+            <p>Points: ${question.score}</p>
+            `;
+        selectedQuestionsDiv.appendChild(questionElement);
+    });
+    
+    console.log("Created questions div, now looking for container");
+    
+    // APPROACH 1: Try to find the element directly
+    let container = document.getElementById("selectedBonusQuestionsContainer");
+    console.log("Direct lookup result:", container ? "Found" : "Not found");
+    
+    // APPROACH 2: Look in the template editor
+    if (!container) {
+        const templateEditor = document.getElementById("templateEditor");
+        console.log("Template editor found:", templateEditor ? "Yes" : "No");
+        
+        if (templateEditor) {
+            container = templateEditor.querySelector("#selectedBonusQuestionsContainer");
+            console.log("Container in template editor:", container ? "Found" : "Not found");
+        }
+    }
+    
+    // APPROACH 3: Search the entire document
+    if (!container) {
+        console.log("Searching all divs in document...");
+        const allDivs = document.querySelectorAll("div");
+        console.log(`Found ${allDivs.length} divs in document`);
+        
+        for (let div of allDivs) {
+            if (div.id === "selectedBonusQuestionsContainer") {
+                container = div;
+                console.log("Found container by searching all divs");
+                break;
+            }
+        }
+    }
+    
+    // APPROACH 4: Create the container if it doesn't exist
+    if (!container) {
+        console.log("Container not found, creating new one");
+        
+        // Find the bonus toggle to insert after
+        const bonusToggle = document.querySelector("#bonusToggle");
+        if (bonusToggle) {
+            console.log("Found bonus toggle, adding container after it");
+            
+            container = document.createElement("div");
+            container.id = "selectedBonusQuestionsContainer";
+            container.style.marginTop = "10px";
+            container.style.marginBottom = "10px";
+            
+            // Try to insert after the bonus toggle's parent
+            const toggleParent = bonusToggle.closest("select, div");
+            if (toggleParent && toggleParent.parentNode) {
+                // Find the next <br> after the toggle
+                let nextBr = toggleParent.nextSibling;
+                while (nextBr && nextBr.nodeName !== "BR") {
+                    nextBr = nextBr.nextSibling;
+                }
+                
+                // Insert after the BR if found, otherwise after the toggle parent
+                if (nextBr && nextBr.nextSibling) {
+                    toggleParent.parentNode.insertBefore(container, nextBr.nextSibling);
+                } else {
+                    toggleParent.parentNode.insertBefore(container, toggleParent.nextSibling);
+                }
+                
+                console.log("Container created and inserted");
+            } else {
+                console.log("Could not locate proper insertion point");
+            }
+        } else {
+            console.log("Bonus toggle not found");
+        }
+    }
+    
+    // Final check and update
+    if (container) {
+        console.log("Found/created container, updating content");
+        container.innerHTML = "";
+        container.appendChild(selectedQuestionsDiv);
+        console.log("Container updated successfully");
+    } else {
+        console.error("CRITICAL: Could not find or create container!");
+        alert("Error: Could not display selected bonus questions. Please try refreshing the page.");
+    }
+    
     closeQuestionModal();
+    console.log("Modal closed, function complete");
 }
 
 

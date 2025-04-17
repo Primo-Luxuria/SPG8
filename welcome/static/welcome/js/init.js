@@ -51,7 +51,7 @@ function updateQuestionTabs(questionType, courseID) {
 /**
  * Defines the UI for a given course, used to interact with everything else
  * Preconditions: requires users provide all of the course addition data
- * Postconditions: Creates a course UI with tabbed panes for question and test data
+ * Postconditions: Creates a course UI with panes for question and test data
 */
 async function addCourse() {
     const courseID = document.getElementById('courseID').value.trim();
@@ -529,6 +529,7 @@ async function sendFormData(url, formData) {
             throw new Error(data.message || data.error || 'An error occurred while saving your data');
         }
         
+        reloadData();
         return data;
     } catch (error) {
         console.error('Error:', error);
@@ -631,10 +632,12 @@ function serializeTemplate(template, courseID = null, isbn = null) {
             coverPageID: template.coverPageID || 0,
             partStructure: template.partStructure || null,
             bonusSection: template.bonusSection || false,
+            bonusQuestions: template.bonusQuestions || [],
             published: template.published || false
         }
     };
-    
+
+    confirm(JSON.stringify(template));
     return requestData;
 }
 
@@ -871,24 +874,11 @@ function serializeQuestion(question, courseID=null, isbn=null) {
         name: test.name || 'Untitled Test',
         date: test.date || null,
         filename: masterCoverPageList[courseID][test.template.coverPageID].file || masterCoverPageList[isbn][test.template.coverPageID].file|| null,
-        is_final: Boolean(test.is_final), 
-        templateIndex: parseInt(test.templateIndex) || 0
+        is_final: Boolean(test.published), 
+        templateID: parseInt(test.templateID) || 0
     };
     
-    // Format cover page if available
-    if (test.coverPage) {
-        requestData.coverPage = {
-            name: test.coverPage.name || 'Cover Page',
-            testNum: test.coverPage.testNum || '',
-            date: test.coverPage.date || null,
-            file: test.coverPage.file || '',
-            showFilename: Boolean(test.coverPage.showFilename), 
-            blank: test.coverPage.blank || 'TL',
-            instructions: test.coverPage.instructions || null
-        };
-    }
-    
-    // Format parts, sections, and questions
+     // Format parts, sections, and questions
     requestData.parts = [];
     if (Array.isArray(test.parts) && test.parts.length > 0) {
         requestData.parts = test.parts.map((part, partIndex) => {
@@ -905,151 +895,14 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                         questions: []
                     };
                     
-                    if (Array.isArray(section.questions) && section.questions.length > 0) {
-                        serializedSection.questions = section.questions.map((question, questionIndex) => {
-                            // FIX: Properly handle null/undefined values
-                            let newquestion = {
-                                question_id: question.id || null,
-                                assigned_points: parseFloat(question.assigned_points || question.score || 1.0),
-                                order: question.order || (questionIndex + 1),
-                                randomize: Boolean(question.randomize), // FIX: Ensure boolean value
-                                special_instructions: question.special_instructions || null,
-                                qtype: question.qtype || 'mc',
-                                text: question.text || '',
-                                eta: parseInt(question.eta) || 1, // FIX: Ensure numeric value
-                                directions: question.directions || null,
-                                reference: question.reference || null,
-                                comments: question.comments || null,
-                                chapter: parseInt(question.chapter) || 0, // FIX: Ensure numeric value
-                                section: parseInt(question.section) || 0, // FIX: Ensure numeric value
-                                published: Boolean(question.published), // FIX: Ensure boolean value
-                            };
-                            // Format answers
-                            newquestion.answer = {};
-                            switch(question.qtype){
-                                case "tf": 
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "ma":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                text: question.answer[key].text || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "ms":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                value: question.answer[key].value || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "mc":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "fb":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                value: question.answer[key].value || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "es":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "sa":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                            }
-                            // Format options
-                            newquestion.options = {};
-                            switch(question.qtype){
-                                case "tf": 
-                                    newquestion.options = {
-                                        true: {text: "True", order: 1},
-                                        false: {text: "False", order: 2}
-                                    };
-                                    break;
-                                case "ma":
-                                    if (question.options) {
-                                        Object.keys(question.options).forEach(key => {
-                                            if (key === "numPairs" || key === "numDistractions") {
-                                                newquestion.options[key] = question.options[key];
-                                            } else if (key.startsWith("pair")) {
-                                                newquestion.options[key] = {
-                                                    left: question.options[key].left || null,
-                                                    right: question.options[key].right || null,
-                                                    pairNum: question.options[key].pairNum || null
-                                                };
-                                            } else if (key.startsWith("distraction")) {
-                                                newquestion.options[key] = {
-                                                    text: question.options[key].text || null,
-                                                    order: question.options[key].order || null
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "ms":
-                                    newquestion.options = {};
-                                    if (question.options) {
-                                        Object.keys(question.options).forEach(key => {
-                                            if (key.startsWith("option")) {
-                                                newquestion.options[key] = {
-                                                    text: question.options[key].text || null,
-                                                    order: question.options[key].order || null
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "mc":
-                                    newquestion.options = {};
-                                    const mcOptions = ['A', 'B', 'C', 'D'];
-                                    if (question.options) {
-                                        mcOptions.forEach(letter => {
-                                            if (question.options[letter]) {
-                                                newquestion.options[letter] = {
-                                                    text: question.options[letter].text || null,
-                                                    order: question.options[letter].order || mcOptions.indexOf(letter) + 1
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "fb":
-                                    // Fill in the blank typically doesn't have options
-                                    newquestion.options = {};
-                                    break;
-                                case "es":
-                                    // Essay questions typically don't have options
-                                    newquestion.options = {};
-                                    break;
-                                case "sa":
-                                    // Short answer questions typically don't have options
-                                    newquestion.options = {};
-                                    break;
-                            }
-                        });
+                    for(let i=0; i<section.questions.length;i++){
+                        let question = {
+                            "id": section.questions[i].id,
+                            "assigned_points":section.questions[i].assigned_points,
+                            "order": i
+                        };
+                        serializedSection.questions.push(question);
                     }
-                    
                     return serializedSection;
                 });
             }
@@ -1075,7 +928,6 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                         })) : []
                 }));
         }
-
     }
     
     // Format attachments if available
@@ -1090,6 +942,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
             .filter(id => id !== null); // Filter out null or undefined values
     }
     
+    console.log(JSON.stringify(requestData));
     return requestData;
 }
 
@@ -1452,7 +1305,7 @@ async function deleteItem() {
     const username = window.username;
     let type =itemType;
     
-    
+
     let itemToDelete;
     switch(itemType) {
         case 'question':

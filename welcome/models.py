@@ -315,6 +315,7 @@ class Template(models.Model):
     coverPageID = models.IntegerField(default=0)
     partStructure = models.JSONField(null=True, blank=True, help_text="JSON representation of the test part structure")
     bonusSection = models.BooleanField(default=False)
+    bonusQuestions = models.JSONField(null=True, blank=True)
     published = models.BooleanField(default=False)
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
@@ -434,7 +435,7 @@ class Test(models.Model):
     attachments = models.ManyToManyField(Attachment, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    templateIndex = models.PositiveIntegerField(default=0, help_text="Associated Template ID. Default is 0.")
+    templateID = models.PositiveIntegerField(default=0, help_text="Associated Template ID. Default is 0.")
 
     def __str__(self):
         if self.course:
@@ -502,7 +503,7 @@ class TestQuestion(models.Model):
     section = models.ForeignKey(TestSection, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
-        unique_together = ('test', 'question')
+        unique_together = ('test', 'question', 'section')
         ordering = ['order']
 
     def __str__(self):
