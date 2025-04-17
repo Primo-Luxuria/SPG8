@@ -1277,24 +1277,25 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
  * Precondition: valid courseID
  * Postcondition: test content is updated in the test containers    
 */ 
-function updateTestTabs(courseID) {
-    const draftsContainer = document.getElementById(`drafts-${courseID}`);
-    const publishedContainer = document.getElementById(`published-${courseID}`);
+function updateTestTabs(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
+    const draftsContainer = document.getElementById(`drafts-${identity}`);
+    const publishedContainer = document.getElementById(`published-${identity}`);
     draftsContainer.innerHTML = ''; // Clear existing content
     publishedContainer.innerHTML = ''; // Clear existing content
     console.log("TEST LIST:");
     console.log(masterTestList);
-    if(!masterTestList[courseID]){
-        masterTestList[courseID] = {};
+    if(!masterTestList[identity]){
+        masterTestList[identity] = {};
     }
-    if(!masterTestList[courseID].drafts){
-        masterTestList[courseID].drafts = {};
+    if(!masterTestList[identity].drafts){
+        masterTestList[identity].drafts = {};
     }
-    if(!masterTestList[courseID].published){
-        masterTestList[courseID].published = {};
+    if(!masterTestList[identity].published){
+        masterTestList[identity].published = {};
     }
-    const drafts = masterTestList[courseID].drafts;
-    const published = masterTestList[courseID].published;
+    const drafts = masterTestList[identity].drafts;
+    const published = masterTestList[identity].published;
 
     if (Object.keys(drafts).length === 0) {
         draftsContainer.innerHTML = '<p>No drafts available...</p>';
@@ -1309,7 +1310,9 @@ function updateTestTabs(courseID) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemID = test.id;
-            testDiv.dataset.courseID = courseID;
+            coverPageDiv.dataset.identity = identity;
+            if (courseID != null) coverPageDiv.dataset.courseID = courseID;
+            if (isbn != null) coverPageDiv.dataset.isbn = isbn;
             testDiv.dataset.testType = 'drafts';
 
             testDiv.innerHTML = `
@@ -1335,7 +1338,9 @@ function updateTestTabs(courseID) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemID = test.id;
-            testDiv.dataset.courseID = courseID;
+            coverPageDiv.dataset.identity = identity;
+            if (courseID != null) coverPageDiv.dataset.courseID = courseID;
+            if (isbn != null) coverPageDiv.dataset.isbn = isbn;
             testDiv.dataset.testType = 'published';
 
             testDiv.innerHTML = `
@@ -1358,15 +1363,17 @@ function updateTestTabs(courseID) {
  * Precondition: valid courseID
  * Postcondition: cover page options are updated in the template editor
 */
-function updateCoverPages(courseID) {
-    const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
+function updateCoverPages(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
+  
+    const coverPageContainer = document.getElementById(`coverpages-${identity}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
+    if (!masterCoverPageList[identity] || masterCoverPageList[identity].length === 0) {
         coverPageContainer.innerHTML = '<p>You have not added any cover pages yet...</p>';
         return;
     }
-    cpages = masterCoverPageList[courseID];
+    cpages = masterCoverPageList[identity];
     for(const key in cpages){
         let coverPage = cpages[key];
         const coverPageDiv = document.createElement('div');
@@ -1377,7 +1384,9 @@ function updateCoverPages(courseID) {
         coverPageDiv.classList.add('context-menu-target');
         coverPageDiv.dataset.itemType = 'coverPage';
         coverPageDiv.dataset.itemID = coverPage.id;
-        coverPageDiv.dataset.courseID = courseID;
+        coverPageDiv.dataset.identity = identity;
+        if (courseID != null) coverPageDiv.dataset.courseID = courseID;
+        if (isbn != null) coverPageDiv.dataset.isbn = isbn;
 
         coverPageDiv.innerHTML = `
             <p><strong>${coverPage.name}</strong> (Test Number: ${coverPage.testNum}, Date: ${coverPage.date})</p>
@@ -1394,16 +1403,17 @@ function updateCoverPages(courseID) {
  * Precondition: valid courseID
  * Postcondition: templates are updated in the template container
 */
-function updateTemplates(courseID) {
-    const templateContainer = document.getElementById(`templates-${courseID}`);
+function updateTemplates(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
+    const templateContainer = document.getElementById(`templates-${identity}`);
     templateContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterTemplateList[courseID] || masterTemplateList[courseID].length === 0) {
+    if (!masterTemplateList[identity] || masterTemplateList[identity].length === 0) {
         templateContainer.innerHTML = '<p>You have not added any templates yet...</p>';
         return;
     }
 
-    let templates = masterTemplateList[courseID];
+    let templates = masterTemplateList[identity];
     for(const key in templates){
         let template = templates[key];
         const templateDiv = document.createElement('div');
@@ -1414,7 +1424,9 @@ function updateTemplates(courseID) {
         templateDiv.classList.add('context-menu-target');
         templateDiv.dataset.itemType = 'template';
         templateDiv.dataset.itemID = template.id;
-        templateDiv.dataset.courseID = courseID;
+        templateDiv.dataset.identity = identity;
+        if (courseID != null) templateDiv.dataset.courseID = courseID;
+        if (isbn != null) templateDiv.dataset.isbn = isbn;
 
         templateDiv.innerHTML = `
             <p><strong>${template.name}</strong></p>
@@ -1432,7 +1444,8 @@ function updateTemplates(courseID) {
  * Precondition: valid courseID, attachments exist in the course attachment list
  * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateGraphicSelectors(courseID) {
+function updateGraphicSelectors(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
@@ -1440,11 +1453,12 @@ function updateGraphicSelectors(courseID) {
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
 
-    for(const key in masterAttachmentList[courseID]){
-        let attachment = masterAttachmentList[courseID][key];
+    for(const key in masterAttachmentList[identity]){
+        let attachment = masterAttachmentList[identity][key];
         const option = document.createElement('option');
         option.value = attachment.id;
         option.textContent = attachment.url;
+        option.dataset.identity = identity;
         qGraphicField.appendChild(option);
 
         const ansOption = document.createElement('option');
