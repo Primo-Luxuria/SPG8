@@ -1735,41 +1735,46 @@ async function deleteItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
+    const identity = getUserIdentity(courseID, isbn);
+    const isbn = contextMenu.dataset.isbn;
     const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
     const testType = contextMenu.dataset.testType;
     const username = window.username;
     let type =itemType;
+    // let modelType = itemType.charAt(0).toUpperCase() + itemType.slice(1);
     
     
     let itemToDelete;
     switch(itemType) {
         case 'question':
             type="Question"
-            itemToDelete = masterQuestionList[courseID][questionType][String(itemID)];
+            itemToDelete = masterQuestionList[identity][questionType][String(itemID)];
             break;
         case 'test':
             type="Test"
             console.log("Trying to delete:", {
                 courseID,
+                isbn,
+                identity,
                 testType,
                 itemID,
-                masterTestList: masterTestList[courseID],
-                test: masterTestList[courseID][testType]
+                masterTestList: masterTestList[identity],
+                test: masterTestList[identity][testType]
             });
-            itemToDelete = masterTestList[courseID][testType][String(itemID)];
+            itemToDelete = masterTestList[identity][testType][String(itemID)];
             break;
         case 'template':
             type = "Template"
-            itemToDelete = masterTemplateList[courseID][String(itemID)];
+            itemToDelete = masterTemplateList[identity][String(itemID)];
             break;
         case 'coverPage':
             type="CoverPage"
-            itemToDelete = masterCoverPageList[courseID][String(itemID)];
+            itemToDelete = masterCoverPageList[identity][String(itemID)];
             break;
         case 'attachment':
             type="Attachment"
-            itemToDelete = masterAttachmentList[courseID][String(itemID)];
+            itemToDelete = masterAttachmentList[identity][String(itemID)];
             break;
         default:
             console.error('Unknown item type:', type);
@@ -1800,7 +1805,7 @@ async function deleteItem() {
                 model_type: type,
                 id: itemToDelete.id,
                 username: username,
-                identity: courseID
+                identity: identity
             })
         });
         
@@ -1810,19 +1815,19 @@ async function deleteItem() {
             // Remove the item from the local array
             switch(type) {
                 case 'question':
-                    delete masterQuestionList[courseID][questionType][itemID];
+                    delete masterQuestionList[identity][questionType][itemID];
                     break;
                 case 'test':
-                    delete masterTestList[courseID][testType][itemID];
+                    delete masterTestList[identity][testType][itemID];
                     break;
                 case 'template':
-                    delete masterTemplateList[courseID][itemID];
+                    delete masterTemplateList[identity][itemID];
                     break;
                 case 'coverPage':  // also fix the casing to match `case` block
-                    delete masterCoverPageList[courseID][itemID];
+                    delete masterCoverPageList[identity][itemID];
                     break;
                 case 'attachment':
-                    delete masterAttachmentList[courseID][itemID];
+                    delete masterAttachmentList[identity][itemID];
                     break;
             }
 
