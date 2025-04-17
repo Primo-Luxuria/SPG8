@@ -9,15 +9,30 @@ var masterTextbookList = {};
 
 
 /**
+ * getUserIdentity to determine identity based on user role
+*/
+function getUserIdentity(courseID, isbn) {
+  const ownerRole = document.getElementById('userRole')?.value;
+  if (ownerRole === 'teacher' || ownerRole === 'webmaster') {
+    return courseID;
+  } else if (ownerRole === 'publisher') {
+    return isbn;
+  }
+  // fallback to whichever is defined
+  return courseID || isbn;
+}
+
+/**
  * This function is called to update the question content inside the question containers whenever a question is saved
  * Precondition: valid questionType, courseID
  * Postcondition: question content is updated in the question containers
 */
-function updateQuestionTabs(questionType, courseID) {
-    const tabContent = document.getElementById(`${questionType}-${courseID}`);
+function updateQuestionTabs(questionType, courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
+    const tabContent = document.getElementById(`${questionType}-${identity}`);
     tabContent.innerHTML = ''; // Clear existing content
 
-    const questions = masterQuestionList[courseID][questionType];
+    const questions = masterQuestionList[identity][questionType];
 
     if (questions.length === 0) {
         tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
@@ -32,7 +47,9 @@ function updateQuestionTabs(questionType, courseID) {
             questionDiv.classList.add('context-menu-target');
             questionDiv.dataset.itemType = 'question';
             questionDiv.dataset.itemID = question.id;
+            questionDiv.dataset.identity = identity;
             questionDiv.dataset.courseID = courseID;
+            questionDiv.dataset.isbn = isbn;
             questionDiv.dataset.questionType = questionType;
 
             questionDiv.innerHTML = `
@@ -63,6 +80,7 @@ async function addCourse() {
     const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
     const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
     const textbookLink = document.getElementById('courseTextbookLink').value.trim();
+    const isbn = null;
 
     if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
         alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
@@ -74,68 +92,71 @@ async function addCourse() {
         return;
     }
 
-
     const courseContainer = document.createElement('div');
     courseContainer.classList.add('course-container');
+    const identity = getUserIdentity(courseID, isbn);
+    courseContainer.dataset.identity = identity;
+    courseContainer.dataset.courseID = courseID;
+    courseContainer.dataset.isbn = isbn;
     courseContainer.innerHTML = `
         <details>
-            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+            <summary><strong>${courseName}</strong> (ID: ${identity}, CRN: ${courseCRN}, ${courseSemester})</summary>
             <details>
                 <summary>Questions</summary>
-            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <button class="add-btn" onclick="openEditor('Question', '${identity}')">Add Question</button>
             <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
-                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
-                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
-                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
-                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
-                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
-                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                    <div class="tab active" onclick="switchTab(event, 'tf-${identity}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${identity}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${identity}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${identity}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${identity}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${identity}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${identity}')">Fill in the Blank</div>
                 </div>
-                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
-                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
-                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
-                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
-                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
-                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
-                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+                <div class="tab-content active" id="tf-${identity}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${identity}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${identity}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${identity}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${identity}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${identity}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${identity}"><p>Fill in the Blank questions go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Cover Pages</summary>
-                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
-                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${identity}')">Add Cover Page</button>
+                    <div id="coverpages-${identity}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Template', '${identity}')">Add Template</button>
+                    <div id="templates-${identity}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
                 <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
-                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${identity}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${identity}')">Published Tests</div>
                 </div>
-                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
-                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+                <div class="tab-content active" id="drafts-${identity}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${identity}"><p>Published tests go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Attachments</summary>
-                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
-                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
+                <button class="add-btn" onclick="openEditor('Attachment', '${identity}')">Add Attachment</button>
+                <div id="attachments-${identity}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse('${courseID}')">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse('${identity}')">Remove Course</button>
         </details>
     `;
 
@@ -176,11 +197,11 @@ async function addCourse() {
         date = '0' + date;
     }   
 
-    masterQuestionList[courseID] = questionList;
-    masterTestList[courseID] = testList;
-    masterCoverPageList[courseID] = {};
-    masterTemplateList[courseID] = {};
-    masterTemplateList[courseID].bonusQuestions = [];
+    masterQuestionList[identity] = questionList;
+    masterTestList[identity] = testList;
+    masterCoverPageList[identity] = {};
+    masterTemplateList[identity] = {};
+    masterTemplateList[identity].bonusQuestions = [];
 
     const coverPageDefault = {
         name: "Default 1st Test",
@@ -228,7 +249,7 @@ async function addCourse() {
         headerText: "",
         footerText: "Please read all questions carefully",
         coverPageID: 0,
-        coverPage: masterCoverPageList[courseID][0],
+        coverPage: masterCoverPageList[identity][0],
         bonusSection: false,
         bonusQuestions: [],
         partStructure: [
@@ -255,9 +276,9 @@ async function addCourse() {
         masterTextbookList[textbookISBN] = textbook;
     }
 
-    if(!masterAttachmentList[courseID]){
+    if(!masterAttachmentList[identity]){
         let attachmentList = {};
-        masterAttachmentList[courseID] = attachmentList;
+        masterAttachmentList[identity] = attachmentList;
     }
 
     const thisCourse = {
@@ -269,13 +290,13 @@ async function addCourse() {
     };
 
     try {
-        await saveData("course", thisCourse, courseID);
-        await saveData("coverPage", coverPageDefault, courseID);
-        await saveData("coverPage", coverPageDefault2, courseID);
-        await saveData("coverPage", coverPageDefault3, courseID);
-        await saveData("template", templateDefault, courseID);
-        updateCoverPages(courseID);
-        updateTemplates(courseID); 
+        await saveData("course", thisCourse, identity);
+        await saveData("coverPage", coverPageDefault, identity);
+        await saveData("coverPage", coverPageDefault2, identity);
+        await saveData("coverPage", coverPageDefault3, identity);
+        await saveData("template", templateDefault, identity);
+        updateCoverPages(identity);
+        updateTemplates(identity); 
 
     } catch (error) {
         console.error("Error saving course data:", error);
@@ -290,11 +311,12 @@ async function addCourse() {
  * Postcondition: the course no longer exists
  * 
 */
-async function confirmRemoveCourse(courseID) {
+async function confirmRemoveCourse(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
     if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
         try {
         let username = window.username;
-        let itemToDelete=courseList[courseID];
+        let itemToDelete=courseList[identity];
         let type = "Course"
         const response = await fetch('/api/delete_item/', {
             method: 'POST',
@@ -306,7 +328,7 @@ async function confirmRemoveCourse(courseID) {
                 model_type: type,
                 id: itemToDelete.dbid,
                 username: username,
-                identity: courseID
+                identity: identity
             })
         });
         
@@ -314,7 +336,7 @@ async function confirmRemoveCourse(courseID) {
         
         if (response.ok) {
             // Remove the item from the local array
-            delete courseList[courseID];
+            delete courseList[identity];
             if(Object.keys(courseList).length === 0 && courseList.constructor === Object){
             document.getElementById('courseList').innerHTML = "";
             console.log("No courses to load");
