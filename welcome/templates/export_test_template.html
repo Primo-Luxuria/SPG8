@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ test.name }} - {% if key_export %}Test Key{% else %}Test{% endif %}</title>
+  <style>
+    /* Use formatting from the Template model if available */
+    body {
+      font-family: {{ test.template.bodyFont|default:"Arial" }};
+      font-size: {{ test.template.bodyFontSize|default:"12" }}px;
+      margin: 40px;
+    }
+    h1.test-title {
+      font-family: {{ test.template.titleFont|default:"Arial" }};
+      font-size: {{ test.template.titleFontSize|default:"24" }}px;
+      margin-bottom: 20px;
+    }
+    h2.subtitle {
+      font-family: {{ test.template.subtitleFont|default:"Arial" }};
+      font-size: {{ test.template.subtitleFontSize|default:"18" }}px;
+    }
+    .grading-instructions {
+      {% if key_export %}
+      color: blue;
+      {% else %}
+      display: none;
+      {% endif %}
+    }
+    .correct-answer {
+      {% if key_export %}
+      color: red;
+      {% else %}
+      display: none;
+      {% endif %}
+    }
+    /* Header and Footer can be added as needed */
+    .header, .footer {
+      text-align: center;
+      margin: 10px 0;
+    }
+    /* Add extra spacing for student answers (example for essay questions) */
+    .answer-space {
+      margin-top: 10px;
+      margin-bottom: 30px;
+      border-bottom: 1px solid #000;
+      width: 90%;
+      height: 50px;
+    }
+    /* Page-breaks could be added if printing is desired: */
+    @media print {
+      .page-break { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  {% if test.template.headerText %}
+  <div class="header">
+    {{ test.template.headerText }}
+  </div>
+  {% endif %}
+
+  <h1 class="test-title">{{ test.name }} {% if key_export %} - Test Key{% endif %}</h1>
+
+  <!-- If a cover page is specified via the template, render it here.
+       In this example we assume that the test’s course has cover pages and that
+       the template's coverPageID is an index into those cover pages. -->
+  {% if test.course and test.course.coverpage_set.all %}
+    {% for cp in test.course.coverpage_set.all %}
+      {% if forloop.counter0 == test.template.coverPageID %}
+        <div class="cover-page">
+          <h2>{{ cp.name }}</h2>
+          <p>Test Number: {{ cp.testNum }}</p>
+          <p>Date: {{ cp.date }}</p>
+          {% if key_export %}
+          <p class="grading-instructions">{{ cp.instructions }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <!-- Loop through each Test Part -->
+  {% for part in test.parts.all %}
+    <div class="test-part">
+      <h2>Part {{ part.part_number }}</h2>
+      
+      <!-- Loop through each Section in the part -->
+      {% for section in part.sections.all %}
+        <div class="test-section">
+          <h3>Section {{ section.section_number }} ({{ section.question_type|upper }})</h3>
+          <ol>
+          {% for tq in section.testquestion_set.all %}
+            <li>
+              <div class="question">
+                <p>{{ tq.question.text }}</p>
+                {% if key_export %}
+                  <p class="grading-instructions">Grading: {{ tq.question.directions }}</p>
+                  <p class="correct-answer">Answer: {{ tq.question.answer }}</p>
+                {% else %}
+                  <!-- For the regular test, leave space for the student to answer -->
+                  <p>Answer: <span class="answer-space"></span></p>
+                {% endif %}
+                <p>Points: {{ tq.assigned_points }}</p>
+              </div>
+            </li>
+          {% endfor %}
+          </ol>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <!-- Footer -->
+  {% if test.template.footerText %}
+  <div class="footer">
+    {{ test.template.footerText }}
+  </div>
+  {% endif %}
+
+</body>
+</html>
