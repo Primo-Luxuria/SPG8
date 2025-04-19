@@ -973,11 +973,12 @@ sectionContainers.forEach((sectionContainer, sectionIndex) => {
 
     questionDivs.forEach((questionDiv) => {
         const questionID = questionDiv.dataset.questionID;
+        const questionType = questionDiv.dataset.qtype;
         const pointsInput = questionDiv.querySelector('.question-points');
         const points = pointsInput ? parseInt(pointsInput.value) : 1; 
-
         let question = {
             "id": questionID,
+            "qtype": questionType,
             "assigned_points": points
         }
         usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionID]);
@@ -1347,6 +1348,7 @@ questionElement.style.margin = "5px 0";
 questionElement.style.backgroundColor = "#f0f0f0";
 questionElement.style.borderRadius = "4px";
 questionElement.dataset.questionID = question.id; 
+questionElement.dataset.qtype = question.qtype;
 
 questionElement.innerHTML = `
     <p>${question.text}</p>

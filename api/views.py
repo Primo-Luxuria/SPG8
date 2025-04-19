@@ -964,7 +964,7 @@ def get_question_list(field, suite):
                     answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
                 else:
                     answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
-
+                print(json.dumps(answer) + " " + q.qtype)
                 # === Options ===
                 options = {}
                 if q.qtype == 'tf':
@@ -1171,6 +1171,7 @@ def get_test_list(field, suite):
                     for index, tq in enumerate(test_questions):
                         question_data = {
                             'id': tq.question.id,
+                            'qtype': tq.question.qtype,
                             'assigned_points': float(tq.assigned_points) if tq.assigned_points else 1.0,
                             'order': index
                         }
