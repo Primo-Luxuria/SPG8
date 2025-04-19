@@ -104,9 +104,7 @@ def login_handler(request):
     
     return redirect("login")  # Redirect if not POST
 
-
 import time
-
 
 def parse_qti_xml(request):
     """
@@ -704,6 +702,10 @@ def parse_qti_xml(request):
                     section=test_section_instance
                 )
 
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
         if tf_item_list:
             number_of_sections += 1
             test_section_instance = TestSection.objects.create(
@@ -720,6 +722,10 @@ def parse_qti_xml(request):
                     section=test_section_instance
                 )
 
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
         if fb_item_list:
             number_of_sections += 1
             test_section_instance = TestSection.objects.create(
@@ -734,6 +740,10 @@ def parse_qti_xml(request):
                     assigned_points=item.get('assigned_points'),
                     section=test_section_instance
                 )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
 
         if ms_item_list:
             number_of_sections += 1
@@ -751,6 +761,10 @@ def parse_qti_xml(request):
                     section=test_section_instance
                 )
 
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
         if es_item_list:
             number_of_sections += 1
             test_section_instance = TestSection.objects.create(
@@ -765,6 +779,10 @@ def parse_qti_xml(request):
                     assigned_points=item.get('assigned_points'),
                     section=test_section_instance
                 )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
 
         if ma_item_list:
             number_of_sections += 1
@@ -781,6 +799,10 @@ def parse_qti_xml(request):
                     assigned_points=item.get('assigned_points'),
                     section=test_section_instance
                 )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
 
                 #
 
