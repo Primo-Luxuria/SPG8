@@ -230,7 +230,7 @@
     <input type="text" id="courseTextbookISBN" placeholder="Enter Textbook ISBN" required>
     <input type="text" id="courseTextbookLink" placeholder="Enter Textbook Website Link" required><br/><br/>
     
-    <button onclick="addCourse()">Add Course</button>
+    <button onclick="addContent()">Add Course</button>
     <style>
         /* Add this to your existing button styles */
         button[onclick="addCourse()"] {
@@ -287,7 +287,8 @@
         </div>
     </div>
 <script>
-    window.username = "{{username}}"
+    window.username = "{{username}}";
+    window.userRole = "{{userRole}}";
 </script>
 
 <!-- Define settings before JS files -->

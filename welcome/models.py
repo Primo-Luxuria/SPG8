@@ -110,7 +110,7 @@ class Course(models.Model):
         limit_choices_to={'userprofile__role': 'teacher'}
     )
     published = models.BooleanField(default=False)
-
+    
     def __str__(self):
         return f"{self.course_id} - {self.name}"
 

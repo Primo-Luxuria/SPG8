@@ -21,7 +21,7 @@ function switchTab(event, tabID) {
 * Precondition: valid course, edit button pushed
 * Postcondition: opens up a modal over the webpage content that allows you to create new data
 */
-function openEditor(type, courseID) {
+function openEditor(type, identity) {
 const modal = document.getElementById('editModal');
 const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
@@ -87,7 +87,7 @@ formContent += `
     <label>Instructor Comments (Optional):</label><br/>
     <textarea id="instructorCommentField" placeholder="Comments go here"></textarea><br><br>
 
-    <button class="save-btn" onclick="addQuestion('${courseID}')">Submit Question</button>
+    <button class="save-btn" onclick="addQuestion('${identity}')">Submit Question</button>
 `;
 }
 
@@ -120,7 +120,7 @@ formContent+= `
     <label>Grading Instructions for Key</label>
     <textarea id="instructions" name="instruct" rows="3" placeholder="Add your instructions for grading here. These will go into the test key."></textarea>
     <br/>
-    <button class="save-btn" onclick="submitCoverPage('${courseID}')">Submit</button>
+    <button class="save-btn" onclick="submitCoverPage('${identity}')">Submit</button>
 </div>
 `;
 }
@@ -133,15 +133,15 @@ formContent+= `
     <div id=templateSelectorPane>
         <select id=templateSelector>
             <option value="" disabled selected>Please Select a Template</option>
-        </select> <button id=templateSelection onclick="updateTestParts('${courseID}')">Select This One!</button>
+        </select> <button id=templateSelection onclick="updateTestParts('${identity}')">Select This One!</button>
         <div id="testParts"> </div>
     </div>
-    <button class="add-btn" id="testDraftButton" onclick="saveTest('${courseID}', '${false}')">Save as Draft</button>
-    <button class="add-btn" id="testPublishButton" onclick="saveTest('${courseID}', '${true}')">Publish Test</button>
+    <button class="add-btn" id="testDraftButton" onclick="saveTest('${identity}', '${false}')">Save as Draft</button>
+    <button class="add-btn" id="testPublishButton" onclick="saveTest('${identity}', '${true}')">Publish Test</button>
 </div>
 `;
 setTimeout(() => {
-updateTemplateSelection(courseID);
+updateTemplateSelection(identity);
 }, 50);
 
 }
@@ -225,17 +225,17 @@ formContent += `
     
 
 <h1>Bonus Question Section Toggle</h1>
-<select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
+<select id="bonusToggle" onchange="toggleBonusQuestionSelection()">
 <option value="True">Bonus Section</option>
 <option value="False" selected>No Bonus Section</option>
 </select><br/><br/>
 <div id="selectedBonusQuestionsContainer"><p>"No bonus questions selected"</p></div>
-<button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
-<button class="save-btn" onclick="addTemplate('${courseID}')">Submit Template</button></div>
+<button class="add-btn" id="selectBonusQuestionsBtn" style="display:none;" onclick="openBonusQuestionModal('${identity}')">Select Bonus Questions</button>
+<button class="save-btn" onclick="addTemplate('${identity}')">Submit Template</button></div>
 `;
 
 setTimeout(() => {
-updatePageSelection(courseID);
+updatePageSelection(identity);
 }, 50);
 }
 
@@ -243,7 +243,7 @@ updatePageSelection(courseID);
 if (type === "Attachment"){
 formContent+=`
     <input type="file" id="newAttachment" name="attachment">
-    <button class="save-btn" onclick="submitAttachment('${courseID}')">Submit Attachment</button>
+    <button class="save-btn" onclick="submitAttachment('${identity}')">Submit Attachment</button>
 `;
 }
 
@@ -257,7 +257,7 @@ modal.style.opacity = "1";
 }, 10);
 
 if (type === "Question") {
-updateGraphicSelectors(courseID);
+updateGraphicSelectors(identity);
 }
 
 }
@@ -370,7 +370,7 @@ questionSpecificFields.innerHTML = `
 * Precondition: all necessary data is in the coverpage editor
 * Postcondition: cover page added to the list
 */
-function submitCoverPage(courseID) {
+function submitCoverPage(identity) {
 const pageName = document.getElementById("nameField").value.trim();
 const testNumber = document.getElementById("tNum").value.trim();
 const testDate = document.getElementById("tDate").value.trim();
@@ -384,8 +384,8 @@ alert("Cover page name, Test number, test date, filename, name blank selection, 
 return;
 }
 
-if (!masterCoverPageList[courseID]) {
-masterCoverPageList[courseID] = {};
+if (!masterCoverPageList[identity]) {
+masterCoverPageList[identity] = {};
 }
 
 const coverPage = {
@@ -398,8 +398,11 @@ blank: nameBlankSelector,
 instructions: gradingInstructions,
 published: 0
 };
-
-saveData("coverPage", coverPage, courseID)
+if(window.userRole =="teacher"){
+    saveData("coverPage", coverPage, identity);
+}else{
+    saveData("coverPage", coverPage,{}, identity);
+}
 closeModal();
 }
 
@@ -408,7 +411,7 @@ closeModal();
 * Precondition: valid attachment
 * Postcondition: attachment posted to attachmentList
 */
-function submitAttachment(courseID) {
+function submitAttachment(identity) {
 const attachment = document.getElementById("newAttachment").files[0];
 const name = document.getElementById("nameField").value.trim();
 
@@ -417,23 +420,23 @@ alert("Attachment file and name are required.");
 return;
 }
 
-if (!masterAttachmentList[courseID]) {
-masterAttachmentList[courseID] = [];
+if (!masterAttachmentList[identity]) {
+masterAttachmentList[identity] = [];
 }
 
 let newattachment  = { name: name, file: attachment, url:name};
-saveData("attachment", newattachment, courseID)
+if(window.userRole =="teacher"){
+    saveData("attachment", newattachment, identity);
+}else{
+    saveData("attachment", newattachment,{}, identity);
+}
+
 closeModal();
 }
 
-/**
-* Updates the attachments for a given course
-* Precondition: valid courseID, attachmentList
-* Postcondition: the attachments dropdown will have interactible div containers for each attachment
-*/
-function updateAttachments(courseID) {
-const attachmentList = masterAttachmentList[courseID];
-const attachmentContainer = document.getElementById("attachments-" + courseID);
+function updateAttachments(identity) {
+const attachmentList = masterAttachmentList[identity];
+const attachmentContainer = document.getElementById("attachments-" + identity);
 attachmentContainer.innerHTML = "";
 
 if (attachmentList.length === 0) {
@@ -452,7 +455,7 @@ attachmentDiv.style.borderBottom = '1px solid #ccc';
 attachmentDiv.classList.add('context-menu-target');
 attachmentDiv.dataset.itemType = 'attachment';
 attachmentDiv.dataset.itemID = attachment.id;
-attachmentDiv.dataset.courseID = courseID;
+attachmentDiv.dataset.identity = identity;
 
 const attachmentLabel = document.createElement("p");
 attachmentLabel.innerHTML = `Attachment ${index}: ${attachment.name}`;
@@ -469,12 +472,8 @@ index++;
 }
 
 
-/**
-* Adds a template to the templateList
-* Precondition: valid courseID and template info
-* Postcondition: adds a new template to the list
-*/
-function addTemplate(courseID) {
+
+function addTemplate(identity) {
 const templateName = document.getElementById('nameField').value.trim();
 const coverPageID = document.getElementById('coverPageSelector').value;
 
@@ -519,7 +518,7 @@ if (!partStructure) {
 alert("Error: Template must include a valid part structure.");
 return;
 }
-if (bonusSection && (!masterTemplateList[courseID].bonusQuestions || masterTemplateList[courseID].bonusQuestions.length === 0)) {
+if (bonusSection && (!masterTemplateList[identity].bonusQuestions || masterTemplateList[identity].bonusQuestions.length === 0)) {
 alert("Error: You must select bonus questions if the bonus section is enabled.");
 return;
 }
@@ -540,19 +539,23 @@ coverPageID: coverPageID,
 nameTag: nameTag,
 dateTag: dateTag,
 courseTag: courseTag,
-coverPage: masterCoverPageList[courseID][coverPageID],
+coverPage: masterCoverPageList[identity][coverPageID],
 partStructure: partStructure,
 bonusSection: bonusSection,
-bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+bonusQuestions: masterTemplateList[identity].bonusQuestions || [],
 published: 0
 };
 
-if (!masterTemplateList[courseID]) {
-masterTemplateList[courseID] = [];
+if (!masterTemplateList[identity]) {
+masterTemplateList[identity] = [];
 }
-alert("coverpageID: " + coverPageID)
-saveData("template", templateData, courseID);
-updateTemplates(courseID);
+
+if(window.userRole =="teacher"){
+    saveData("template", templateData, identity);
+}else{
+    saveData("template", templateData,{}, identity);
+}
+updateTemplates(identity);
 closeModal();
 }
 
@@ -628,24 +631,19 @@ return partStructure;
 }
 
 
-/**
-* Updates the potential options for cover pages when you open the template editor
-* Precondition: Valid courseID
-* Postcondition: populated selector in template editor (editmodal)
-*/
-function updatePageSelection(courseID) {
+function updatePageSelection(identity) {
 const selection = document.getElementById("coverPageSelector");
 
 // Clear existing options
 selection.innerHTML = '<option value="" disabled selected>Please Select a Cover Page</option>';
 
-if (!masterCoverPageList[courseID] || Object.keys(masterCoverPageList[courseID]).length === 0) {
+if (!masterCoverPageList[identity] || Object.keys(masterCoverPageList[identity]).length === 0) {
 alert("No cover pages available for this course!");
 return;
 }
 
-for(const key in masterCoverPageList[courseID]){
-    page = masterCoverPageList[courseID][key];
+for(const key in masterCoverPageList[identity]){
+    page = masterCoverPageList[identity][key];
     const newOption = document.createElement("option");
 newOption.value = page.id; 
 newOption.textContent = page.name;
@@ -654,18 +652,13 @@ selection.appendChild(newOption);
 }
 
 
-/**
-* Updates the potential options for templates when you open the test editor
-* Precondition: valid courseID
-* Postcondition: populated selector in test editor (editmodal)
-*/
-function updateTemplateSelection(courseID){
-if(!masterTemplateList[courseID]){
-    masterTemplateList[courseID] = {};
-}else if(Object.keys(masterTemplateList[courseID]).length==0){
+function updateTemplateSelection(identity){
+if(!masterTemplateList[identity]){
+    masterTemplateList[identity] = {};
+}else if(Object.keys(masterTemplateList[identity]).length==0){
     console.log("No templates available for this course!");
 }else{
-const templateList = masterTemplateList[courseID];
+const templateList = masterTemplateList[identity];
 for(const key in templateList){
     template = templateList[key];
     const selection = document.getElementById("templateSelector");
@@ -679,12 +672,7 @@ for(const key in templateList){
 
 
 
-/**
-* Adding the question from the currently open editModal in question mode.
-* Preconditions: expects a valid courseID, and for all of the required fields to be present
-* Postconditions: adds the question to the appropriate array for its type in the course questionList
-*/
-function addQuestion(courseID) {
+function addQuestion(identity) {
 const text = document.getElementById("questionField").value.trim();
 const type = document.getElementById("typeField").value;
 const points = document.getElementById("pointValueField").value.trim();
@@ -781,7 +769,11 @@ section: section,
 published: 0
 };
 
-saveData("question", question, courseID);
+if(window.userRole =="teacher"){
+    saveData("question", question, identity);
+}else{
+    saveData("question", question,{}, identity);
+}
 closeModal();
 }
 
@@ -790,14 +782,14 @@ closeModal();
 * Preconditions: A valid template with part and sections defined correctly, a valid course ID
 * Postconditions: Populated testeditor with all of the appropriate parts and sections
 */
-function updateTestParts(courseID) {  
+function updateTestParts(identity) {  
 const templateID = document.getElementById("templateSelector").value;
 if (!templateID) {
     alert("You need to choose a template!");
 return;
 }
 
-const template = masterTemplateList[courseID][templateID];
+const template = masterTemplateList[identity][templateID];
 const partStructure = template.partStructure;
 
 let test = document.getElementById("testParts");
@@ -831,7 +823,7 @@ for (let j = 0; j < sections.length; j++) {
 
     sectionContainer.innerHTML = `
         <h3>Section ${sectionNum}: ${questionType.toUpperCase()} Questions</h3>
-        <button class="add-btn" onclick="openQuestionModal('${courseID}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
+        <button class="add-btn" onclick="openQuestionModal('${identity}', ${i}, ${j}, '${questionType}')">Choose Questions</button>
         <div class="selected-questions"></div>
     `;
 
@@ -877,8 +869,8 @@ if (template && template.bonusSection && template.bonusQuestions && template.bon
         const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
         let question = {};
         for (const t of types) {
-            if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
-                question = masterQuestionList[courseID][t][id];
+            if (masterQuestionList[identity][t] && masterQuestionList[identity][t][id]) {
+                question = masterQuestionList[identity][t][id];
             }
         }            
         if (!question) {
@@ -908,12 +900,7 @@ if (template && template.bonusSection && template.bonusQuestions && template.bon
 }
 }
 
-/**
-* This rather involved function saves the test based on all the info in the test editor.
-* Preconditions: a valid courseID, one of two save buttons pressed, a test name, a valid template
-* Postconditions: saves the test as either a draft or published test.
-*/
-function saveTest(courseID, isPublished, testIndex = null) {
+function saveTest(identity, isPublished, testIndex = null) {
 const testName = document.getElementById("nameField").value.trim();
 if (!testName) {
 alert("Test Name is required.");
@@ -925,7 +912,7 @@ if (!templateID) {
 return;
 }
 
-const template = masterTemplateList[courseID][templateID];
+const template = masterTemplateList[identity][templateID];
 
 let usedQuestions = [];
 
@@ -981,7 +968,7 @@ sectionContainers.forEach((sectionContainer, sectionIndex) => {
             "qtype": questionType,
             "assigned_points": points
         }
-        usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionID]);
+        usedQuestions.push(masterQuestionList[identity][questionType.toLowerCase()][questionID]);
         // Add to the questions for this section
         sectionData.questions.push(question);
         noquestions=false;
@@ -1004,37 +991,33 @@ testData.published = 1;
 testData.published = 0;
 }
 
+if(window.userRole =="teacher"){
+    saveData("test", testData, identity);
+}else{
+    saveData("test", testData,{}, identity);
+}
 
-confirm(JSON.stringify(testData));
-
-saveData("test", testData, courseID);
-
-updateTestTabs(courseID);
+updateTestTabs(identity);
 closeModal();
 }
 
-/**
-* Opens up the questionModal and populates it with questions of the appropriate type. 
-* If such questions exist, creates checkboxes next to each one to be used for selecting questions.
-* Preconditions: openQuestionModal expects a valid courseID, part number, section number, and question type
-* Postconditions: opens up the question modal with questions of the appropriate type for the correct course
-*/
-function openQuestionModal(courseID, partNum, sectionNum, type) {
+
+function openQuestionModal(identity, partNum, sectionNum, type) {
 const modal = document.getElementById("questionModal");
 const modalTitle = document.getElementById("questionModalTitle");
 const modalBody = document.getElementById("questionModalBody");
 
 // Check if we have questions of this type
-if (!masterQuestionList[courseID][type] || Object.keys(masterQuestionList[courseID][type]).length === 0) {
+if (!masterQuestionList[identity][type] || Object.keys(masterQuestionList[identity][type]).length === 0) {
 alert("No questions available of this type!");
 return;
 }
 
-const questions = masterQuestionList[courseID][type];
+const questions = masterQuestionList[identity][type];
 modalBody.innerHTML = ""; // Clear existing content
 
 // Store the part/section info in the modal for later use
-modalBody.dataset.courseID = courseID;
+modalBody.dataset.identity = identity;
 modalBody.dataset.partNum = partNum;
 modalBody.dataset.sectionNum = sectionNum;
 modalBody.dataset.questionType = type;
@@ -1053,7 +1036,7 @@ filterContainer.appendChild(testFilterLabel);
 const testFilterSelect = document.createElement('select');
 testFilterSelect.id = 'testFilterSelect';
 testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
-const testList = {...masterTestList[courseID]['drafts'],...masterTestList[courseID]['published']};
+const testList = {...masterTestList[identity]['drafts'],...masterTestList[identity]['published']};
 for(const key in testList) {
     let test = testList[key];
 const option = document.createElement('option');
@@ -1134,7 +1117,7 @@ modal.style.opacity = "1";
 }, 10);
 
 // Add event listeners for filters
-testFilterSelect.addEventListener('change', () => filterQuestions(courseID, type));
+testFilterSelect.addEventListener('change', () => filterQuestions(identity, type));
 
 // Chapter filter change event
 chapterFilterSelect.addEventListener('change', function() {
@@ -1175,12 +1158,12 @@ if (selectedChapter === "all") {
 }
 
 // Apply filters
-filterQuestions(courseID, type);
+filterQuestions(identity, type);
 });
 
 // Section filter change event
 document.getElementById('sectionFilterSelect').addEventListener('change', () => {
-filterQuestions(courseID, type);
+filterQuestions(identity, type);
 });
 }
 
@@ -1211,14 +1194,8 @@ container.appendChild(element);
 
 
 
-/**
-* Filters the type of questions that are selectable in the menu for the test editor
-* Preconditions: valid courseID, type
-* Postconditions: filters the questions by test and/or chapter/section
-* TODO: Complete textbook support
-*/
-function filterQuestions(courseID, type) {
-const questions = masterQuestionList[courseID][type];
+function filterQuestions(identity, type) {
+const questions = masterQuestionList[identity][type];
 const testFilterValue = document.getElementById('testFilterSelect').value;
 const chapterFilterValue = document.getElementById('chapterFilterSelect').value;
 const sectionFilterSelect = document.getElementById('sectionFilterSelect');
@@ -1299,7 +1276,7 @@ questionContainer.appendChild(element);
 */
 function addSelectedQuestions() {
 const modalBody = document.getElementById("questionModalBody");
-const courseID = modalBody.dataset.courseID;
+const identity = modalBody.dataset.identity;
 const partNum = parseInt(modalBody.dataset.partNum);
 const sectionNum = parseInt(modalBody.dataset.sectionNum);
 const type = modalBody.dataset.questionType;
@@ -1317,11 +1294,11 @@ const selectedIDs = Array.from(checkboxes).map(cb => parseInt(cb.value));
 const questions = {};
 for (let i = 0; i < selectedIDs.length; i++) {
     const id = selectedIDs[i];
-    const questionData = masterQuestionList[courseID]?.[type]?.[id];
+    const questionData = masterQuestionList[identity]?.[type]?.[id];
     if (questionData) {
         questions[id] = questionData;
     } else {
-        console.warn(`Question with ID ${id} not found for type ${type} in course ${courseID}`);
+        console.warn(`Question with ID ${id} not found for type ${type} in course ${identity}`);
     }
 }
 
@@ -1387,12 +1364,8 @@ const j = Math.floor(Math.random() * (i + 1));
 
 
 
-/**
- * The bonus question modal is opened when the user wants to add bonus questions to a template or test
- * Precondition: valid courseID
- * Postcondition: bonus question modal is opened
-*/
-function openBonusQuestionModal(courseID) {
+
+function openBonusQuestionModal(identity) {
     const modal = document.getElementById("questionModal");
     const modalTitle = document.getElementById("questionModalTitle");
     const modalBody = document.getElementById("questionModalBody");
@@ -1400,7 +1373,7 @@ function openBonusQuestionModal(courseID) {
     modalBody.innerHTML = ""; // Clear existing content
     
     // Store the relevant data in the modal for later use
-    modalBody.dataset.courseID = courseID;
+    modalBody.dataset.identity = identity;
     modalBody.dataset.questionType = 'bonus';
 
     const questionContainer = document.createElement('div');
@@ -1408,8 +1381,8 @@ function openBonusQuestionModal(courseID) {
     questionContainer.style.marginBottom = '8px';
     questionContainer.style.borderBottom = '1px solid #ccc';
 
-    Object.keys(masterQuestionList[courseID]).forEach(type => {
-        const questions = masterQuestionList[courseID][type];
+    Object.keys(masterQuestionList[identity]).forEach(type => {
+        const questions = masterQuestionList[identity][type];
         for(const key in questions){
             let question = questions[key];
             const element = document.createElement("div");
@@ -1429,7 +1402,7 @@ function openBonusQuestionModal(courseID) {
     submitButton.className = 'add-btn';
     submitButton.textContent = 'Add Selected Questions';
     submitButton.onclick = function() {
-        addSelectedBonusQuestions(courseID);
+        addSelectedBonusQuestions(identity);
     };
     questionContainer.appendChild(submitButton);
 
@@ -1443,12 +1416,7 @@ function openBonusQuestionModal(courseID) {
 }
 
 
-/**
- * This function is called to add selected bonus questions to a template or test, depending on the bonus question modal being open
- * Precondition: valid courseID, bonus questions selected
- * Postcondition: bonus questions are added to the template or test
-*/
-function addSelectedBonusQuestions(courseID) {
+function addSelectedBonusQuestions(identity) {
     console.log("Starting addSelectedBonusQuestions function");
     
     const modalBody = document.getElementById("questionModalBody");
@@ -1469,7 +1437,7 @@ function addSelectedBonusQuestions(courseID) {
     console.log(`Selected ${selectedQuestions.length} questions for bonus`);
     
     // Save to master list
-    masterTemplateList[courseID].bonusQuestions = [];
+    masterTemplateList[identity].bonusQuestions = [];
     
     // Create a container for the selected questions
     const selectedQuestionsDiv = document.createElement('div');
@@ -1478,9 +1446,9 @@ function addSelectedBonusQuestions(courseID) {
     // Add each question to the container
     selectedQuestions.forEach((q, questionIndex) => {
         const [type, id] = q.split('-');
-        const question = masterQuestionList[courseID][type][id];
+        const question = masterQuestionList[identity][type][id];
         console.log(`Processing question: ${question.text.substring(0, 20)}...`);
-        masterTemplateList[courseID].bonusQuestions.push(id);
+        masterTemplateList[identity].bonusQuestions.push(id);
         const questionElement = document.createElement("div");
         questionElement.style.padding = "8px";
         questionElement.style.margin = "5px 0";
@@ -1583,12 +1551,8 @@ function addSelectedBonusQuestions(courseID) {
 }
 
 
-/**
- * This function determines whether or not bonus questions are available inside the template
- * Precondition: valid courseID
- * Postcondition: bonus questions are toggled on or off in the template editor
-*/
-function toggleBonusQuestionSelection(courseID) {
+
+function toggleBonusQuestionSelection() {
     const bonusToggle = document.getElementById('bonusToggle').value;
     const selectBonusQuestionsBtn = document.getElementById('selectBonusQuestionsBtn');
     if (bonusToggle === 'True') {

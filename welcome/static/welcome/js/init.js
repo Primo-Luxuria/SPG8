@@ -4,6 +4,7 @@ var masterTestList = {};
 var masterTemplateList = {};
 var masterAttachmentList = {};
 var courseList = {};
+var textbookList = {};
 var masterCoverPageList = {};
 var masterTextbookList = {};
 
@@ -60,48 +61,58 @@ function updateQuestionTabs(questionType, courseID, isbn) {
 
             tabContent.appendChild(questionDiv);
         }
-    }
+    } // RED TASK: ADD FILTERS
 }
 
 
 
-/**
- * Defines the UI for a given course, used to interact with everything else
- * Preconditions: requires users provide all of the course addition data
- * Postconditions: Creates a course UI with panes for question and test data
-*/
-async function addCourse() {
-    const courseID = document.getElementById('courseID').value.trim();
-    const courseName = document.getElementById('courseName').value.trim();
-    const courseCRN = document.getElementById('courseCRN').value.trim();
-    const courseSemester = document.getElementById('courseSemester').value;
-    const textbookTitle = document.getElementById('courseTextbookTitle').value.trim();
-    const textbookAuthor = document.getElementById('courseTextbookAuthor').value.trim();
-    const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
-    const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
-    const textbookLink = document.getElementById('courseTextbookLink').value.trim();
-    const isbn = null;
 
-    if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
-        alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
-        return;
-    }
+async function addContent() {
+    
+    let courseID, courseName, courseCRN, courseSemester;
+    let textbookTitle, textbookAuthor, textbookVersion, textbookISBN, textbookLink;
+    let title, author, version, isbn, link;
 
-    if (courseList[courseID]) {
-        alert("Error: A course with that ID already exists.");
-        return;
-    }
+    if (window.userRole === "teacher") {
+        courseID = document.getElementById('courseID').value.trim();
+        courseName = document.getElementById('courseName').value.trim();
+        courseCRN = document.getElementById('courseCRN').value.trim();
+        courseSemester = document.getElementById('courseSemester').value;
 
-    const courseContainer = document.createElement('div');
-    courseContainer.classList.add('course-container');
+        if (!courseID || !courseName || !courseCRN || !courseSemester) {
+            alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
+            return;
+        }
+    } else {
+        title = document.getElementById('title').value.trim();
+        author = document.getElementById('author').value.trim();
+        version = document.getElementById('version').value.trim();
+        isbn = document.getElementById('isbn').value.trim();
+        link = document.getElementById('link').value.trim();
+        courseID = courseName = courseCRN = courseSemester = null;
+        if (!title || !author || !version || !isbn || !link) {
+            alert("All fields (Title, Author, Version, ISBN, and Link) are required.");
+            return;
+        }
+        if (textbookList[isbn]) {
+            alert("Error: A testbook with that isbn already exists.");
+            return;
+        }
+    }  
+
+    
     const identity = getUserIdentity(courseID, isbn);
-    courseContainer.dataset.identity = identity;
-    courseContainer.dataset.courseID = courseID;
-    courseContainer.dataset.isbn = isbn;
-    courseContainer.innerHTML = `
-        <details>
-            <summary><strong>${courseName}</strong> (ID: ${identity}, CRN: ${courseCRN}, ${courseSemester})</summary>
-            <details>
+
+    let formdata = `
+        <details>`
+        if(window.userRole=='teacher'){
+            formdata +=`<summary><strong>${courseName}</strong> (CourseID: ${identity}, CRN: ${courseCRN}, SEM: ${courseSemester})</summary>
+            <details>`;
+        }else{
+            formdata +=`<summary><strong>${title}</strong> (ISBN: ${identity}, Version: ${version})</summary>
+            <details>`;
+        }
+        formdata +=`
                 <summary>Questions</summary>
             <button class="add-btn" onclick="openEditor('Question', '${identity}')">Add Question</button>
             <div class="tab-container">
@@ -138,9 +149,12 @@ async function addCourse() {
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
-                <input type="file" id="fileInput">
+                <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
+                if(window.userRole=="teacher"){
+                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                    <input type="file" id="fileInput">`;
+                }
+                formdata += `
                 <div class="tab-container">
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab(event, 'drafts-${identity}')">Drafts</div>
@@ -155,35 +169,32 @@ async function addCourse() {
                 <summary>Attachments</summary>
                 <button class="add-btn" onclick="openEditor('Attachment', '${identity}')">Add Attachment</button>
                 <div id="attachments-${identity}"><p>You have not uploaded any attachments yet...</p></div>
-            </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse('${identity}')">Remove Course</button>
-        </details>
-    `;
+            </details>`;
+            if(window.userRole=="teacher"){
+                formdata += `<button class="remove-btn" onclick="confirmRemoveContent('${identity}')">Leave Course</button>`;
+            }else{  
+                formdata += `<button class="remove-btn" onclick="confirmRemoveContent('${identity}')">Delete Textbook</button>`;
+            }
+        formdata += `</details>`;
 
-    document.getElementById('courseList').appendChild(courseContainer);
-    document.getElementById('courseID').value = "";
-    document.getElementById('courseName').value = "";
-    document.getElementById('courseCRN').value = "";
-    document.getElementById('courseSemester').value = "";
-    document.getElementById('courseTextbookTitle').value = "";
-    document.getElementById('courseTextbookAuthor').value = "";
-    document.getElementById('courseTextbookVersion').value = "";
-    document.getElementById('courseTextbookISBN').value = "";
-    document.getElementById('courseTextbookLink').value = "";
-
-    const questionList = {
-        'tf': [],
-        'mc': [],
-        'sa': [],
-        'es': [],
-        'ma': [],
-        'ms': [],
-        'fb': []
-    };
-    const testList = {
-        'drafts': {},
-        'published': {}
-    };
+    if(window.userRole=="teacher"){
+        document.getElementById('courseID').value = "";
+        document.getElementById('courseName').value = "";
+        document.getElementById('courseCRN').value = "";
+        document.getElementById('courseSemester').value = "";
+        document.getElementById('courseTextbookTitle').value = "";
+        document.getElementById('courseTextbookAuthor').value = "";
+        document.getElementById('courseTextbookVersion').value = "";
+        document.getElementById('courseTextbookISBN').value = "";
+        document.getElementById('courseTextbookLink').value = "";
+    }else{  
+        document.getElementById('title').value = "";
+        document.getElementById('author').value = "";
+        document.getElementById('version').value = "";
+        document.getElementById('isbn').value = "";
+        document.getElementById('link').value = ""; 
+    }
+    
 
     let today = new Date();
     let year = today.getFullYear();
@@ -196,9 +207,6 @@ async function addCourse() {
     if(date<10){
         date = '0' + date;
     }   
-
-    masterQuestionList[identity] = questionList;
-    masterTestList[identity] = testList;
     masterCoverPageList[identity] = {};
     masterTemplateList[identity] = {};
     masterTemplateList[identity].bonusQuestions = [];
@@ -263,61 +271,74 @@ async function addCourse() {
         published: 1
     };
 
-   
-    if(!masterTextbookList[textbookISBN]){
-        let textbook = {
-            questions: [],
-            title: textbookTitle,
-            author: textbookAuthor,  
-            version: textbookVersion,    
-            isbn: textbookISBN,  
-            link: textbookLink  
-        };
-        masterTextbookList[textbookISBN] = textbook;
-    }
+    let thisCourse = {};
+    let textbook = {};
+    const contentContainer = document.createElement('div');
+    contentContainer.classList.add('course-container');
+    contentContainer.dataset.identity = identity;
+    
 
-    if(!masterAttachmentList[identity]){
-        let attachmentList = {};
-        masterAttachmentList[identity] = attachmentList;
-    }
-
-    const thisCourse = {
+   if(window.userRole=="teacher"){
+        thisCourse = {
         course_id: courseID,
         name: courseName,
         crn: courseCRN,
-        sem: courseSemester,
-        textbook: masterTextbookList[textbookISBN]
-    };
+        sem: courseSemester
+        }; 
+        contentContainer.classList.add('course-container');
+   }else{
+        textbook = {
+        'title': title,
+        'author': author,
+        'version': version,
+        'isbn': isbn,
+        'link': link
+        }
+        contentContainer.classList.add('textbook-container');
+   }
+
+   contentContainer.dataset.courseID = courseID || null;
+   contentContainer.dataset.isbn = isbn || null;
+   contentContainer.innerHTML = formdata;
 
     try {
-        await saveData("course", thisCourse, identity);
-        await saveData("coverPage", coverPageDefault, identity);
-        await saveData("coverPage", coverPageDefault2, identity);
-        await saveData("coverPage", coverPageDefault3, identity);
-        await saveData("template", templateDefault, identity);
+        if(window.userRole =="teacher"){
+            await saveData("course", thisCourse, identity);
+            await saveData("coverPage", coverPageDefault, identity);
+            await saveData("coverPage", coverPageDefault2, identity);
+            await saveData("coverPage", coverPageDefault3, identity);
+            await saveData("template", templateDefault, identity);
+        }else{
+            await saveData("textbook", textbook,{}, identity);
+            await saveData("coverPage", coverPageDefault,{}, identity);
+            await saveData("coverPage", coverPageDefault2,{}, identity);
+            await saveData("coverPage", coverPageDefault3,{}, identity);
+            await saveData("template", templateDefault,{}, identity);
+        }
+        
         updateCoverPages(identity);
         updateTemplates(identity); 
-
     } catch (error) {
         console.error("Error saving course data:", error);
-        alert("There was an error saving your course. Please try again.");
+        alert("There was an error saving your content. Please try again.");
     }
-}
+} // RED TASK: UPDATE TO ADD OPTION FOR LOADING IN COURSES FROM SELECTOR, CHOOSE TEXTBOOK FROM SELECTOR
 
 
-/**
- * Used to remove a course 
- * Precondition: the course exists
- * Postcondition: the course no longer exists
- * 
-*/
-async function confirmRemoveCourse(courseID, isbn) {
-    const identity = getUserIdentity(courseID, isbn);
-    if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+async function confirmRemoveContent(identity) {
+    if (confirm("Are you sure you want to leave this course / delete this textbok?")) {
         try {
         let username = window.username;
-        let itemToDelete=courseList[identity];
-        let type = "Course"
+        let itemToDelete={};
+        let type = '';
+        if(window.userRole == "teacher"){
+            type = "Course";
+            itemToDelete=courseList[identity];
+        }else{
+            type = "Textbook";
+            itemToDelete=textbookList[identity];
+        }
+        
         const response = await fetch('/api/delete_item/', {
             method: 'POST',
             headers: {
@@ -326,7 +347,7 @@ async function confirmRemoveCourse(courseID, isbn) {
             },
             body: JSON.stringify({
                 model_type: type,
-                id: itemToDelete.dbid,
+                id: itemToDelete.id,
                 username: username,
                 identity: identity
             })
@@ -335,29 +356,28 @@ async function confirmRemoveCourse(courseID, isbn) {
         const data = await response.json();
         
         if (response.ok) {
-            // Remove the item from the local array
-            delete courseList[identity];
-            if(Object.keys(courseList).length === 0 && courseList.constructor === Object){
-            document.getElementById('courseList').innerHTML = "";
-            console.log("No courses to load");
-            return;
-            }else{
-                reloadData();
+            alert(data.message || `${type} successfully deleted.`);
+            if(document.getElementById("courseList")){
+                document.getElementById("courseList").innerHTML='';
+            }else if(document.getElementById("textbookList")){
+                document.getElementById("textbookList").innerHTML='';
             }
             
+            reloadData();
             
-            // Show success message
-            alert(data.message || `${type} successfully deleted.`);
         } else {
+            reloadData();
             alert(data.message || 'An error occurred while deleting the item.');
         }
     } catch (error) {
+        reloadData();
         console.error('Error:', error);
         alert('An error occurred while connecting to the server.');
     }
         
     }
 }
+
 
 
 function getCSRFToken() {
@@ -410,18 +430,6 @@ async function reloadData() {
         }
 }
 
-/**
- * Save data to the server based on type.  - Note: this function and its children have been modified by Claude 3.7 Sonnet!
- * @param {string} type - The type of data to save (e.g., 'test', 'question')
- * @param {Object} entry - The data to save
- * @param {string} courseID - Course ID for teacher content
- * @param {string} isbn - ISBN for publisher content (optional)
- * @returns {Promise} A promise that resolves with the server response
- */
- /**
- * Save data to the server based on type.
- * Fixed to improve error handling and data validation
- */
 async function saveData(type, entry, courseID = null, isbn = null) {
     if (!entry) {
         showErrorMessage("Invalid data: Entry is null or undefined");
@@ -435,7 +443,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
         'X-CSRFToken': getCSRFToken()
     };
     
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
+    const ownerRole = window.userRole;
     
     try {
         // Determine which API endpoint to use and prepare the data
@@ -445,10 +453,14 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 requestData = serializeCourse(entry);
                 headers['Content-Type'] = 'application/json';
                 break;
-                
+            case "textbook":
+                api_call = "/api/save_textbook/";
+                requestData = serializeTextbook(entry);
+                headers['Content-Type'] = 'application/json';
+                break;
             case "question":
                 api_call = "/api/save_question/";
-                requestData = await serializeQuestion(entry, courseID, isbn);
+                requestData = serializeQuestion(entry, courseID, isbn);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
@@ -466,7 +478,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 
             case "test":
                 api_call = "/api/save_test/";
-                requestData = await serializeTest(entry, courseID, isbn);
+                requestData = serializeTest(entry, courseID, isbn);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
@@ -475,7 +487,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 const formData = new FormData();
                 formData.append('attachment_name', entry.name || 'Unnamed Attachment');
                 
-                // FIX: Validate file exists before trying to append it
+                
                 if (entry.file instanceof File || entry.file instanceof Blob) {
                     formData.append('attachment_file', entry.file);
                 } else {
@@ -484,7 +496,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 }
                 
                 if (entry.url) formData.append('attachment_url', entry.url);
-                formData.append('courseID', courseID || '');
+                if (courseID) formData.append('courseID', courseID);
                 if (isbn) formData.append('isbn', isbn);
                 formData.append('ownerRole', ownerRole);
                 return sendFormData(api_call, formData);
@@ -493,7 +505,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 throw new Error(`Invalid type to save: ${type}`);
         }
 
-        // FIX: Validate api_call is set
+        
         if (!api_call) {
             throw new Error("API endpoint not specified");
         }
@@ -504,7 +516,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
             body: JSON.stringify(requestData)
         });
         
-        // FIX: Better error handling for non-JSON responses
+        
         let data;
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
@@ -532,9 +544,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
     }
 }
 
-/**
- * Helper function to send form data
- */
+
 async function sendFormData(url, formData) {
     try {
         const response = await fetch(url, {
@@ -560,9 +570,7 @@ async function sendFormData(url, formData) {
     }
 }
 
-/**
- * Display success message
- */
+
 function showSuccessMessage(message) {
     const messageElement = document.getElementById('successMessage') || 
                           document.getElementById('statusMessage');
@@ -575,9 +583,7 @@ function showSuccessMessage(message) {
     } 
 }
 
-/**
- * Display error message
- */
+
 function showErrorMessage(message) {
     const errorElement = document.getElementById('errorText') || 
                         document.getElementById('errorMessage');
@@ -593,14 +599,14 @@ function showErrorMessage(message) {
  * Serialize a course object for the API
  */
 function serializeCourse(course) {
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
+    const ownerRole = "teacher";
     
     // Build the request data
     const requestData = {
         ownerRole: ownerRole,
         course: {
-            id: course.id || null,
-            course_id: course.course_id || '',
+            id: course.dbid || null,
+            course_id: course.courseID || '',
             name: course.name || 'Untitled Course',
             crn: course.crn || '',
             sem: course.sem || '',
@@ -608,28 +614,34 @@ function serializeCourse(course) {
         }
     };
     
-    // Format the textbook data if available
-    if (course.textbook) {
-        requestData.textbook = {
-            id: course.textbook.id || null,
-            title: course.textbook.title || '',
-            author: course.textbook.author || '',
-            version: course.textbook.version || '',
-            isbn: course.textbook.isbn || '',
-            link: course.textbook.link || null,
-            published: course.textbook.published || false
-        };
-    }
+    
 
     return requestData;
 }
+
+function serializeTextbook(textbook){
+    // Build the request data
+    const requestData = {
+        ownerRole: "publisher",
+        textbook: {
+            id: textbook.id || null,
+            title: textbook.title || 'Unknown Title',
+            author: textbook.author || 'Unknown Author',
+            version: textbook.version || 'Unknown Version',
+            isbn: textbook.isbn || '',
+            link: textbook.link || '',
+            published: textbook.published || false
+        }
+    };
+    
+    return requestData;
+} // update the published value of all related things on the backend when a test is published
 
 /**
  * Serialize a template object for the API
  */
 function serializeTemplate(template, courseID = null, isbn = null) {
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
-    
+    const ownerRole = window.userRole;
     // Build the request data
     const requestData = {
         ownerRole: ownerRole,
@@ -659,7 +671,6 @@ function serializeTemplate(template, courseID = null, isbn = null) {
         }
     };
 
-    confirm(JSON.stringify(template));
     return requestData;
 }
 
@@ -667,7 +678,7 @@ function serializeTemplate(template, courseID = null, isbn = null) {
  * Serialize a cover page object for the API
  */
 function serializeCoverPage(coverPage, courseID = null, isbn=null) {
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
+    const ownerRole = window.userRole;
     
     // Build the request data
     const requestData = {
@@ -696,7 +707,7 @@ function serializeCoverPage(coverPage, courseID = null, isbn=null) {
  * Fixed to handle null values and improve data validation
  */
 function serializeQuestion(question, courseID=null, isbn=null) {
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
+    const ownerRole = window.userRole;
     
     // Build the base request data
     const requestData = {
@@ -872,15 +883,12 @@ function serializeQuestion(question, courseID=null, isbn=null) {
     return requestData;
 }
 
-
-
-
 /**
  * Serialize a test object for the API
  * Fixed to handle null values and improve data transformation
  */
  function serializeTest(test, courseID=null, isbn=null) {
-    const ownerRole = document.getElementById('userRole')?.value || "teacher";
+    const ownerRole = window.userRole;
     console.log(test, courseID, isbn);
 
     // Build the base request data
@@ -974,8 +982,14 @@ function renderUserData(data){
         masterAttachmentList = data.attachment_list;
         masterTemplateList = data.template_list;
         masterTestList = data.test_list;
-        console.log(masterTestList);
-        courseList = data.container_list;
+        console.log(window.userRole);
+        if(window.userRole == "teacher"){
+            courseList = data.container_list;
+            console.log("courseList: ",courseList);
+        }else{
+            textbookList = data.container_list;
+        }
+        
         masterCoverPageList = data.cpage_list;
         console.log("Cover Pages:", masterCoverPageList);
         refreshData();
@@ -983,89 +997,115 @@ function renderUserData(data){
 }
 
 function refreshData(){
-    const courseContainer = document.getElementById("courseList");
+    if(window.userRole == "teacher"){
+        const courseContainer = document.getElementById("courseList");
         courseContainer.innerHTML = "";
         for(const [key,value] of Object.entries(courseList)){
-            loadCourse(key);
+            loadContent(key);
         }
+    }else{
+        const textbookContainer = document.getElementById("textbookList");
+        textbookContainer.innerHTML = "";
+        for(const [key,value] of Object.entries(textbookList)){
+            loadContent(key);
+        }
+    }
 }
 
-function loadCourse(courseID){
-    let course = courseList[courseID];
-    let courseName = course.name;
-    let courseCRN = course.crn;
-    let courseSemester = course.sem;
-    let textbookTitle = course.textbook.title;
-    let textbookAuthor = course.textbook.author;
-    let textbookVersion = course.textbook.version;
-    let textbookISBN = course.textbook.isbn;
-    let textbookLink = course.textbook.link;
+function loadContent(identity) {
+    
+    let courseID, courseName, courseCRN, courseSemester;
+    let title, version, isbn
 
-    const courseContainer = document.createElement('div');
-        courseContainer.classList.add('course-container');
-        courseContainer.innerHTML = `
-        <details>
-            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
-            <details>
+    if (window.userRole === "teacher") {
+        let course = courseList[identity];
+        courseID = course.courseID;
+        courseName = course.name;
+        courseCRN = course.crn;
+        courseSemester = course.sem;
+    } else {
+        let textbook = textbookList[identity]
+        title = textbook.title;
+        version = textbook.version;
+        isbn = textbook.isbn;
+        courseID = courseName = courseCRN = courseSemester = null;
+    }  
+
+    let formdata = `
+        <details>`
+        if(window.userRole=='teacher'){
+            formdata +=`<summary><strong>${courseName}</strong> (CourseID: ${identity}, CRN: ${courseCRN}, SEM: ${courseSemester})</summary>
+            <details>`;
+        }else{
+            formdata +=`<summary><strong>${title}</strong> (ISBN: ${identity}, Version: ${version})</summary>
+            <details>`;
+        }
+        formdata +=`
                 <summary>Questions</summary>
-            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <button class="add-btn" onclick="openEditor('Question', '${identity}')">Add Question</button>
             <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
-                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
-                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
-                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
-                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
-                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
-                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                    <div class="tab active" onclick="switchTab(event, 'tf-${identity}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${identity}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${identity}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${identity}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${identity}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${identity}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${identity}')">Fill in the Blank</div>
                 </div>
-                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
-                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
-                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
-                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
-                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
-                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
-                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+                <div class="tab-content active" id="tf-${identity}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${identity}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${identity}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${identity}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${identity}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${identity}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${identity}"><p>Fill in the Blank questions go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Cover Pages</summary>
-                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
-                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${identity}')">Add Cover Page</button>
+                    <div id="coverpages-${identity}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Template', '${identity}')">Add Template</button>
+                    <div id="templates-${identity}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
-                <input type="file" id="fileInput">
+                <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
+                if(window.userRole=="teacher"){
+                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                    <input type="file" id="fileInput">`;
+                }
+                formdata += `
                 <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
-                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${identity}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${identity}')">Published Tests</div>
                 </div>
-                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
-                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+                <div class="tab-content active" id="drafts-${identity}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${identity}"><p>Published tests go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Attachments</summary>
-                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
-                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
-            </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse('${courseID}')">Remove Course</button>
-        </details>
-        `;
+                <button class="add-btn" onclick="openEditor('Attachment', '${identity}')">Add Attachment</button>
+                <div id="attachments-${identity}"><p>You have not uploaded any attachments yet...</p></div>
+            </details>`;
+            if(window.userRole=="teacher"){
+                formdata += `<button class="remove-btn" onclick="confirmRemoveContent('${identity}')">Leave Course</button>`;
+            }else{  
+                formdata += `<button class="remove-btn" onclick="confirmRemoveContent('${identity}')">Delete Textbook</button>`;
+            }
+        formdata += `</details>`;
 
-        document.getElementById('courseList').appendChild(courseContainer);
+    if(window.userRole=="teacher"){
         document.getElementById('courseID').value = "";
         document.getElementById('courseName').value = "";
         document.getElementById('courseCRN').value = "";
@@ -1075,20 +1115,51 @@ function loadCourse(courseID){
         document.getElementById('courseTextbookVersion').value = "";
         document.getElementById('courseTextbookISBN').value = "";
         document.getElementById('courseTextbookLink').value = "";
+    }else{  
+        document.getElementById('title').value = "";
+        document.getElementById('author').value = "";
+        document.getElementById('version').value = "";
+        document.getElementById('isbn').value = "";
+        document.getElementById('link').value = "";
+    }
 
-        updateCoverPages(courseID);
-        updateTemplates(courseID);
-        updateQuestionTabs("tf",courseID);
-        updateQuestionTabs("ma",courseID);
-        updateQuestionTabs("es",courseID);
-        updateQuestionTabs("sa",courseID);
-        updateQuestionTabs("ms",courseID);
-        updateQuestionTabs("fb",courseID);
-        updateQuestionTabs("mc",courseID);
-        updateTestTabs(courseID);
-        updateAttachments(courseID);
+    masterTemplateList[identity].bonusQuestions = [];
+
+    const contentContainer = document.createElement('div');
+    contentContainer.dataset.identity = identity;
+    
+   contentContainer.dataset.courseID = courseID || null;
+   contentContainer.dataset.isbn = isbn || null;
+   contentContainer.innerHTML = formdata;
+
+   if(window.userRole=="teacher"){
+        contentContainer.classList.add('course-container');
+        document.getElementById("courseList").appendChild(contentContainer);
+   }else{
+        contentContainer.classList.add('textbook-container');
+        document.getElementById("textbookList").appendChild(contentContainer);
+   }
+
+
+    updateCoverPages(identity);
+    updateTemplates(identity);
+    ['tf', 'ma', 'es', 'sa', 'ms', 'fb', 'mc'].forEach(type => updateQuestionTabs(type, identity));
+    updateTestTabs(identity);
+    updateAttachments(identity);
 }
 
+function questionTypeLabel(type) {
+    switch (type) {
+        case 'tf': return 'True/False';
+        case 'mc': return 'Multiple Choice';
+        case 'sa': return 'Short Answer';
+        case 'es': return 'Essay';
+        case 'ma': return 'Matching';
+        case 'ms': return 'Multiple Selection';
+        case 'fb': return 'Fill in the Blank';
+        default: return type;
+    }
+}
 
 
 function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersion, isbn, link) {
@@ -1125,9 +1196,7 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
         // You could loop through data.questions and inject them into the DOM here
     })
     .catch(error => console.error("Error:", error));
-}
-
-
+} //RED TASK: IGNORE THIS AND REMOVE IT FROM PUBLISHER
 
 
 /**
@@ -1135,24 +1204,23 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
  * Precondition: valid courseID
  * Postcondition: test content is updated in the test containers    
 */ 
-function updateTestTabs(courseID) {
-    const draftsContainer = document.getElementById(`drafts-${courseID}`);
-    const publishedContainer = document.getElementById(`published-${courseID}`);
-    draftsContainer.innerHTML = ''; // Clear existing content
-    publishedContainer.innerHTML = ''; // Clear existing content
-    console.log("TEST LIST:");
-    console.log(masterTestList);
-    if(!masterTestList[courseID]){
-        masterTestList[courseID] = {};
+function updateTestTabs(identity) {
+    const draftsContainer = document.getElementById(`drafts-${identity}`);
+    const publishedContainer = document.getElementById(`published-${identity}`);
+    draftsContainer.innerHTML = ''; 
+    publishedContainer.innerHTML = ''; 
+
+    if(!masterTestList[identity]){
+        masterTestList[identity] = {};
     }
-    if(!masterTestList[courseID].drafts){
-        masterTestList[courseID].drafts = {};
+    if(!masterTestList[identity].drafts){
+        masterTestList[identity].drafts = {};
     }
-    if(!masterTestList[courseID].published){
-        masterTestList[courseID].published = {};
+    if(!masterTestList[identity].published){
+        masterTestList[identity].published = {};
     }
-    const drafts = masterTestList[courseID].drafts;
-    const published = masterTestList[courseID].published;
+    const drafts = masterTestList[identity].drafts;
+    const published = masterTestList[identity].published;
 
     if (Object.keys(drafts).length === 0) {
         draftsContainer.innerHTML = '<p>No drafts available...</p>';
@@ -1167,7 +1235,7 @@ function updateTestTabs(courseID) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemID = test.id;
-            testDiv.dataset.courseID = courseID;
+            testDiv.dataset.identity = identity;
             testDiv.dataset.testType = 'drafts';
 
             testDiv.innerHTML = `
@@ -1193,15 +1261,15 @@ function updateTestTabs(courseID) {
             testDiv.classList.add('context-menu-target');
             testDiv.dataset.itemType = 'test';
             testDiv.dataset.itemID = test.id;
-            testDiv.dataset.courseID = courseID;
+            testDiv.dataset.identity = identity;
             testDiv.dataset.testType = 'published';
 
             testDiv.innerHTML = `
                 <p><strong>${test.name}</strong></p>
                 <p>Template: ${test.templateName}</p>
                 <p>Parts: ${test.parts.length}</p>
-                <button class="add-btn" onclick="exportTestToHTML('${courseID}', '${test.id}')">Export Test</button>
-                <button class="add-btn" onclick="exportTestKeyToHTML('${courseID}', '${test.id}')">Export Test Key</button>
+                <button class="add-btn" onclick="exportTestToHTML('${identity}', '${test.id}')">Export Test</button>
+                <button class="add-btn" onclick="exportTestKeyToHTML('${identity}', '${test.id}')">Export Test Key</button>
             `;
 
             publishedContainer.appendChild(testDiv);
@@ -1215,15 +1283,25 @@ function updateTestTabs(courseID) {
  * Exports a test (without answers or grading instructions) to HTML.
  * Customizations (fonts, header/footer, cover page, etc.) are taken from the test's template.
  */
-function exportTestToHTML(courseID, testIndex) {
+function exportTestToHTML(identity, testID) {
     // Retrieve the published test
-    const publishedTests = masterTestList[courseID].published;
-    if (!publishedTests || testIndex >= publishedTests.length) {
+    const publishedTests = masterTestList[identity].published;
+    if (!publishedTests || !publishedTests[testID]) {
         alert("Test not found!");
         return;
     }
-    const test = publishedTests[testIndex];
-    const template = masterTextbookList[test.templateID] || 1;
+
+    const test = publishedTests[testID];
+    const template = masterTextbookList[identity][test.templateID] || null;
+    if(template == null){
+        alert("Test has no valid template!");
+        return;
+    }
+    const coverPage = masterCoverPageList[identity][template.coverPageID] || null;
+    if(coverPage ==null){
+        alert("Template has no valid coverpage!");
+        return;
+    }
 
     // Begin building HTML with custom CSS from the template
     let htmlOutput = `
@@ -1280,6 +1358,10 @@ function exportTestToHTML(courseID, testIndex) {
       margin-top: 30px;
       font-size: ${template.footerFontSize || 16}px;
     }
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
   </style>
 </head>
 <body>
@@ -1289,8 +1371,8 @@ function exportTestToHTML(courseID, testIndex) {
 `;
 
     // Optionally include cover page details if defined
-    if (template.coverPage) {
-        const cp = template.coverPage;
+    if (coverPage) {
+        const cp = coverPage;
         htmlOutput += `
   <div class="cover-page">
     <h2>${cp.name}</h2>
@@ -1298,7 +1380,7 @@ function exportTestToHTML(courseID, testIndex) {
     <p>Date: ${cp.date}</p>
     <p>Filename: ${cp.file}</p>
     <p>Instructions: ${cp.instructions}</p>
-  </div>
+  </div><div class="page-break"></div>
 `;
     }
 
@@ -1308,10 +1390,10 @@ function exportTestToHTML(courseID, testIndex) {
         htmlOutput += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
         for (let s = 0; s < part.sections.length; s++) {
             const section = part.sections[s];
-            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1} (${section.questionType.toUpperCase()})</h3>`;
+            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1}</h3>`;
             for (let q = 0; q < section.questions.length; q++) {
                 const questionData = section.questions[q];
-                const question = masterQuestionList[courseID][questionData.qtype][questionData.id];
+                const question = masterQuestionList[identity][questionData.qtype][questionData.id];
                 htmlOutput += `
     <div class="question">
       <p>${question.text}</p>
@@ -1339,23 +1421,31 @@ function exportTestToHTML(courseID, testIndex) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-}
+} // RED TASK: ADD OPTIONS TO EXPORTER
 
 /**
  * exportTestKeyToHTML
  Exports the test key (answer key) as HTML.
  * In the answer key export, grading instructions (in blue) and correct answers (in red) are displayed.
  */
-function exportTestKeyToHTML(courseID, testIndex) {
+function exportTestKeyToHTML(identity, testID) {
     // Retrieve the published test
-    const publishedTests = masterTestList[courseID].published;
-    if (!publishedTests || testIndex >= publishedTests.length) {
+    const publishedTests = masterTestList[identity].published;
+    if (!publishedTests || !publishedTests[testID]) {
         alert("Test not found!");
         return;
     }
-    const test = publishedTests[testIndex];
-    const template = masterTextbookList[test.templateID] || 1;
-
+    const test = publishedTests[testID];
+    const template = masterTextbookList[identity][test.templateID] || null;
+    if(template == null){
+        alert("Invalid template");
+        return;
+    }
+    const coverPage = masterCoverPageList[identity][template.coverPageID] || null;
+    if(coverPage ==null){
+        alert("Invalid coverpage!");
+        return;
+    }
     let htmlOutput = `
 <!DOCTYPE html>
 <html>
@@ -1418,6 +1508,10 @@ function exportTestKeyToHTML(courseID, testIndex) {
       margin-top: 30px;
       font-size: ${template.footerFontSize || 16}px;
     }
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
   </style>
 </head>
 <body>
@@ -1427,8 +1521,8 @@ function exportTestKeyToHTML(courseID, testIndex) {
 `;
 
     // Optionally include cover page details if defined in the template
-    if (template.coverPage) {
-        const cp = template.coverPage;
+    if (coverPage) {
+        const cp = coverPage;
         htmlOutput += `
   <div class="cover-page">
     <h2>${cp.name}</h2>
@@ -1436,7 +1530,7 @@ function exportTestKeyToHTML(courseID, testIndex) {
     <p>Date: ${cp.date}</p>
     <p>Filename: ${cp.file}</p>
     <p class="grading-instructions">Instructions: ${cp.instructions}</p>
-  </div>
+  </div><div class="page-break"></div>
 `;
     }
 
@@ -1449,7 +1543,7 @@ function exportTestKeyToHTML(courseID, testIndex) {
             htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1} (${section.questionType.toUpperCase()})</h3>`;
             for (let q = 0; q < section.questions.length; q++) {
                 const questionData = section.questions[q];
-                const question = masterQuestionList[courseID][questionData.qtype][questionData.id];
+                const question = masterQuestionList[identity][questionData.qtype][questionData.id];
                 
                 htmlOutput += `
     <div class="question">
@@ -1480,7 +1574,7 @@ function exportTestKeyToHTML(courseID, testIndex) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-}
+}  //RED TASK: UPDATE KEY
 
 
 /**
@@ -1488,15 +1582,15 @@ function exportTestKeyToHTML(courseID, testIndex) {
  * Precondition: valid courseID
  * Postcondition: cover page options are updated in the template editor
 */
-function updateCoverPages(courseID) {
-    const coverPageContainer = document.getElementById(`coverpages-${courseID}`);
+function updateCoverPages(identity) {
+    const coverPageContainer = document.getElementById(`coverpages-${identity}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
 
-    if (!masterCoverPageList[courseID] || masterCoverPageList[courseID].length === 0) {
+    if (!masterCoverPageList[identity] || masterCoverPageList[identity].length === 0) {
         coverPageContainer.innerHTML = '<p>You have not added any cover pages yet...</p>';
         return;
     }
-    cpages = masterCoverPageList[courseID];
+    cpages = masterCoverPageList[identity];
     for(const key in cpages){
         let coverPage = cpages[key];
         const coverPageDiv = document.createElement('div');
@@ -1506,8 +1600,8 @@ function updateCoverPages(courseID) {
         coverPageDiv.style.borderBottom = '1px solid #ccc';
         coverPageDiv.classList.add('context-menu-target');
         coverPageDiv.dataset.itemType = 'coverPage';
-        coverPageDiv.dataset.itemID = coverPage.id;
-        coverPageDiv.dataset.courseID = courseID;
+        coverPageDiv.dataset.itemID = coverPage.id; //RED TASK: MAKE UNIQUE ON BACKEND, SERVE ID for IDENTITY
+        coverPageDiv.dataset.identity = identity;
 
         coverPageDiv.innerHTML = `
             <p><strong>${coverPage.name}</strong> (Test Number: ${coverPage.testNum}, Date: ${coverPage.date})</p>
@@ -1524,16 +1618,16 @@ function updateCoverPages(courseID) {
  * Precondition: valid courseID
  * Postcondition: templates are updated in the template container
 */
-function updateTemplates(courseID) {
-    const templateContainer = document.getElementById(`templates-${courseID}`);
-    templateContainer.innerHTML = ''; // Clear existing content
+function updateTemplates(identity) {
+    const templateContainer = document.getElementById(`templates-${identity}`);
+    templateContainer.innerHTML = ''; 
 
-    if (!masterTemplateList[courseID] || masterTemplateList[courseID].length === 0) {
+    if (!masterTemplateList[identity] || masterTemplateList[identity].length === 0) {
         templateContainer.innerHTML = '<p>You have not added any templates yet...</p>';
         return;
     }
 
-    let templates = masterTemplateList[courseID];
+    let templates = masterTemplateList[identity];
     for(const key in templates){
         let template = templates[key];
         const templateDiv = document.createElement('div');
@@ -1544,7 +1638,7 @@ function updateTemplates(courseID) {
         templateDiv.classList.add('context-menu-target');
         templateDiv.dataset.itemType = 'template';
         templateDiv.dataset.itemID = template.id;
-        templateDiv.dataset.courseID = courseID;
+        templateDiv.dataset.identity = identity;
 
         templateDiv.innerHTML = `
             <p><strong>${template.name}</strong></p>
@@ -1562,7 +1656,7 @@ function updateTemplates(courseID) {
  * Precondition: valid courseID, attachments exist in the course attachment list
  * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
 */
-function updateGraphicSelectors(courseID) {
+function updateGraphicSelectors(identity) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
 
@@ -1570,8 +1664,8 @@ function updateGraphicSelectors(courseID) {
     ansGraphicField.innerHTML = '<option value="" disabled selected>Select a graphic</option>';
 
 
-    for(const key in masterAttachmentList[courseID]){
-        let attachment = masterAttachmentList[courseID][key];
+    for(const key in masterAttachmentList[identity]){
+        let attachment = masterAttachmentList[identity][key];
         const option = document.createElement('option');
         option.value = attachment.id;
         option.textContent = attachment.url;
@@ -1595,7 +1689,7 @@ async function deleteItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
-    const courseID = contextMenu.dataset.courseID;
+    const identity = contextMenu.dataset.identity;
     const questionType = contextMenu.dataset.questionType;
     const testType = contextMenu.dataset.testType;
     const username = window.username;
@@ -1606,30 +1700,30 @@ async function deleteItem() {
     switch(itemType) {
         case 'question':
             type="Question"
-            itemToDelete = masterQuestionList[courseID][questionType][String(itemID)];
+            itemToDelete = masterQuestionList[identity][questionType][String(itemID)];
             break;
         case 'test':
             type="Test"
             console.log("Trying to delete:", {
-                courseID,
+                courseID: identity,
                 testType,
                 itemID,
-                masterTestList: masterTestList[courseID],
-                test: masterTestList[courseID][testType]
+                masterTestList: masterTestList[identity],
+                test: masterTestList[identity][testType]
             });
-            itemToDelete = masterTestList[courseID][testType][String(itemID)];
+            itemToDelete = masterTestList[identity][testType][String(itemID)];
             break;
         case 'template':
             type = "Template"
-            itemToDelete = masterTemplateList[courseID][String(itemID)];
+            itemToDelete = masterTemplateList[identity][String(itemID)];
             break;
         case 'coverPage':
             type="CoverPage"
-            itemToDelete = masterCoverPageList[courseID][String(itemID)];
+            itemToDelete = masterCoverPageList[identity][String(itemID)];
             break;
         case 'attachment':
             type="Attachment"
-            itemToDelete = masterAttachmentList[courseID][String(itemID)];
+            itemToDelete = masterAttachmentList[identity][String(itemID)];
             break;
         default:
             console.error('Unknown item type:', type);
@@ -1638,7 +1732,7 @@ async function deleteItem() {
     
     if(itemToDelete.published){
         if(itemToDelete.published==1){
-            alert("You cannot delete published items.");
+            alert("You cannot delete published items! Contact the administrators if you must!");
             return;
         }
     }
@@ -1660,7 +1754,7 @@ async function deleteItem() {
                 model_type: type,
                 id: itemToDelete.id,
                 username: username,
-                identity: courseID
+                identity: identity
             })
         });
         
@@ -1670,19 +1764,19 @@ async function deleteItem() {
             // Remove the item from the local array
             switch(type) {
                 case 'question':
-                    delete masterQuestionList[courseID][questionType][itemID];
+                    delete masterQuestionList[identity][questionType][itemID];
                     break;
                 case 'test':
-                    delete masterTestList[courseID][testType][itemID];
+                    delete masterTestList[identity][testType][itemID];
                     break;
                 case 'template':
-                    delete masterTemplateList[courseID][itemID];
+                    delete masterTemplateList[identity][itemID];
                     break;
-                case 'coverPage':  // also fix the casing to match `case` block
-                    delete masterCoverPageList[courseID][itemID];
+                case 'coverPage':  
+                    delete masterCoverPageList[identity][itemID];
                     break;
                 case 'attachment':
-                    delete masterAttachmentList[courseID][itemID];
+                    delete masterAttachmentList[identity][itemID];
                     break;
             }
 

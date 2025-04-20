@@ -197,31 +197,14 @@ def fetch_user_data(request):
                 master_attachment_list = get_attachment_list('course', courses)
 
                 for course in courses:
-                    textbook_data = None
-                    if course.textbook:
-                        textbook_data = {
-                            "title": course.textbook.title,
-                            "author": course.textbook.author,
-                            "version": course.textbook.version,
-                            "isbn": course.textbook.isbn,
-                            "link": course.textbook.link
-                        }
-
                     container_list[course.course_id] = {
-                        "id": course.course_id,
+                        "courseID": course.course_id,
                         "crn": course.crn,
                         "name": course.name,
                         "sem": course.sem,
-                        "textbook": textbook_data,
-                        "dbid": course.id
+                        "textbook": textbook.id, #RED TASK: Make many to many field
+                        "id": course.id
                     }
-
-                    if course.textbook:
-                        textbook = Textbook.objects.filter(isbn=course.textbook.isbn).first()
-                        if textbook:
-                            master_question_list = add_textbook_questions(
-                                textbook, master_question_list, course.course_id
-                            )
 
         elif role == "publisher":
             textbooks = Textbook.objects.filter(publisher=user)
@@ -290,6 +273,9 @@ def save_textbook(request):
             }
         )
     newtextbook.save()
+    if created:
+        newtextbook.publisher = request.user
+        newtextbook.save()
     return Response({
             'status': 'success',
             'created': created,
