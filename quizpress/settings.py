@@ -120,9 +120,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'quizpressdb1',  # Ensure this matches your database name
-        'USER': 'admin',
+        'USER': 'dbadmin',
         'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
-         'HOST': 'quizpresswindows.cureswu4qmwz.us-east-1.rds.amazonaws.com',
+         'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
         'PORT': '3306',
     }
 }
