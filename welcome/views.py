@@ -104,8 +104,8 @@ def login_handler(request):
     
     return redirect("login")  # Redirect if not POST
 
-import time
 
+import time
 def parse_qti_xml(request):
     """
     Parses a QTI XML file and saves extracted data to the database.
@@ -167,6 +167,22 @@ def parse_qti_xml(request):
             return None
         else:
             return data_to_return
+
+
+    def field_exists(given_model_name, given_field_name):
+
+        try:
+            model = apps.get_model(app_label='welcome', model_name=given_model_name)  # get Model class from Welcome app in Django
+        except LookupError:  # if model could not be found
+            print(f'Model {given_model_name} not found.')
+            return False
+
+        model_fields_names_list = [field.name for field in model._meta.fields]  # model._meta.fields is a list of field objects
+
+        if given_field_name in model_fields_names_list:
+            return True
+        else:
+            return False
 
     def parse_just_xml(meta_path, non_meta_path, the_course, template_instance):
 
@@ -296,28 +312,67 @@ def parse_qti_xml(request):
 
                     mc_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key == correct_answer_ident:
-                            question_instance.answer = value
+                            #question_instance.answer = value
+                            option_letter = get_column_letter(current_place)
+                            answer_instance = Answers.objects.create(
+                                text=option_letter,
+                                question=question_instance
+                            )
+                            option_instance = Options.objects.create(
+                                text=value,
+                                question=question_instance,
+                                order=current_place
+                            )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
-                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
-                                                              ContentFile(temp_img_data_pair.raw_image_data))
 
                                 # Parse the HTML using BeautifulSoup4 library
                                 html_obj = BeautifulSoup(value, 'html.parser')
                                 # Find the element with "img" tag
                                 my_img_element = html_obj.find('img')
-                                my_img_element['src'] = question_instance.ansimg.url  # change src attribute
-                                value = str(html_obj)  # save html as string
-                                question_instance.answer = value  # update answer text field
-                                question_instance.save()  # save/update entry in database
+
+                                if field_exists('Question', 'ansimg'):
+                                    question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
+                                                                  ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = question_instance.ansimg.url  # change src attribute
+
+                                    value = str(html_obj)  # save html as string
+
+                                    if field_exists('Question', 'answer'):
+                                        question_instance.answer = value  # update answer text field
+
+                                    question_instance.save()  # save/update entry in database
+
+                                if field_exists('Answers', 'answer_graphic'):
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
+
+                                if field_exists('Options', 'image'):
+                                    option_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = option_instance.image.url
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
 
                             question_instance.save()
                         else:
                             options_instance = Options.objects.create(
+                                text=value,
                                 question=question_instance,
-                                text=value
+                                order=current_place
                             )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
@@ -382,15 +437,25 @@ def parse_qti_xml(request):
 
                     tf_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key == correct_answer_ident:
-                            question_instance.answer = value
-                            temp_img_data_pair = check_embedded_graphic(value)
-                            if temp_img_data_pair is not None:
-                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
-                                                              ContentFile(temp_img_data_pair.raw_image_data))
+                            if field_exists('Question', 'answer'):
+                                question_instance.answer = value
+                            answer_instance = Answers.objects.create(
+                                text=value.lower(),
+                                question=question_instance
+                            )
 
-                            question_instance.save()
+                    current_place = 0
+                    for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
+                        option_instance = Options.objects.create(
+                            text=value,
+                            question=question_instance,
+                            order=current_place
+                        )
 
                 elif the_question_type == 'short_answer_question':  # fill-in-the-blank question (single)
 
@@ -497,31 +562,58 @@ def parse_qti_xml(request):
 
                     ms_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key in correct_answer_ident_list:
                             answer_instance = Answers.objects.create(
                                 question=question_instance,
                                 text=value
                             )
+                            option_instance = Options.objects.create(
+                                text=value,
+                                question=question_instance,
+                                order=current_place
+                            )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
-                                answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
-                                                                    ContentFile(temp_img_data_pair.raw_image_data))
-                                answer_instance.save()
 
-                                # Parse the HTML using BeautifulSoup4 library
-                                html_obj = BeautifulSoup(value, 'html.parser')
-                                # Find the element with "img" tag
-                                my_img_element = html_obj.find('img')
-                                my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
-                                value = str(html_obj)  # save html as string
-                                answer_instance.text = value  # update answer_instance text field
-                                answer_instance.save()  # save/update entry in database
+                                if field_exists('Answers', 'answer_graphic'):
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    answer_instance.save()
+
+                                    # Parse the HTML using BeautifulSoup4 library
+                                    html_obj = BeautifulSoup(value, 'html.parser')
+                                    # Find the element with "img" tag
+                                    my_img_element = html_obj.find('img')
+                                    my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+                                    value = str(html_obj)  # save html as string
+                                    answer_instance.text = value  # update answer_instance text field
+                                    answer_instance.save()  # save/update entry in database
+
+                                if field_exists('Options', 'image'):
+                                    # Parse the HTML using BeautifulSoup4 library
+                                    html_obj = BeautifulSoup(value, 'html.parser')
+                                    # Find the element with "img" tag
+                                    my_img_element = html_obj.find('img')
+
+
+                                    # save the image to ImageField
+                                    option_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                               ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = option_instance.image.url
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
 
                         else:
                             options_instance = Options.objects.create(
+                                text=value,
                                 question=question_instance,
-                                text=value
+                                order=current_place
                             )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
@@ -605,27 +697,36 @@ def parse_qti_xml(request):
                         set(right_side_key_to_delete_list))  # this removes duplicate keys from list
                     for key_string in unique_key_list_to_del:
                         del answer_choices_dict[key_string]  # deletes a response option that was a correct right side
+
+                    current_place = 0
+                    pair_number = 0
                     # now save matching pairs to database
                     for key, value in matching_pairs_dict.items():
-                        matching_pair_string = ""
-                        if key is not None:
-                            matching_pair_string += key
-                        matching_pair_string += ";;;;; "
-                        if value is None:
-                            matching_pair_string += ";;;;;"
-                        else:
-                            matching_pair_string += value
+                        pair_number = pair_number + 1
+                        current_place = current_place + 1
+                        matching_pair_string = f"{{{key}, {value}}}"
 
                         # matching questions CANNOT have embedded graphics in responses
                         answer_instance = Answers.objects.create(
                             question=question_instance,
                             text=matching_pair_string
                         )
-                    # save distractors to database
-                    for value in answer_choices_dict.values():
+
+                        options_pair_dict = {'left': key, 'right': value, 'pairNum': pair_number}
                         option_instance = Options.objects.create(
                             question=question_instance,
-                            text=value
+                            order=current_place,
+                            pair=options_pair_dict
+                        )
+
+                    current_place = 0
+                    # save distractors to database
+                    for value in answer_choices_dict.values():
+                        current_place = current_place + 1
+                        option_instance = Options.objects.create(
+                            text=value,
+                            question=question_instance,
+                            order=current_place
                         )
 
                 elif the_question_type == 'essay_question':
