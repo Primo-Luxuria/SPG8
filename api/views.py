@@ -1068,6 +1068,7 @@ def get_question_list(field, suite):
 
     return master_question_list
 
+
 def get_attachment_list(field, suite):
     master_attachment_list = {}
     for instance in suite:
