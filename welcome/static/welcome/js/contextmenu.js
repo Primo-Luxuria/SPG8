@@ -20,7 +20,7 @@ function addFeedback() {
 
     modalTitle.innerText = 'Add Feedback';
 
-    const formContent = `
+    let formContent = `
         <label>Rating (1-5):</label><br/>
         <input type="number" id="feedbackRating" min="1" max="5"><br><br>
         <label>Class Average Score:</label><br/>

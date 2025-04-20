@@ -119,11 +119,11 @@ Local test for database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpressdb1',  # Ensure this matches your database name
-        'USER': 'dbadmin',
-        'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
-         'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
-        'PORT': '3306',
+        'NAME': 'quizpressdb',  # Your database name
+        'USER': 'root',  # Your MySQL username
+        'PASSWORD': 'Conductorofmanydreams1!',  # Your MySQL password
+        'HOST': 'localhost',  # Use 'localhost' for local development
+        'PORT': '3306',  # Default MySQL port
     }
 }
 

@@ -10,7 +10,6 @@ function editItem() {
     const itemID = contextMenu.dataset.itemID;
     const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
-
     switch (itemType) {
         case 'question':
             editQuestion(courseID, questionType, itemID);
@@ -349,14 +348,17 @@ function updateEditOptions(type, options = {}, answers = {}) {
  * Precondition: valid courseID, pageIndex
  * Postcondition: cover page is edited and republished in the master list
 */
-function editCoverPage(courseID, pageIndex) {
-    const coverPage = masterCoverPageList[courseID][pageIndex];
+function editCoverPage(courseID, pageID) {
+    const coverPage = masterCoverPageList[courseID][pageID];
 
     // Open the edit modal and populate it with the cover page data
     const modal = document.getElementById('editModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
-
+    if(coverPage.published==1){
+        alert("This page is published. You cannot edit it.");
+        return;
+    }
     modalTitle.innerText = 'Edit Cover Page';
 
     const formContent = `
@@ -378,7 +380,7 @@ function editCoverPage(courseID, pageIndex) {
         </select><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructions" rows="6">${coverPage.instructions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditCoverPage('${courseID}', ${pageIndex})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditCoverPage('${courseID}', ${pageID})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -388,7 +390,7 @@ function editCoverPage(courseID, pageIndex) {
     }, 10);
 }
 
-function submitEditCoverPage(courseID, pageIndex) {
+function submitEditCoverPage(courseID, pageID) {
     const pageName = document.getElementById("editCoverPageName").value.trim();
     const testNumber = document.getElementById("editTestNumber").value.trim();
     const testDate = document.getElementById("editTestDate").value.trim();
@@ -407,6 +409,7 @@ function submitEditCoverPage(courseID, pageIndex) {
     }
   
     const coverPage = {
+      id: pageID,
       name: pageName,
       testNum: testNumber,
       date: testDate,
@@ -414,12 +417,9 @@ function submitEditCoverPage(courseID, pageIndex) {
       showFilename: filenameTF,
       blank: nameBlankSelector,
       instructions: gradingInstructions,
-      published: masterCoverPageList[courseID][pageIndex].published  
+      published: masterCoverPageList[courseID][pageID].published  
     };
   
-    // Update the existing cover page in the master list
-    masterCoverPageList[courseID][pageIndex] = coverPage;
-    
     // Save to database/storage using the existing saveData function
     saveData("coverPage", coverPage, courseID, null);
     
@@ -430,7 +430,7 @@ function submitEditCoverPage(courseID, pageIndex) {
 
 /**
  * This function is called from the context menu to edit an existing template from the course UI
- * Precondition: valid courseID, templateIndex, not published
+ * Precondition: valid courseID, not published
  * Postcondition: template is edited and saved in the master list
 */
 function editTemplate(courseID, templateID) {
@@ -448,12 +448,8 @@ function editTemplate(courseID, templateID) {
         return;
     }
 
-    if(!template.coverPageID){
-        alert("invalid cover page!");
-        return null;
-    }else{
-        let coverPageID = template.coverPageID;
-    }
+    
+    let coverPageID = template.coverPageID;    
 
     const formContent = `
         <label>Template Name:</label><br/>
@@ -533,18 +529,53 @@ function editTemplate(courseID, templateID) {
                 <option value="False" ${!template.bonusSection ? 'selected' : ''}>No Bonus Section</option>
             </select><br/><br/>
             <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
+            <div id="selectedBonusQuestionsContainer"><p>"No bonus questions selected"</p></div>
             <button class="save-btn" onclick="submitEditTemplate('${courseID}', ${templateID})">Submit Template</button>
         </div>
     `;
 
     modalBody.innerHTML = formContent;
-
+    const selectedQuestionsDiv = document.createElement('div');
+    selectedQuestionsDiv.className = "bonus-questions-container";
     // Populate the cover page selector
     updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
     pageSelector.value = coverPageID;
-    
-    // Populate the parts and sections
+    for(let i=0;i<template.bonusQuestions.length;i++){
+        id = template.bonusQuestions[i];
+        const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
+        for (const t of types) {
+        if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
+            question = masterQuestionList[courseID][t][id];
+            foundType = t;
+            break;
+        }
+        }
+
+        if (!question) {
+            console.warn(`Question ID ${id} not found in any type.`);
+            continue;
+        }
+
+        console.log(`Processing question: ${question.text.substring(0, 20)}...`);
+        const questionElement = document.createElement("div");
+        questionElement.style.padding = "8px";
+        questionElement.style.margin = "5px 0";
+        questionElement.style.backgroundColor = "#f0f0f0";
+        questionElement.style.borderRadius = "4px";
+
+        questionElement.innerHTML = `
+            <p>${question.text}</p>
+            <p>Points: ${question.score}</p>
+            `;
+        selectedQuestionsDiv.appendChild(questionElement);
+    }
+    let container = document.getElementById("selectedBonusQuestionsContainer");
+    if (container) {
+        container.innerHTML = "";
+        container.appendChild(selectedQuestionsDiv);
+        console.log("Container updated successfully");
+    }
     updateParts();
     template.partStructure.forEach((part, partIndex) => {
         const sectionCountInput = document.getElementById(`sectionCount-${partIndex + 1}`);
@@ -570,10 +601,10 @@ function editTemplate(courseID, templateID) {
 
 /**
  * This function is used to submit an edited template when the user is finished editing the template from the context menu
- * Precondition: valid courseID, templateIndex
+ * Precondition: valid courseID
  * Postcondition: template is edited and saved in the master list
 */
-function submitEditTemplate(courseID, templateIndex) {
+function submitEditTemplate(courseID, templateID) {
     const templateName = document.getElementById('nameField').value.trim();
     const coverPageID = document.getElementById('coverPageSelector').value;
 
@@ -617,31 +648,29 @@ function submitEditTemplate(courseID, templateIndex) {
         alert("Error: Template must include a valid part structure.");
         return;
     }
-
+    
     if(bonusSection){
-        if(masterTemplateList[courseID].bonusQuestions.length>0){
-            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
-        } else if (masterTemplateList[courseID][templateIndex].bonusQuestions.length>0){
-            masterTemplateList[courseID][templateIndex].bonusQuestions = masterTemplateList[courseID][templateIndex].bonusQuestions;
+        if(masterTemplateList[courseID].bonusQuestions && masterTemplateList[courseID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateID].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
+        } else if (masterTemplateList[courseID][templateID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateID].bonusQuestions = masterTemplateList[courseID][templateID].bonusQuestions;
         } else {
             alert("No bonus questions selected!");
             return;
         }
-        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateID].bonusQuestions);
     }else{
         alert("no bonus questions!");
-        masterTemplateList[courseID][templateIndex].bonusQuestions = [];
-        console.log("Bonus Questions:", masterTemplateList[courseID][templateIndex].bonusQuestions);
+        masterTemplateList[courseID][templateID].bonusQuestions = [];
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateID].bonusQuestions);
     }
-    if (bonusSection && !masterTemplateList[courseID].bonusQuestions) {
-        alert("Bonus questions failed to add to course");
-        return;
-    }else if(bonusSection && (masterTemplateList[courseID][templateIndex].bonusQuestions.length === 0)){
+    if(bonusSection && (masterTemplateList[courseID][templateID].bonusQuestions.length === 0)){
         alert("Bonus questions failed to add to template");
         return;
     }
 
     const templateData = {
+        id: templateID,
         name: templateName,
         titleFont: titleFont,
         titleFontSize: titleFontSize,
@@ -661,17 +690,17 @@ function submitEditTemplate(courseID, templateIndex) {
         partStructure: partStructure,
         bonusSection: bonusSection,
         published: 0,
-        bonusQuestions: masterTemplateList[courseID].bonusQuestions || [],
+        bonusQuestions: masterTemplateList[courseID][templateID].bonusQuestions || [],
         feedback: []
     };
 
-    masterTemplateList[courseID][templateIndex] = templateData;
+    masterTemplateList[courseID][templateID] = templateData;
     masterTemplateList[courseID].bonusQuestions = [];
 
     console.log("Edited Template:", templateData);
 
     updateTemplates(courseID);
-    saveData("template", masterTemplateList[courseID][templateIndex], courseID)
+    saveData("template", masterTemplateList[courseID][templateID], courseID)
     closeModal();
 }
 
@@ -680,9 +709,12 @@ function submitEditTemplate(courseID, templateIndex) {
  * Precondition: valid courseID, testIndex, not published
  * Postcondition: test is edited and saved in the master list
 */
-function editTest(courseID, testIndex) {
-    const test = masterTestList[courseID]['drafts'][testIndex];
-
+function editTest(courseID, testID) {
+    const test = masterTestList[courseID]['drafts'][testID];
+    if(masterTestList[courseID]['published'][testID]){
+        alert("You cannot edit published tests.");
+        return;
+    }
     // Open the edit modal and populate it with the test data
     const modal = document.getElementById('editModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -702,8 +734,8 @@ function editTest(courseID, testIndex) {
                 <button id="templateSelection" onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testIndex})">Save as Draft</button>
-            <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testIndex})">Publish Test</button>
+            <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testID})">Save as Draft</button>
+            <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testID})">Publish Test</button>
         </div>
     `;
 
@@ -714,129 +746,97 @@ function editTest(courseID, testIndex) {
 
     // Set the selected template
     const templateSelector = document.getElementById('templateSelector');
-    templateSelector.value = test.templateIndex;
-    
+    templateSelector.value = test.templateID;
+    test.template = masterTemplateList[courseID][test.templateID];
     // Populate the test parts
     updateTestParts(courseID);
-
-    // Populate the parts and sections with existing test data
-    test.parts.forEach((part, partIndex) => {
-        const partContainer = document.getElementById(`part-${partIndex+1}-container`);
-        if (!partContainer) {
-            console.error(`Part container not found: part-${partIndex+1}-container`);
-            return;
-        }
-
-        part.sections.forEach((section, sectionIndex) => {
-            const sectionContainer = document.getElementById(`part-${partIndex+1}-section-${sectionIndex+1}-container`);
-            if (!sectionContainer) {
-                console.error(`Section container not found: part-${partIndex+1}-section-${sectionIndex+1}-container`);
-                return;
-            }
-
-            // Find the selected-questions div within the section container
-            const selectedQuestionsContainer = sectionContainer.querySelector('.selected-questions');
-            if (!selectedQuestionsContainer) {
-                console.error(`Selected questions container not found in section ${partIndex+1}-${sectionIndex+1}`);
-                return;
-            }
-
-            // Create a container for all our question elements
-            const selectedQuestionsDiv = document.createElement("div");
-
-            // Create a section-wide point value input
-            const sectionPointsDiv = document.createElement("div");
-            sectionPointsDiv.innerHTML = `
-                <label>Set All Points for This Section: </label>
-                <input type="number" id="section-${partIndex+1}-${sectionIndex+1}-points" min="1" value="1" style="width: 60px;">
-                <button onclick="updateSectionPoints(${partIndex+1}, ${sectionIndex+1})">Apply</button>
-                <hr>
-            `;
-            selectedQuestionsDiv.appendChild(sectionPointsDiv);
-
-            // Add each question to the section
-            section.questions.forEach((question, questionIndex) => {
-                const questionElement = document.createElement("div");
-                questionElement.style.padding = "8px";
-                questionElement.style.margin = "5px 0";
-                questionElement.style.backgroundColor = "#f0f0f0";
-                questionElement.style.borderRadius = "4px";
-                questionElement.dataset.questionID = question.id; // Store original index
-
-                questionElement.innerHTML = `
-                    <p>${question.text}</p>
-                    <label>Points: </label>
-                    <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;">
-                `;
-
-                selectedQuestionsDiv.appendChild(questionElement);
-            });
-            
-            // Append all questions to the selected-questions container
-            selectedQuestionsContainer.appendChild(selectedQuestionsDiv);
-        });
-    });
-
-    // Add bonus part if it exists
-    if (test.template && test.template.bonusQuestions && test.template.bonusQuestions.length > 0) {
-        const testPartsContainer = document.getElementById("testParts");
-        if (!testPartsContainer) {
-            console.error("Test parts container not found");
-            return;
-        }
-
-        const bonusPartContainer = document.createElement("div");
-        bonusPartContainer.style.padding = '5px';
-        bonusPartContainer.style.marginBottom = '8px';
-        bonusPartContainer.style.borderBottom = '1px solid #ccc';
-        bonusPartContainer.id = `part-bonus-container`;
-
-        bonusPartContainer.innerHTML = `<h2>Bonus Part</h2>`;
-
-        const bonusSectionContainer = document.createElement('div');
-        bonusSectionContainer.style.padding = '5px';
-        bonusSectionContainer.style.marginBottom = '8px';
-        bonusSectionContainer.style.borderBottom = '1px solid #ccc';
-        bonusSectionContainer.style.backgroundColor = '#d3d3d3';
-        bonusSectionContainer.id = `bonus-container`;
-
-        bonusSectionContainer.innerHTML = `
-            <h3>Bonus Section: Bonus Questions</h3>
-        `;
-
-        const selectedQuestionsDiv = document.createElement('div');
-        selectedQuestionsDiv.className = 'selected-questions';
-        
-        test.template.bonusQuestions.forEach((q, questionIndex) => {
-            const [type, index] = q.split('-');
-            const question = masterQuestionList[courseID][type][index];
-            const questionElement = document.createElement("div");
-            questionElement.style.padding = "8px";
-            questionElement.style.margin = "5px 0";
-            questionElement.style.backgroundColor = "#f0f0f0";
-            questionElement.style.borderRadius = "4px";
-            questionElement.dataset.questionID = question.id; 
-
-            questionElement.innerHTML = `
-                <p>${question.text}</p>
-                <label>Points: </label>
-                <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
-            `;
-
-            selectedQuestionsDiv.appendChild(questionElement);
-        });
-
-        bonusSectionContainer.appendChild(selectedQuestionsDiv);
-        bonusPartContainer.appendChild(bonusSectionContainer);
-        testPartsContainer.appendChild(bonusPartContainer);
-    }
-
+    
+    // After test parts are populated, load existing questions
+    setTimeout(() => {
+        populateExistingQuestions(courseID, test);
+    }, 500); // Give time for updateTestParts to complete
+    
     modal.style.display = 'flex';
     setTimeout(() => {
         modal.style.opacity = '1';
     }, 10);
 }
 
+// New helper function to populate existing questions -Help from Claude here (AW)
+function populateExistingQuestions(courseID, test) {
+    test.parts.forEach((part, partIndex) => {
+        part.sections.forEach((section, sectionIndex) => {
+            const sectionContainer = document.getElementById(`part-${partIndex}-section-${sectionIndex}-container`);
+            
+            if (!sectionContainer) {
+                console.error(`Section container not found: part-${partIndex}-section-${sectionIndex}-container`);
+                return;
+            }
+
+            // Find the selected-questions div within the section container
+            const selectedQuestionsDiv = sectionContainer.querySelector('.selected-questions');
+            if (!selectedQuestionsDiv) {
+                console.error(`Selected questions container not found in section ${partIndex}-${sectionIndex+1}`);
+                return;
+            }
+
+            // Clear any existing content
+            selectedQuestionsDiv.innerHTML = '';
+            
+            // Create a section-wide point value input
+            const sectionPointsDiv = document.createElement("div");
+            sectionPointsDiv.innerHTML = `
+                <label>Set All Points for This Section: </label>
+                <input type="number" id="section-${partIndex}-${sectionIndex}-points" min="1" value="1" style="width: 60px;">
+                <button onclick="updateSectionPoints(${partIndex}, ${sectionIndex})">Apply</button>
+                <hr>
+            `;
+            selectedQuestionsDiv.appendChild(sectionPointsDiv);
+
+            // Add each question to the section
+            const questionType = section.questionType.toLowerCase();
+            section.questions.forEach((question) => {
+                // Get full question data from master list
+                const questionData = masterQuestionList[courseID][questionType][question.id];
+                if (!questionData) {
+                    console.error(`Question data not found for ID: ${question.id}, type: ${questionType}`);
+                    return;
+                }
+                
+                const questionElement = document.createElement("div");
+                questionElement.style.padding = "8px";
+                questionElement.style.margin = "5px 0";
+                questionElement.style.backgroundColor = "#f0f0f0";
+                questionElement.style.borderRadius = "4px";
+                questionElement.dataset.questionID = question.id;
+
+                questionElement.innerHTML = `
+                    <p>${questionData.text || 'Question text not available'}</p>
+                    <label>Points: </label>
+                    <input type="number" class="question-points" min="1" value="${question.assigned_points || 1}" style="width: 60px;">
+                `;
+
+                selectedQuestionsDiv.appendChild(questionElement);
+            });
+            
+            // Add randomize button
+            const randomizer = document.createElement("button");
+            randomizer.className = "add-btn";
+            randomizer.textContent = "Randomize Question Order";
+            randomizer.onclick = function() {
+                const questionElements = Array.from(selectedQuestionsDiv.children).slice(1); // Skip the first child
+                ShuffleArray(questionElements);
+                selectedQuestionsDiv.innerHTML = ''; 
+                selectedQuestionsDiv.appendChild(sectionPointsDiv);
+                questionElements.forEach((element) => {
+                    selectedQuestionsDiv.appendChild(element);
+                });
+            };
+            selectedQuestionsDiv.appendChild(randomizer);
+        });
+    });
+    
+}
 
 /**
  * This renames attachments, not much else to it, it is an editor to facilitate renaming them
@@ -873,7 +873,7 @@ function editAttachment(courseID, attachmentIndex) {
  * Precondition: valid courseID, attachmentIndex
  * Postcondition: attachment is renamed
 */
-function submitEditAttachment(courseID, attachmentIndex) {
+function submitEditAttachment(courseID, attachmentID) {
     const newName = document.getElementById('editAttachmentName').value.trim();
 
     if (!newName) {
@@ -881,9 +881,9 @@ function submitEditAttachment(courseID, attachmentIndex) {
         return;
     }
 
-    masterAttachmentList[courseID][attachmentIndex].name = newName;
+    masterAttachmentList[courseID][attachmentID].name = newName;
     updateAttachments(courseID);
-    saveData("attachment", masterAttachmentList[courseID][attachmentIndex], courseID);
+    saveData("attachment", masterAttachmentList[courseID][attachmentID], courseID);
     closeModal();
 }
 
@@ -894,28 +894,29 @@ function submitEditAttachment(courseID, attachmentIndex) {
  * Precondition: valid courseID, isPublished, testIndex
  * Postcondition: test is edited and saved in the master list
 */
-function submitEditedTest(courseID, isPublished, testIndex) {
+function submitEditedTest(courseID, isPublished, testID) {
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
         alert("Test Name is required.");
         return;
     }
 
-    const templateIndex = document.getElementById("templateSelector").value;
-    if (!templateIndex) {
+    const templateID = document.getElementById("templateSelector").value;
+    if (!templateID) {
         alert("Please select a template first");
         return;
     }
 
-    const template = masterTemplateList[courseID][templateIndex];
+    const template = masterTemplateList[courseID][templateID];
     
     let usedQuestions = [];
 
     const testData = {
+        id: testID,
         name: testName,
         template: template,
         templateName: template.name,
-        templateIndex: templateIndex,
+        templateID: templateID,
         attachments: [],
         parts: [],
         feedback: []
@@ -923,7 +924,7 @@ function submitEditedTest(courseID, isPublished, testIndex) {
 
     // Loop through all parts and sections rendered in the UI
     const testParts = document.getElementById("testParts");
-    const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]');
+    const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]:not([id*="-section-"])');
     let noquestions = true;
     partContainers.forEach((partContainer, partIndex) => {
         const partData = {
@@ -955,21 +956,16 @@ function submitEditedTest(courseID, isPublished, testIndex) {
             questionDivs.forEach((questionDiv) => {
                 const questionID = questionDiv.dataset.questionID;
                 const pointsInput = questionDiv.querySelector('.question-points');
-                const points = pointsInput ? parseInt(pointsInput.value) : 1; //if there are no points, make it 1 point
-
-                // Get the question from master list and clone it
-                const question = JSON.parse(JSON.stringify(masterQuestionList[courseID][questionType.toLowerCase()][questionID]));
-
-                // Update points for this clone if they were changed
-                question.score = points;
+                const points = pointsInput ? parseInt(pointsInput.value) : 1; 
+        
+                let question = {
+                    "id": questionID,
+                    "assigned_points": points
+                }
                 usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionID]);
                 // Add to the questions for this section
                 sectionData.questions.push(question);
                 noquestions=false;
-                // Set the published key to 1 if the test is published
-                if (isPublished === 'true') {
-                    masterQuestionList[courseID][questionType.toLowerCase()][questionID].published = 1;
-                }
             });
             if(noquestions){
                 alert("Please select questions for each section");
@@ -990,8 +986,13 @@ function submitEditedTest(courseID, isPublished, testIndex) {
                 sectionNumber: 1,
                 questionType: 'bonus',
                 questions: template.bonusQuestions.map(q => {
-                    const [type, index] = q.split('-');
-                    const question = masterQuestionList[courseID][type][index];
+                    id = q;
+                    const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
+                    for (const t of types) {
+                        if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
+                            question = masterQuestionList[courseID][t][id];
+                        }
+                    }
                     if (isPublished === 'true') {
                         question.published = 1;
                     }
@@ -1002,43 +1003,12 @@ function submitEditedTest(courseID, isPublished, testIndex) {
         testData.parts.push(bonusPart);
     }
 
-    // Save the test data
-    if (!masterTestList[courseID]) {
-        masterTestList[courseID] = { drafts: [], published: [] };
-    }
-
-    const draftsList = masterTestList[courseID].drafts;
-    const publishedList = masterTestList[courseID].published;
 
     if (isPublished === 'true') {
-        // Remove from drafts and add to published
-        draftsList.splice(testIndex, 1);
         testData.published = 1;
-        publishedList.push(testData);
-        let index = publishedList.length-1;
-        publishedList[index].published = 1;
-        saveData("test", publishedList[index], courseID);
-    } else {
-        // Update the draft test
-        draftsList[testIndex] = testData;
-        draftsList[testIndex].published = 0;
-        saveData("test", draftsList[testIndex], courseID);
-    }
+    } 
 
-    // Set the published key for the template and cover page if the test is published
-    if (isPublished === 'true') {
-        masterTemplateList[courseID][templateIndex].published = 1;
-        const coverPageIndex = template.coverPageID;
-        if (masterCoverPageList[courseID][coverPageIndex]) {
-            masterCoverPageList[courseID][coverPageIndex].published = 1;
-        }
-    }
-
-    usedQuestions.forEach(question => {
-        // question.tests.push(testData.name); TBD TODO
-        console.log("Updated question:", question);
-        console.log("Question published value:", question.published);
-    });
+    saveData("test", testData, courseID);
 
     updateTestTabs(courseID);
     closeModal();

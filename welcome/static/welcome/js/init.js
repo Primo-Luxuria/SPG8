@@ -9,15 +9,30 @@ var masterTextbookList = {};
 
 
 /**
+ * getUserIdentity to determine identity based on user role
+*/
+function getUserIdentity(courseID, isbn) {
+  const ownerRole = document.getElementById('userRole')?.value;
+  if (ownerRole === 'teacher' || ownerRole === 'webmaster') {
+    return courseID;
+  } else if (ownerRole === 'publisher') {
+    return isbn;
+  }
+  // fallback to whichever is defined
+  return courseID || isbn;
+}
+
+/**
  * This function is called to update the question content inside the question containers whenever a question is saved
  * Precondition: valid questionType, courseID
  * Postcondition: question content is updated in the question containers
 */
-function updateQuestionTabs(questionType, courseID) {
-    const tabContent = document.getElementById(`${questionType}-${courseID}`);
+function updateQuestionTabs(questionType, courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
+    const tabContent = document.getElementById(`${questionType}-${identity}`);
     tabContent.innerHTML = ''; // Clear existing content
 
-    const questions = masterQuestionList[courseID][questionType];
+    const questions = masterQuestionList[identity][questionType];
 
     if (questions.length === 0) {
         tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
@@ -32,7 +47,9 @@ function updateQuestionTabs(questionType, courseID) {
             questionDiv.classList.add('context-menu-target');
             questionDiv.dataset.itemType = 'question';
             questionDiv.dataset.itemID = question.id;
+            questionDiv.dataset.identity = identity;
             questionDiv.dataset.courseID = courseID;
+            questionDiv.dataset.isbn = isbn;
             questionDiv.dataset.questionType = questionType;
 
             questionDiv.innerHTML = `
@@ -51,7 +68,7 @@ function updateQuestionTabs(questionType, courseID) {
 /**
  * Defines the UI for a given course, used to interact with everything else
  * Preconditions: requires users provide all of the course addition data
- * Postconditions: Creates a course UI with tabbed panes for question and test data
+ * Postconditions: Creates a course UI with panes for question and test data
 */
 async function addCourse() {
     const courseID = document.getElementById('courseID').value.trim();
@@ -63,6 +80,7 @@ async function addCourse() {
     const textbookVersion = document.getElementById('courseTextbookVersion').value.trim();
     const textbookISBN = document.getElementById('courseTextbookISBN').value.trim();
     const textbookLink = document.getElementById('courseTextbookLink').value.trim();
+    const isbn = null;
 
     if (!courseID || !courseName || !courseCRN || !courseSemester || !textbookTitle || !textbookAuthor || !textbookISBN || !textbookVersion || !textbookLink) {
         alert("All fields (Course ID, Name, CRN, Semester, and Textbook Title/Author/Version/ISBN/Link) are required.");
@@ -74,68 +92,71 @@ async function addCourse() {
         return;
     }
 
-
     const courseContainer = document.createElement('div');
     courseContainer.classList.add('course-container');
+    const identity = getUserIdentity(courseID, isbn);
+    courseContainer.dataset.identity = identity;
+    courseContainer.dataset.courseID = courseID;
+    courseContainer.dataset.isbn = isbn;
     courseContainer.innerHTML = `
         <details>
-            <summary><strong>${courseName}</strong> (ID: ${courseID}, CRN: ${courseCRN}, ${courseSemester})</summary>
+            <summary><strong>${courseName}</strong> (ID: ${identity}, CRN: ${courseCRN}, ${courseSemester})</summary>
             <details>
                 <summary>Questions</summary>
-            <button class="add-btn" onclick="openEditor('Question', '${courseID}')">Add Question</button>
+            <button class="add-btn" onclick="openEditor('Question', '${identity}')">Add Question</button>
             <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'tf-${courseID}')">True/False</div>
-                    <div class="tab" onclick="switchTab(event, 'mc-${courseID}')">Multiple Choice</div>
-                    <div class="tab" onclick="switchTab(event, 'sa-${courseID}')">Short Answer</div>
-                    <div class="tab" onclick="switchTab(event, 'es-${courseID}')">Essay</div>
-                    <div class="tab" onclick="switchTab(event, 'ma-${courseID}')">Matching</div>
-                    <div class="tab" onclick="switchTab(event, 'ms-${courseID}')">Multiple Selection</div>
-                    <div class="tab" onclick="switchTab(event, 'fb-${courseID}')">Fill in the Blank</div>
+                    <div class="tab active" onclick="switchTab(event, 'tf-${identity}')">True/False</div>
+                    <div class="tab" onclick="switchTab(event, 'mc-${identity}')">Multiple Choice</div>
+                    <div class="tab" onclick="switchTab(event, 'sa-${identity}')">Short Answer</div>
+                    <div class="tab" onclick="switchTab(event, 'es-${identity}')">Essay</div>
+                    <div class="tab" onclick="switchTab(event, 'ma-${identity}')">Matching</div>
+                    <div class="tab" onclick="switchTab(event, 'ms-${identity}')">Multiple Selection</div>
+                    <div class="tab" onclick="switchTab(event, 'fb-${identity}')">Fill in the Blank</div>
                 </div>
-                <div class="tab-content active" id="tf-${courseID}"><p>True/False questions go here...</p></div>
-                <div class="tab-content" id="es-${courseID}"><p>Essay questions go here...</p></div>
-                <div class="tab-content" id="mc-${courseID}"><p>Multiple Choice questions go here...</p></div>
-                <div class="tab-content" id="sa-${courseID}"><p>Short Answer questions go here...</p></div>
-                <div class="tab-content" id="ma-${courseID}"><p>Matching questions go here...</p></div>
-                <div class="tab-content" id="ms-${courseID}"><p>Multiple Selection questions go here...</p></div>
-                <div class="tab-content" id="fb-${courseID}"><p>Fill in the Blank questions go here...</p></div>
+                <div class="tab-content active" id="tf-${identity}"><p>True/False questions go here...</p></div>
+                <div class="tab-content" id="es-${identity}"><p>Essay questions go here...</p></div>
+                <div class="tab-content" id="mc-${identity}"><p>Multiple Choice questions go here...</p></div>
+                <div class="tab-content" id="sa-${identity}"><p>Short Answer questions go here...</p></div>
+                <div class="tab-content" id="ma-${identity}"><p>Matching questions go here...</p></div>
+                <div class="tab-content" id="ms-${identity}"><p>Multiple Selection questions go here...</p></div>
+                <div class="tab-content" id="fb-${identity}"><p>Fill in the Blank questions go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Cover Pages</summary>
-                    <button class="add-btn" onclick="openEditor('Cover Page', '${courseID}')">Add Cover Page</button>
-                    <div id="coverpages-${courseID}"><p>You have not added any cover pages yet...</div>
+                    <button class="add-btn" onclick="openEditor('Cover Page', '${identity}')">Add Cover Page</button>
+                    <div id="coverpages-${identity}"><p>You have not added any cover pages yet...</div>
             </details>
 
             <details>
                 <summary>Templates</summary>
-                    <button class="add-btn" onclick="openEditor('Template', '${courseID}')">Add Template</button>
-                    <div id="templates-${courseID}"><p>You have not added any templates yet...</p></div>
+                    <button class="add-btn" onclick="openEditor('Template', '${identity}')">Add Template</button>
+                    <div id="templates-${identity}"><p>You have not added any templates yet...</p></div>
             </details>
 
             <details>
                 <summary>Tests</summary>
-                <button class="add-btn" onclick="openEditor('Test', '${courseID}')">Add Test</button>
-                <button class="add-btn" onclick="openImporter('${courseID}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>
+                <button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
                 <input type="file" id="fileInput">
                 <div class="tab-container">
                 <div class="tabs">
-                    <div class="tab active" onclick="switchTab(event, 'drafts-${courseID}')">Drafts</div>
-                    <div class="tab" onclick="switchTab(event, 'published-${courseID}')">Published Tests</div>
+                    <div class="tab active" onclick="switchTab(event, 'drafts-${identity}')">Drafts</div>
+                    <div class="tab" onclick="switchTab(event, 'published-${identity}')">Published Tests</div>
                 </div>
-                <div class="tab-content active" id="drafts-${courseID}"><p>Saved drafts go here...</p></div>
-                <div class="tab-content" id="published-${courseID}"><p>Published tests go here...</p></div>
+                <div class="tab-content active" id="drafts-${identity}"><p>Saved drafts go here...</p></div>
+                <div class="tab-content" id="published-${identity}"><p>Published tests go here...</p></div>
             </div>
             </details>
 
             <details>
                 <summary>Attachments</summary>
-                <button class="add-btn" onclick="openEditor('Attachment', '${courseID}')">Add Attachment</button>
-                <div id="attachments-${courseID}"><p>You have not uploaded any attachments yet...</p></div>
+                <button class="add-btn" onclick="openEditor('Attachment', '${identity}')">Add Attachment</button>
+                <div id="attachments-${identity}"><p>You have not uploaded any attachments yet...</p></div>
             </details>
-            <button class="remove-btn" onclick="confirmRemoveCourse('${courseID}')">Remove Course</button>
+            <button class="remove-btn" onclick="confirmRemoveCourse('${identity}')">Remove Course</button>
         </details>
     `;
 
@@ -176,11 +197,11 @@ async function addCourse() {
         date = '0' + date;
     }   
 
-    masterQuestionList[courseID] = questionList;
-    masterTestList[courseID] = testList;
-    masterCoverPageList[courseID] = {};
-    masterTemplateList[courseID] = {};
-    masterTemplateList[courseID].bonusQuestions = [];
+    masterQuestionList[identity] = questionList;
+    masterTestList[identity] = testList;
+    masterCoverPageList[identity] = {};
+    masterTemplateList[identity] = {};
+    masterTemplateList[identity].bonusQuestions = [];
 
     const coverPageDefault = {
         name: "Default 1st Test",
@@ -228,7 +249,7 @@ async function addCourse() {
         headerText: "",
         footerText: "Please read all questions carefully",
         coverPageID: 0,
-        coverPage: masterCoverPageList[courseID][0],
+        coverPage: masterCoverPageList[identity][0],
         bonusSection: false,
         bonusQuestions: [],
         partStructure: [
@@ -255,9 +276,9 @@ async function addCourse() {
         masterTextbookList[textbookISBN] = textbook;
     }
 
-    if(!masterAttachmentList[courseID]){
+    if(!masterAttachmentList[identity]){
         let attachmentList = {};
-        masterAttachmentList[courseID] = attachmentList;
+        masterAttachmentList[identity] = attachmentList;
     }
 
     const thisCourse = {
@@ -269,13 +290,13 @@ async function addCourse() {
     };
 
     try {
-        await saveData("course", thisCourse, courseID);
-        await saveData("coverPage", coverPageDefault, courseID);
-        await saveData("coverPage", coverPageDefault2, courseID);
-        await saveData("coverPage", coverPageDefault3, courseID);
-        await saveData("template", templateDefault, courseID);
-        updateCoverPages(courseID);
-        updateTemplates(courseID); 
+        await saveData("course", thisCourse, identity);
+        await saveData("coverPage", coverPageDefault, identity);
+        await saveData("coverPage", coverPageDefault2, identity);
+        await saveData("coverPage", coverPageDefault3, identity);
+        await saveData("template", templateDefault, identity);
+        updateCoverPages(identity);
+        updateTemplates(identity); 
 
     } catch (error) {
         console.error("Error saving course data:", error);
@@ -290,11 +311,12 @@ async function addCourse() {
  * Postcondition: the course no longer exists
  * 
 */
-async function confirmRemoveCourse(courseID) {
+async function confirmRemoveCourse(courseID, isbn) {
+    const identity = getUserIdentity(courseID, isbn);
     if (confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
         try {
         let username = window.username;
-        let itemToDelete=courseList[courseID];
+        let itemToDelete=courseList[identity];
         let type = "Course"
         const response = await fetch('/api/delete_item/', {
             method: 'POST',
@@ -306,7 +328,7 @@ async function confirmRemoveCourse(courseID) {
                 model_type: type,
                 id: itemToDelete.dbid,
                 username: username,
-                identity: courseID
+                identity: identity
             })
         });
         
@@ -314,7 +336,7 @@ async function confirmRemoveCourse(courseID) {
         
         if (response.ok) {
             // Remove the item from the local array
-            delete courseList[courseID];
+            delete courseList[identity];
             if(Object.keys(courseList).length === 0 && courseList.constructor === Object){
             document.getElementById('courseList').innerHTML = "";
             console.log("No courses to load");
@@ -529,6 +551,7 @@ async function sendFormData(url, formData) {
             throw new Error(data.message || data.error || 'An error occurred while saving your data');
         }
         
+        reloadData();
         return data;
     } catch (error) {
         console.error('Error:', error);
@@ -631,10 +654,12 @@ function serializeTemplate(template, courseID = null, isbn = null) {
             coverPageID: template.coverPageID || 0,
             partStructure: template.partStructure || null,
             bonusSection: template.bonusSection || false,
+            bonusQuestions: template.bonusQuestions || [],
             published: template.published || false
         }
     };
-    
+
+    confirm(JSON.stringify(template));
     return requestData;
 }
 
@@ -871,24 +896,11 @@ function serializeQuestion(question, courseID=null, isbn=null) {
         name: test.name || 'Untitled Test',
         date: test.date || null,
         filename: masterCoverPageList[courseID][test.template.coverPageID].file || masterCoverPageList[isbn][test.template.coverPageID].file|| null,
-        is_final: Boolean(test.is_final), 
-        templateIndex: parseInt(test.templateIndex) || 0
+        is_final: Boolean(test.published), 
+        templateID: parseInt(test.templateID) || 0
     };
     
-    // Format cover page if available
-    if (test.coverPage) {
-        requestData.coverPage = {
-            name: test.coverPage.name || 'Cover Page',
-            testNum: test.coverPage.testNum || '',
-            date: test.coverPage.date || null,
-            file: test.coverPage.file || '',
-            showFilename: Boolean(test.coverPage.showFilename), 
-            blank: test.coverPage.blank || 'TL',
-            instructions: test.coverPage.instructions || null
-        };
-    }
-    
-    // Format parts, sections, and questions
+     // Format parts, sections, and questions
     requestData.parts = [];
     if (Array.isArray(test.parts) && test.parts.length > 0) {
         requestData.parts = test.parts.map((part, partIndex) => {
@@ -905,151 +917,14 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                         questions: []
                     };
                     
-                    if (Array.isArray(section.questions) && section.questions.length > 0) {
-                        serializedSection.questions = section.questions.map((question, questionIndex) => {
-                            // FIX: Properly handle null/undefined values
-                            let newquestion = {
-                                question_id: question.id || null,
-                                assigned_points: parseFloat(question.assigned_points || question.score || 1.0),
-                                order: question.order || (questionIndex + 1),
-                                randomize: Boolean(question.randomize), // FIX: Ensure boolean value
-                                special_instructions: question.special_instructions || null,
-                                qtype: question.qtype || 'mc',
-                                text: question.text || '',
-                                eta: parseInt(question.eta) || 1, // FIX: Ensure numeric value
-                                directions: question.directions || null,
-                                reference: question.reference || null,
-                                comments: question.comments || null,
-                                chapter: parseInt(question.chapter) || 0, // FIX: Ensure numeric value
-                                section: parseInt(question.section) || 0, // FIX: Ensure numeric value
-                                published: Boolean(question.published), // FIX: Ensure boolean value
-                            };
-                            // Format answers
-                            newquestion.answer = {};
-                            switch(question.qtype){
-                                case "tf": 
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "ma":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                text: question.answer[key].text || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "ms":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                value: question.answer[key].value || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "mc":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "fb":
-                                    newquestion.answer = {};
-                                    if (question.answer) {
-                                        Object.keys(question.answer).forEach(key => {
-                                            newquestion.answer[key] = {
-                                                value: question.answer[key].value || null
-                                            };
-                                        });
-                                    }
-                                    break;
-                                case "es":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                                case "sa":
-                                    newquestion.answer = {
-                                        value: question.answer.value || null
-                                    };
-                                    break;
-                            }
-                            // Format options
-                            newquestion.options = {};
-                            switch(question.qtype){
-                                case "tf": 
-                                    newquestion.options = {
-                                        true: {text: "True", order: 1},
-                                        false: {text: "False", order: 2}
-                                    };
-                                    break;
-                                case "ma":
-                                    if (question.options) {
-                                        Object.keys(question.options).forEach(key => {
-                                            if (key === "numPairs" || key === "numDistractions") {
-                                                newquestion.options[key] = question.options[key];
-                                            } else if (key.startsWith("pair")) {
-                                                newquestion.options[key] = {
-                                                    left: question.options[key].left || null,
-                                                    right: question.options[key].right || null,
-                                                    pairNum: question.options[key].pairNum || null
-                                                };
-                                            } else if (key.startsWith("distraction")) {
-                                                newquestion.options[key] = {
-                                                    text: question.options[key].text || null,
-                                                    order: question.options[key].order || null
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "ms":
-                                    newquestion.options = {};
-                                    if (question.options) {
-                                        Object.keys(question.options).forEach(key => {
-                                            if (key.startsWith("option")) {
-                                                newquestion.options[key] = {
-                                                    text: question.options[key].text || null,
-                                                    order: question.options[key].order || null
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "mc":
-                                    newquestion.options = {};
-                                    const mcOptions = ['A', 'B', 'C', 'D'];
-                                    if (question.options) {
-                                        mcOptions.forEach(letter => {
-                                            if (question.options[letter]) {
-                                                newquestion.options[letter] = {
-                                                    text: question.options[letter].text || null,
-                                                    order: question.options[letter].order || mcOptions.indexOf(letter) + 1
-                                                };
-                                            }
-                                        });
-                                    }
-                                    break;
-                                case "fb":
-                                    // Fill in the blank typically doesn't have options
-                                    newquestion.options = {};
-                                    break;
-                                case "es":
-                                    // Essay questions typically don't have options
-                                    newquestion.options = {};
-                                    break;
-                                case "sa":
-                                    // Short answer questions typically don't have options
-                                    newquestion.options = {};
-                                    break;
-                            }
-                        });
+                    for(let i=0; i<section.questions.length;i++){
+                        let question = {
+                            "id": section.questions[i].id,
+                            "assigned_points":section.questions[i].assigned_points,
+                            "order": i
+                        };
+                        serializedSection.questions.push(question);
                     }
-                    
                     return serializedSection;
                 });
             }
@@ -1075,7 +950,6 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                         })) : []
                 }));
         }
-
     }
     
     // Format attachments if available
@@ -1090,6 +964,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
             .filter(id => id !== null); // Filter out null or undefined values
     }
     
+    console.log(JSON.stringify(requestData));
     return requestData;
 }
 
@@ -1341,6 +1216,8 @@ function updateTestTabs(courseID) {
                 <p><strong>${test.name}</strong></p>
                 <p>Template: ${test.templateName}</p>
                 <p>Parts: ${test.parts.length}</p>
+                <button class="add-btn" onclick="exportTestToHTML('${courseID}', '${test.id}')">Export Test</button>
+                <button class="add-btn" onclick="exportTestKeyToHTML('${courseID}', '${test.id}')">Export Test Key</button>
             `;
 
             publishedContainer.appendChild(testDiv);
@@ -1348,6 +1225,278 @@ function updateTestTabs(courseID) {
     }
 }
 
+
+/**
+ * exportTestToHTML
+ * Exports a test (without answers or grading instructions) to HTML.
+ * Customizations (fonts, header/footer, cover page, etc.) are taken from the test's template.
+ */
+function exportTestToHTML(courseID, testIndex) {
+    // Retrieve the published test
+    const publishedTests = masterTestList[courseID].published;
+    if (!publishedTests || testIndex >= publishedTests.length) {
+        alert("Test not found!");
+        return;
+    }
+    const test = publishedTests[testIndex];
+    const template = masterTextbookList[test.templateID] || 1;
+
+    // Begin building HTML with custom CSS from the template
+    let htmlOutput = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${test.name} - Exported Test</title>
+  <style>
+    body {
+      font-family: ${template.bodyFont}, sans-serif;
+      font-size: ${template.bodyFontSize}px;
+      margin: 20px;
+    }
+    .header-text {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: ${template.headerFontSize || 16}px;
+    }
+    .test-title {
+      font-family: ${template.titleFont}, sans-serif;
+      font-size: ${template.titleFontSize}px;
+      color: #0077C8;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .test-subtitle {
+      font-family: ${template.subtitleFont}, sans-serif;
+      font-size: ${template.subtitleFontSize}px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .cover-page {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    .part {
+      margin-bottom: 30px;
+    }
+    .part-title {
+      font-size: 20px;
+      margin-top: 20px;
+    }
+    .section-title {
+      font-size: 18px;
+      margin-top: 15px;
+    }
+    .question {
+      margin-bottom: 15px;
+    }
+    .footer-text {
+      text-align: center;
+      margin-top: 30px;
+      font-size: ${template.footerFontSize || 16}px;
+    }
+  </style>
+</head>
+<body>
+  ${template.headerText ? `<div class="header-text">${template.headerText}</div>` : ""}
+  <h1 class="test-title">${test.name}</h1>
+  ${template.subtitleText ? `<h2 class="test-subtitle">${template.subtitleText}</h2>` : ""}
+`;
+
+    // Optionally include cover page details if defined
+    if (template.coverPage) {
+        const cp = template.coverPage;
+        htmlOutput += `
+  <div class="cover-page">
+    <h2>${cp.name}</h2>
+    <p>Test Number: ${cp.testNum}</p>
+    <p>Date: ${cp.date}</p>
+    <p>Filename: ${cp.file}</p>
+    <p>Instructions: ${cp.instructions}</p>
+  </div>
+`;
+    }
+
+    // Loop through each Part, Section, and Question (fixed looping)
+    for (let p = 0; p < test.parts.length; p++) {
+        const part = test.parts[p];
+        htmlOutput += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+        for (let s = 0; s < part.sections.length; s++) {
+            const section = part.sections[s];
+            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1} (${section.questionType.toUpperCase()})</h3>`;
+            for (let q = 0; q < section.questions.length; q++) {
+                const questionData = section.questions[q];
+                const question = masterQuestionList[courseID][questionData.qtype][questionData.id];
+                htmlOutput += `
+    <div class="question">
+      <p>${question.text}</p>
+    </div>
+                `;
+            }
+            htmlOutput += `</div>`;
+        }
+        htmlOutput += `</div>`;
+    }
+
+    htmlOutput += `
+  ${template.footerText ? `<div class="footer-text">${template.footerText}</div>` : ""}
+</body>
+</html>
+    `;
+
+    // Create a Blob and trigger download
+    const blob = new Blob([htmlOutput], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${test.name}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * exportTestKeyToHTML
+ Exports the test key (answer key) as HTML.
+ * In the answer key export, grading instructions (in blue) and correct answers (in red) are displayed.
+ */
+function exportTestKeyToHTML(courseID, testIndex) {
+    // Retrieve the published test
+    const publishedTests = masterTestList[courseID].published;
+    if (!publishedTests || testIndex >= publishedTests.length) {
+        alert("Test not found!");
+        return;
+    }
+    const test = publishedTests[testIndex];
+    const template = masterTextbookList[test.templateID] || 1;
+
+    let htmlOutput = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${test.name} - Exported Test Key</title>
+  <style>
+    body {
+      font-family: ${template.bodyFont}, sans-serif;
+      font-size: ${template.bodyFontSize}px;
+      margin: 20px;
+    }
+    .header-text {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: ${template.headerFontSize || 16}px;
+    }
+    .test-title {
+      font-family: ${template.titleFont}, sans-serif;
+      font-size: ${template.titleFontSize}px;
+      color: #0077C8;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .test-subtitle {
+      font-family: ${template.subtitleFont}, sans-serif;
+      font-size: ${template.subtitleFontSize}px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .cover-page {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    .part {
+      margin-bottom: 30px;
+    }
+    .part-title {
+      font-size: 20px;
+      margin-top: 20px;
+    }
+    .section-title {
+      font-size: 18px;
+      margin-top: 15px;
+    }
+    .question {
+      margin-bottom: 15px;
+    }
+    .grading-instructions {
+      color: blue;
+      font-style: italic;
+    }
+    .correct-answer {
+      color: red;
+      font-weight: bold;
+    }
+    .footer-text {
+      text-align: center;
+      margin-top: 30px;
+      font-size: ${template.footerFontSize || 16}px;
+    }
+  </style>
+</head>
+<body>
+  ${template.headerText ? `<div class="header-text">${template.headerText}</div>` : ""}
+  <h1 class="test-title">${test.name} - Answer Key</h1>
+  ${template.subtitleText ? `<h2 class="test-subtitle">${template.subtitleText}</h2>` : ""}
+`;
+
+    // Optionally include cover page details if defined in the template
+    if (template.coverPage) {
+        const cp = template.coverPage;
+        htmlOutput += `
+  <div class="cover-page">
+    <h2>${cp.name}</h2>
+    <p>Test Number: ${cp.testNum}</p>
+    <p>Date: ${cp.date}</p>
+    <p>Filename: ${cp.file}</p>
+    <p class="grading-instructions">Instructions: ${cp.instructions}</p>
+  </div>
+`;
+    }
+
+    // Loop through each part, section, and question. Grading instructions and correct answers are only included here.
+    for (let p = 0; p < test.parts.length; p++) {
+        const part = test.parts[p];
+        htmlOutput += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+        for (let s = 0; s < part.sections.length; s++) {
+            const section = part.sections[s];
+            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1} (${section.questionType.toUpperCase()})</h3>`;
+            for (let q = 0; q < section.questions.length; q++) {
+                const questionData = section.questions[q];
+                const question = masterQuestionList[courseID][questionData.qtype][questionData.id];
+                
+                htmlOutput += `
+    <div class="question">
+      <p>${question.text}</p>
+      <p class="correct-answer">Correct Answer: ${question.answer.value}</p>
+      <p class="grading-instructions">Grading Instructions: ${question.directions}</p>
+    </div>
+                `;
+            }
+            htmlOutput += `</div>`;
+        }
+        htmlOutput += `</div>`;
+    }
+
+    htmlOutput += `
+  ${template.footerText ? `<div class="footer-text">${template.footerText}</div>` : ""}
+</body>
+</html>
+    `;
+
+    // Create a Blob and trigger download for the key export
+    const blob = new Blob([htmlOutput], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${test.name}-Key.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
 
 /**
@@ -1468,7 +1617,7 @@ async function deleteItem() {
     const username = window.username;
     let type =itemType;
     
-    
+
     let itemToDelete;
     switch(itemType) {
         case 'question':

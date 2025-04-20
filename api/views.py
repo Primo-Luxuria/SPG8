@@ -280,11 +280,7 @@ def save_textbook(request):
     data = request.data
     datatext = data.get('textbook', {})
     newtextbook, created = Textbook.objects.update_or_create(
-            title=datatext.get('title'),
-            author=datatext.get('author'),
-            version=datatext.get('version'),
-            isbn=datatext.get('isbn'),
-            link=datatext.get('link'),
+            id = datatext.get('id') if datatext.get('id') else None,
             defaults={
                 'title': datatext.get('title'),
                 'author': datatext.get('author'),
@@ -301,514 +297,127 @@ def save_textbook(request):
             'id': newtextbook.id
         })
 
+
 @api_view(['POST'])
 @transaction.atomic
 def save_test(request):
     try:
         data = request.data
-        
-        try:
-            test_data = data.get('test', {})
-        except Exception as e:
-            return Response({'error': f'Error getting test data: {str(e)}. The "test" field might be None.'}, status=400)
-        
-        try:
-            parts_data = data.get('parts', [])
-        except Exception as e:
-            return Response({'error': f'Error getting parts data: {str(e)}. The "parts" field might be None.'}, status=400)
-        
-        try:
-            feedback_data = data.get('feedback', [])
-        except Exception as e:
-            return Response({'error': f'Error getting feedback data: {str(e)}. The "feedback" field might be None.'}, status=400)
-        
-        try:
-            owner_role = data.get('ownerRole')
-            if owner_role is None:
-                return Response({'error': 'Owner role is None. Please provide an ownerRole.'}, status=400)
-        except Exception as e:
-            return Response({'error': f'Error getting owner role: {str(e)}. The "ownerRole" field might be None.'}, status=400)
-
+        test_data = data.get('test', {})
+        parts_data = data.get('parts', [])
+        owner_role = data.get('ownerRole')
+        print(test_data);
+        print(parts_data);
+        # Validate required fields
+        if owner_role is None:
+            return Response({'error': 'Owner role is required'}, status=400)
+            
+        # Determine ownership based on role
         course = None
         textbook = None
         
-        try:
-            is_final = test_data.get("is_final")
-            test_id = test_data.get("id")
-            if is_final == True and test_id:
-                return Response({'error': 'Test already finalized!'}, status=400)
-        except Exception as e:
-            return Response({'error': f'Error checking test finalization status: {str(e)}. The "is_final" or "id" field might be None.'}, status=400)
-
-        # Determine ownership based on role
         if owner_role == 'teacher':
+            course_id = data.get('courseID')
+            if not course_id:
+                return Response({'error': 'courseID is required for teacher role'}, status=400)
             try:
-                owner_id = data.get('courseID')
-                if owner_id is None:
-                    return Response({'error': 'courseID is None for teacher role. Please provide a courseID.'}, status=400)
-                try:
-                    course = Course.objects.get(course_id=owner_id)
-                except Course.DoesNotExist:
-                    return Response({'error': 'Course not found'}, status=400)
-            except Exception as e:
-                return Response({'error': f'Error getting courseID: {str(e)}. The "courseID" field might be None.'}, status=400)
+                course = Course.objects.get(course_id=course_id)
+            except Course.DoesNotExist:
+                return Response({'error': 'Course not found'}, status=400)
         elif owner_role == 'publisher':
+            isbn = data.get('isbn')
+            if not isbn:
+                return Response({'error': 'ISBN is required for publisher role'}, status=400)
             try:
-                owner_id = data.get('isbn')
-                if owner_id is None:
-                    return Response({'error': 'isbn is None for publisher role. Please provide an isbn.'}, status=400)
-                try:
-                    textbook = Textbook.objects.get(isbn=owner_id)
-                except Textbook.DoesNotExist:
-                    return Response({'error': 'Textbook not found'}, status=400)
-            except Exception as e:
-                return Response({'error': f'Error getting isbn: {str(e)}. The "isbn" field might be None.'}, status=400)
+                textbook = Textbook.objects.get(isbn=isbn)
+            except Textbook.DoesNotExist:
+                return Response({'error': 'Textbook not found'}, status=400)
+        
+        # Get template if provided
+        template = None
+        template_id = test_data.get('templateID', 0)
+        if template_id and template_id > 0:
+            try:
+                template = Template.objects.get(id=template_id)
+            except Template.DoesNotExist:
+                return Response({'error': 'Template not found'}, status=400)
+        
+        # Create or update test
+        test_id = test_data.get('id')
+        test, created = Test.objects.update_or_create(
+            id=test_id if test_id else None,
+            defaults={
+                'name': test_data.get('name', 'Untitled Test'),
+                'date': test_data.get('date'),
+                'filename': test_data.get('filename'),
+                'is_final': bool(test_data.get('is_final')),
+                'templateID': template_id,
+                'course': course,
+                'textbook': textbook,
+                'template': template
+            }
+        )
+        
+        if created:
+            test.author = request.user
+        test.save()
 
-        try:
-            # Get template if templateIndex is provided
-            template = None
-            try:
-                template_index = test_data.get('templateIndex', 0)
-                if template_index > 0:
-                    try:
-                        template = Template.objects.get(id=template_index)
-                    except Template.DoesNotExist:
-                        return Response({'error': 'Template not found'}, status=400)
-            except Exception as e:
-                return Response({'error': f'Error getting templateIndex: {str(e)}. The "templateIndex" field might be None.'}, status=400)
+        
+        # Process parts, sections, and questions
+        if parts_data:
+            # Delete existing parts (cascades to sections and questions)
+            test.test_questions.all().delete()
+            test.parts.all().delete()
             
-            # Update or create the test
-            try:
-                test_id = test_data.get('id')
-                test, created = Test.objects.update_or_create(
-                    id=test_id if test_id else None,
-                    defaults={
-                        'name': test_data.get('name', 'Untitled Test'),
-                        'date': test_data.get('date'),
-                        'filename': test_data.get('filename'),
-                        'is_final': test_data.get('is_final', False),
-                        'templateIndex': test_data.get('templateIndex', 0),
-                        'course': course,
-                        'textbook': textbook,
-                        'template': template
-                    }
+            # Create new parts
+            for part_data in parts_data:
+                part = TestPart.objects.create(
+                    test=test,
+                    part_number=part_data.get('part_number')
                 )
-            except Exception as e:
-                return Response({'error': f'Error creating or updating test: {str(e)}. One of the test fields might be None.'}, status=400)
-
-            if created:
-                test.author = request.user
-            test.save()
-            
-            # Process parts, sections, and questions
-            if parts_data:
-                # Keep track of processed parts to identify parts to delete
-                processed_part_ids = []
                 
-                for part_data in parts_data:
-                    try:
-                        part_number = part_data.get('part_number')
-                        if part_number is None:
-                            return Response({'error': 'part_number is None. Please provide a part_number for each part.'}, status=400)
-                    except Exception as e:
-                        return Response({'error': f'Error getting part_number: {str(e)}. The "part_number" field might be None.'}, status=400)
+                # Create sections within this part
+                sections_data = part_data.get('sections', [])
+                for section_data in sections_data:
+                    section = TestSection.objects.create(
+                        part=part,
+                        section_number=section_data.get('section_number'),
+                        question_type=section_data.get('question_type')
+                    )
                     
-                    try:
-                        sections_data = part_data.get('sections', [])
-                    except Exception as e:
-                        return Response({'error': f'Error getting sections: {str(e)}. The "sections" field might be None.'}, status=400)
-                    
-                    # Create or update part
-                    try:
-                        part, part_created = TestPart.objects.update_or_create(
-                            test=test,
-                            part_number=part_number,
-                            defaults={}
-                        )
-                        processed_part_ids.append(part.id)
-                    except Exception as e:
-                        return Response({'error': f'Error creating or updating part: {str(e)}. The part data might be invalid.'}, status=400)
-                    
-                    # Process sections within the part
-                    processed_section_ids = []
-                    
-                    for section_data in sections_data:
-                        try:
-                            section_number = section_data.get('section_number')
-                            if section_number is None:
-                                return Response({'error': 'section_number is None. Please provide a section_number for each section.'}, status=400)
-                        except Exception as e:
-                            return Response({'error': f'Error getting section_number: {str(e)}. The "section_number" field might be None.'}, status=400)
-                        
-                        try:
-                            question_type = section_data.get('question_type')
-                            if question_type is None:
-                                return Response({'error': 'question_type is None. Please provide a question_type for each section.'}, status=400)
-                        except Exception as e:
-                            return Response({'error': f'Error getting question_type: {str(e)}. The "question_type" field might be None.'}, status=400)
-                        
-                        try:
-                            questions_data = section_data.get('questions', [])
-                        except Exception as e:
-                            return Response({'error': f'Error getting questions: {str(e)}. The "questions" field might be None.'}, status=400)
-                        
-                        # Create or update section
-                        try:
-                            section, section_created = TestSection.objects.update_or_create(
-                                part=part,
-                                section_number=section_number,
-                                defaults={
-                                    'question_type': question_type
-                                }
-                            )
-                            processed_section_ids.append(section.id)
-                        except Exception as e:
-                            return Response({'error': f'Error creating or updating section: {str(e)}. The section data might be invalid.'}, status=400)
-                        
-                        # Process questions within the section
-                        processed_question_ids = []
-                        
-                        for question_data in questions_data:
-                            if question_data is None:
-                                continue
-                            
+                    # Create questions within this section
+                    questions_data = section_data.get('questions', [])
+                    for question_data in questions_data:
+                        question_id = question_data.get('id')
+                        if question_id:
                             try:
-                                question_id = question_data.get('question_id')
-                            except Exception as e:
-                                return Response({'error': f'Error getting question_id: {str(e)}. The "question_id" field might be None.'}, status=400)
-                            
-                            # Handle existing question
-                            if question_id:
-                                try:
-                                    try:
-                                        question = Question.objects.get(id=question_id)
-                                    except Question.DoesNotExist:
-                                        return Response({'error': f'Question with id {question_id} not found'}, status=400)
-                                    
-                                    # Create or update test question link
-                                    try:
-                                        assigned_points = question_data.get('assigned_points', 1.0)
-                                        order = question_data.get('order', 1)
-                                        randomize = question_data.get('randomize', False)
-                                        special_instructions = question_data.get('special_instructions')
-                                        
-                                        test_question, q_created = TestQuestion.objects.update_or_create(
-                                            test=test,
-                                            question=question,
-                                            defaults={
-                                                'assigned_points': assigned_points,
-                                                'order': order,
-                                                'randomize': randomize,
-                                                'special_instructions': special_instructions,
-                                                'section': section
-                                            }
-                                        )
-                                        processed_question_ids.append(test_question.id)
-                                    except Exception as e:
-                                        return Response({'error': f'Error creating or updating test question: {str(e)}. The question data might be invalid.'}, status=400)
-                                    
-                                except Exception as e:
-                                    return Response({'error': f'Error processing existing question: {str(e)}'}, status=400)
-                            # Handle new question
-                            elif question_data.get('text'):
-                                try:
-                                    # Create new question
-                                    try:
-                                        text = question_data.get('text', '')
-                                        qtype = question_data.get('qtype', 'mc')
-                                        score = question_data.get('assigned_points', 1.0)
-                                        directions = question_data.get('directions')
-                                        reference = question_data.get('reference')
-                                        eta = question_data.get('eta', 1)
-                                        comments = question_data.get('comments')
-                                        chapter = question_data.get('chapter', 0)
-                                        section_num = question_data.get('section', 0)
-                                        published = question_data.get('published', False)
-                                        
-                                        question = Question.objects.create(
-                                            text=text,
-                                            qtype=qtype,
-                                            score=score,
-                                            directions=directions,
-                                            reference=reference,
-                                            eta=eta,
-                                            comments=comments,
-                                            chapter=chapter,
-                                            section=section_num,
-                                            published=published,
-                                            course=course,
-                                            textbook=textbook,
-                                            author=request.user
-                                        )
-                                    except Exception as e:
-                                        return Response({'error': f'Error creating new question: {str(e)}. The question data might be invalid.'}, status=400)
-                                    
-                                    # Create test question link
-                                    try:
-                                        assigned_points = question_data.get('assigned_points', 1.0)
-                                        order = question_data.get('order', 1)
-                                        randomize = question_data.get('randomize', False)
-                                        special_instructions = question_data.get('special_instructions')
-                                        
-                                        test_question = TestQuestion.objects.create(
-                                            test=test,
-                                            question=question,
-                                            assigned_points=assigned_points,
-                                            order=order,
-                                            randomize=randomize,
-                                            special_instructions=special_instructions,
-                                            section=section
-                                        )
-                                        processed_question_ids.append(test_question.id)
-                                    except Exception as e:
-                                        return Response({'error': f'Error creating test question link: {str(e)}. The test question data might be invalid.'}, status=400)
-                                    
-                                    # Handle answers based on question type
-                                    try:
-                                        answer_data = question_data.get('answer', {})
-                                        if answer_data is None:
-                                            return Response({'error': 'answer data is None. Please provide answer data.'}, status=400)
-                                    except Exception as e:
-                                        return Response({'error': f'Error getting answer data: {str(e)}. The "answer" field might be None.'}, status=400)
-                                    
-                                    try:
-                                        qtype = question_data.get('qtype', 'mc')
-                                    except Exception as e:
-                                        return Response({'error': f'Error getting qtype: {str(e)}. The "qtype" field might be None.'}, status=400)
-                                    
-                                    if qtype in ['tf', 'mc', 'sa', 'es']:
-                                        # These question types have a single answer
-                                        try:
-                                            if isinstance(answer_data, dict) and 'value' in answer_data:
-                                                value = answer_data.get('value')
-                                                Answers.objects.create(
-                                                    question=question,
-                                                    text=value
-                                                )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating single answer: {str(e)}. The answer data might be invalid.'}, status=400)
-                                    elif qtype == 'fb' or qtype == 'ms':
-                                        # These can have multiple answers
-                                        try:
-                                            if isinstance(answer_data, dict):
-                                                for key, value in answer_data.items():
-                                                    if isinstance(value, dict) and 'value' in value:
-                                                        answer_value = value.get('value')
-                                                        Answers.objects.create(
-                                                            question=question,
-                                                            text=answer_value
-                                                        )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating multiple answers: {str(e)}. The answer data might be invalid.'}, status=400)
-                                    elif qtype == 'ma':
-                                        # Matching has pairs
-                                        try:
-                                            if isinstance(answer_data, dict):
-                                                for key, value in answer_data.items():
-                                                    if isinstance(value, dict) and 'text' in value:
-                                                        answer_text = value.get('text')
-                                                        Answers.objects.create(
-                                                            question=question,
-                                                            text=answer_text
-                                                        )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating matching answers: {str(e)}. The answer data might be invalid.'}, status=400)
-                                    
-                                    # Handle options based on question type
-                                    try:
-                                        options_data = question_data.get('options', {})
-                                        if options_data is None:
-                                            return Response({'error': 'options data is None. Please provide options data.'}, status=400)
-                                    except Exception as e:
-                                        return Response({'error': f'Error getting options data: {str(e)}. The "options" field might be None.'}, status=400)
-                                    
-                                    if qtype == 'tf':
-                                        # True/False options
-                                        try:
-                                            Options.objects.create(
-                                                question=question,
-                                                text='True',
-                                                order=1
-                                            )
-                                            Options.objects.create(
-                                                question=question,
-                                                text='False',
-                                                order=2
-                                            )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating True/False options: {str(e)}'}, status=400)
-                                    elif qtype == 'mc':
-                                        # Multiple choice options (A, B, C, D)
-                                        try:
-                                            mc_options = ['A', 'B', 'C', 'D']
-                                            for letter in mc_options:
-                                                if letter in options_data and isinstance(options_data[letter], dict):
-                                                    option = options_data[letter]
-                                                    option_text = option.get('text')
-                                                    option_order = option.get('order', mc_options.index(letter) + 1)
-                                                    Options.objects.create(
-                                                        question=question,
-                                                        text=option_text,
-                                                        order=option_order
-                                                    )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating multiple choice options: {str(e)}. The options data might be invalid.'}, status=400)
-                                    elif qtype == 'ms':
-                                        # Multiple selection options
-                                        try:
-                                            for key, value in options_data.items():
-                                                if key.startswith('option') and isinstance(value, dict):
-                                                    option_text = value.get('text')
-                                                    option_order = value.get('order', 0)
-                                                    Options.objects.create(
-                                                        question=question,
-                                                        text=option_text,
-                                                        order=option_order
-                                                    )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating multiple selection options: {str(e)}. The options data might be invalid.'}, status=400)
-                                    elif qtype == 'ma':
-                                        # Matching options (pairs and distractions)
-                                        try:
-                                            for key, value in options_data.items():
-                                                if key.startswith('pair') and isinstance(value, dict):
-                                                    pair_left = value.get('left')
-                                                    pair_right = value.get('right')
-                                                    pair_num = value.get('pairNum')
-                                                    pair_data = {
-                                                        'left': pair_left,
-                                                        'right': pair_right,
-                                                        'pairNum': pair_num
-                                                    }
-                                                    Options.objects.create(
-                                                        question=question,
-                                                        pair=pair_data,
-                                                        order=pair_num if pair_num is not None else 0
-                                                    )
-                                                elif key.startswith('distraction') and isinstance(value, dict):
-                                                    distraction_text = value.get('text')
-                                                    distraction_order = value.get('order', 0)
-                                                    Options.objects.create(
-                                                        question=question,
-                                                        text=distraction_text,
-                                                        order=distraction_order
-                                                    )
-                                        except Exception as e:
-                                            return Response({'error': f'Error creating matching options: {str(e)}. The options data might be invalid.'}, status=400)
-                                except Exception as e:
-                                    return Response({'error': f'Error processing new question: {str(e)}'}, status=400)
-                        
-                        # Remove questions that are no longer in the section
-                        try:
-                            TestQuestion.objects.filter(section=section).exclude(id__in=processed_question_ids).delete()
-                        except Exception as e:
-                            return Response({'error': f'Error cleaning up removed questions: {str(e)}'}, status=400)
-                    
-                    # Remove sections that are no longer in the part
-                    try:
-                        TestSection.objects.filter(part=part).exclude(id__in=processed_section_ids).delete()
-                    except Exception as e:
-                        return Response({'error': f'Error cleaning up removed sections: {str(e)}'}, status=400)
-                
-                # Remove parts that are no longer in the test
-                try:
-                    TestPart.objects.filter(test=test).exclude(id__in=processed_part_ids).delete()
-                except Exception as e:
-                    return Response({'error': f'Error cleaning up removed parts: {str(e)}'}, status=400)
-            
-            if feedback_data:
-                for fb_item in feedback_data:
-                    try:
-                        if not fb_item or not isinstance(fb_item, dict):
-                            continue
-                    
-                        # Get username safely
-                        try:
-                            username = fb_item.get('username')
-                            feedback_user = None
-                            if username:
-                                try:
-                                    feedback_user = User.objects.get(username=username)
-                                except User.DoesNotExist:
-                                    # User doesn't exist, continue with None
-                                    pass
-                        except Exception as e:
-                            return Response({'error': f'Error getting username from feedback: {str(e)}. The "username" field might be None.'}, status=400)
-                        
-                        try:
-                            rating = fb_item.get('rating')
-                            avg_score = fb_item.get('averageScore')
-                            comments = fb_item.get('comments')
-                            time = fb_item.get('time')
-                            
-                            feedback = Feedback.objects.create(
-                                test=test,
-                                user=feedback_user,
-                                rating=rating,
-                                averageScore=avg_score,
-                                comments=comments,
-                                time=time
-                            )
-                        except Exception as e:
-                            return Response({'error': f'Error creating feedback: {str(e)}. One of the feedback fields might be None.'}, status=400)
-                    
-                        # Handle responses to feedback - store responses list separately
-                        try:
-                            responses_list = fb_item.get('responses', [])
-                            if responses_list is None:
-                                return Response({'error': 'responses list is None. Please provide a valid responses list.'}, status=400)
-                        except Exception as e:
-                            return Response({'error': f'Error getting responses list: {str(e)}. The "responses" field might be None.'}, status=400)
-                        
-                        if responses_list and isinstance(responses_list, list):
-                            for resp_item in responses_list:
-                                try:
-                                    if not resp_item or not isinstance(resp_item, dict):
-                                        continue
-                                
-                                    # Get response username safely
-                                    try:
-                                        resp_username = resp_item.get('username')
-                                        resp_user = None
-                                        if resp_username:
-                                            try:
-                                                resp_user = User.objects.get(username=resp_username)
-                                            except User.DoesNotExist:
-                                                # User doesn't exist, continue with None
-                                                pass
-                                    except Exception as e:
-                                        return Response({'error': f'Error getting username from response: {str(e)}. The "username" field might be None.'}, status=400)
-                                    
-                                    try:
-                                        resp_text = resp_item.get('text')
-                                        resp_date = resp_item.get('date')
-                                        
-                                        FeedbackResponse.objects.create(
-                                            feedback=feedback,
-                                            user=resp_user,
-                                            text=resp_text,
-                                            date=resp_date
-                                        )
-                                    except Exception as e:
-                                        return Response({'error': f'Error creating feedback response: {str(e)}. One of the response fields might be None.'}, status=400)
-                                except Exception as e:
-                                    return Response({'error': f'Error processing feedback response: {str(e)}'}, status=400)
-                    except Exception as e:
-                        return Response({'error': f'Error processing feedback item: {str(e)}'}, status=400)
-            
-            return Response({
-                'status': 'success',
-                'created': created,
-                'test_id': test.id,
-                'test_name': test.name
-            })
+                                question = Question.objects.get(id=question_id)
+                                print(f"Creating TestQuestion: test={test.id}, question={question.id}")
+                                TestQuestion.objects.create(
+                                    test=test,
+                                    question=question,
+                                    assigned_points=question_data.get('assigned_points', 1),
+                                    order=question_data.get('order', 0),
+                                    section=section
+                                )
+                            except Question.DoesNotExist:
+                                continue  # Skip invalid questions
         
-        except Exception as e:
-            return Response({'error': f'Error processing test: {str(e)}'}, status=500)
+        # Process feedback if provided
+        feedback_data = data.get('feedback', [])
+        if feedback_data:
+            # Process feedback logic here (depends on your feedback model)
+            pass
         
+        return Response({
+            'status': 'success',
+            'created': created,
+            'test_id': test.id,
+            'test_name': test.name
+        })
+    
     except Exception as e:
-        return Response({'error': f'General error saving test: {str(e)}'}, status=500)
-
+        return Response({'error': f'Error saving test: {str(e)}'}, status=500)
 
 @api_view(['POST'])
 @transaction.atomic
@@ -1007,64 +616,52 @@ def save_template(request):
         else:
             return Response({'error': 'Invalid owner role'}, status=400)
         
+        if not course and not textbook:
+            return Response({'error': 'Template must be associated with a course or textbook.'}, status=400)
+
+
         # Process template data
         template_id = template_data.get('id')
-        if template_id and Template.objects.filter(id=template_id).exists():
-            # Update existing template
-            template = Template.objects.get(id=template_id)
-            template.name = template_data.get('name', template.name)
-            template.titleFont = template_data.get('titleFont', template.titleFont)
-            template.titleFontSize = template_data.get('titleFontSize', template.titleFontSize)
-            template.subtitleFont = template_data.get('subtitleFont', template.subtitleFont)
-            template.subtitleFontSize = template_data.get('subtitleFontSize', template.subtitleFontSize)
-            template.bodyFont = template_data.get('bodyFont', template.bodyFont)
-            template.bodyFontSize = template_data.get('bodyFontSize', template.bodyFontSize)
-            template.pageNumbersInHeader = template_data.get('pageNumbersInHeader', template.pageNumbersInHeader)
-            template.pageNumbersInFooter = template_data.get('pageNumbersInFooter', template.pageNumbersInFooter)
-            template.headerText = template_data.get('headerText', template.headerText)
-            template.footerText = template_data.get('footerText', template.footerText)
-            template.coverPageID = template_data.get('coverPageID', template.coverPageID)
-            template.nameTag = template_data.get('nameTag', template.nameTag)
-            template.dateTag = template_data.get('dateTag', template.dateTag)
-            template.courseTag = template_data.get('courseTag', template.courseTag)
-            template.partStructure = template_data.get('partStructure', template.partStructure)
-            template.bonusSection = template_data.get('bonusSection', template.bonusSection)
-            template.published = template_data.get('published', template.published)
-            template.save()
-            created = False
+        newtemplate, created = Template.objects.update_or_create(
+            id=template_id if template_id else None,
+            defaults={
+                "name": template_data.get('name'),
+                "titleFont": template_data.get('titleFont', 'Arial'),
+                "titleFontSize": int(template_data.get('titleFontSize', 48)),
+                "subtitleFont": template_data.get('subtitleFont', 'Arial'),
+                "subtitleFontSize": int(template_data.get('subtitleFontSize', 24)),
+                "bodyFont": template_data.get('bodyFont', 'Arial'),
+                "bodyFontSize": int(template_data.get('bodyFontSize', 12)),
+                "pageNumbersInHeader": bool(template_data.get('pageNumbersInHeader', False)),
+                "pageNumbersInFooter": bool(template_data.get('pageNumbersInFooter', False)),
+                "headerText": template_data.get('headerText', ''),
+                "footerText": template_data.get('footerText', ''),
+                "coverPageID": int(template_data.get('coverPageID', 0)),
+                "nameTag": template_data.get('nameTag', ''),
+                "dateTag": template_data.get('dateTag', ''),
+                "courseTag": template_data.get('courseTag', ''),
+                "partStructure": template_data.get('partStructure') or {},
+                "bonusSection": template_data.get('bonusSection', False),
+                "bonusQuestions": template_data.get('bonusQuestions') or [],
+                "published": template_data.get('published', False),
+                "course": course,
+                "textbook": textbook
+            }
+        )
+            
+        if created:
+            newtemplate.author = request.user;
         else:
-            # Create new template
-            template = Template.objects.create(
-                name=template_data.get('name', 'Untitled Template'),
-                titleFont=template_data.get('titleFont', 'Arial'),
-                titleFontSize=template_data.get('titleFontSize', 48),
-                subtitleFont=template_data.get('subtitleFont', 'Arial'),
-                subtitleFontSize=template_data.get('subtitleFontSize', 24),
-                bodyFont=template_data.get('bodyFont', 'Arial'),
-                bodyFontSize=template_data.get('bodyFontSize', 12),
-                pageNumbersInHeader=template_data.get('pageNumbersInHeader', False),
-                pageNumbersInFooter=template_data.get('pageNumbersInFooter', False),
-                headerText=template_data.get('headerText'),
-                footerText=template_data.get('footerText'),
-                nameTag= template_data.get('nameTag', ''), 
-                dateTag= template_data.get('dateTag', ''), 
-                courseTag= template_data.get('courseTag', ''), 
-                coverPageID= template_data.get('coverPageID'),
-                partStructure=template_data.get('partStructure'),
-                bonusSection=template_data.get('bonusSection', False),
-                published=template_data.get('published', False),
-                course=course,
-                textbook=textbook
-            )
-            template.author = request.user;
-            template.save()
-            created = True
+            if request.user != newtemplate.author:
+                return Response({'error': "You are not the author of this template!"}, status=400)
+        newtemplate.save()
+        
         
         return Response({
             'status': 'success',
             'created': created,
-            'template_id': template.id,
-            'name': template.name
+            'template_id': newtemplate.id,
+            'name': newtemplate.name
         })
     except Exception as e:
         return Response({'error': str(e)}, status=400)
@@ -1310,6 +907,7 @@ def get_template_list(field, suite):
                 "courseTag": t.courseTag or '',
                 "partStructure": t.partStructure,  # JSON field handled by Django automatically
                 "bonusSection": t.bonusSection,
+                "bonusQuestions": t.bonusQuestions,
                 "published": t.published,
                 "feedback": []
             }
@@ -1366,7 +964,7 @@ def get_question_list(field, suite):
                     answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
                 else:
                     answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
-
+                print(json.dumps(answer) + " " + q.qtype)
                 # === Options ===
                 options = {}
                 if q.qtype == 'tf':
@@ -1504,241 +1102,119 @@ def get_test_list(field, suite):
     master_test_list = {}
     
     for instance in suite:
-        # Optimize database queries with select_related and prefetch_related
-        test_list = {}
+        # Initialize test dictionary with drafts and published sections
         test_list = {
             'drafts': {},
             'published': {}
         }
+        
+        # Get all tests for this instance with optimized queries
         tests = Test.objects.filter(**{field: instance}).select_related('template').prefetch_related(
             'attachments',
-            'parts__sections__testquestion_set__question__question_answers',
-            'parts__sections__testquestion_set__question__question_options',
-            'feedbacks__user',
-            'feedbacks__responses__user'
+            'parts__sections__testquestion_set__question',
+            'feedbacks__responses'
         )
         
-        for t in tests:
+        for test in tests:
+            # Get template if exists
+            template = None
+            if test.templateID > 0:
+                try:
+                    template = Template.objects.get(id=test.templateID)
+                except Template.DoesNotExist:
+                    pass
+            
+            # Basic test data structure matching frontend format
             test_data = {
-                'id': t.id,
-                'name': t.name,
-                'template': t.template.id if t.template else None,
-                'templateName': t.template.name if t.template else None,
-                'templateIndex': t.templateIndex,
-                'date': t.date.isoformat() if t.date else None,
-                'filename': t.filename,
-                'attachments': [],
+                'id': test.id,
+                'name': test.name,
+                'templateName': template.name if template else None,
+                'templateID': test.templateID,
+                'date': test.date.isoformat() if test.date else None,
+                'filename': test.filename,
                 'parts': [],
-                'published': t.is_final,
+                'attachments': [],
                 'feedback': [],
-                # Include ownerData for consistency with front-end
-                'ownerData': {
-                    'courseID': instance.course_id if field == 'course' else None,
-                    'isbn': instance.isbn if field == 'textbook' else None
-                }
+                'published': test.is_final
             }
             
             # Process attachments
-            for a in t.attachments.all():
-                file_name = None
-                file_url = None
-                
-                if a.file and a.file.name:
-                    file_name = a.file.name
-                    try:
-                        file_url = a.file.url
-                    except:
-                        file_url = None
-                        
-                test_data['attachments'].append({
-                    'id': a.id,
-                    'name': a.name,
-                    'file': file_name,
-                    'url': file_url
-                })
+            for attachment in test.attachments.all():
+                attachment_data = {
+                    'id': attachment.id,
+                    'name': attachment.name,
+                    'file': attachment.file.name if attachment.file else None,
+                    'url': attachment.file.url if attachment.file else None
+                }
+                test_data['attachments'].append(attachment_data)
             
-            
-            # Get parts - using the prefetched data
-            for p in t.parts.all().order_by('part_number'):
+            # Process parts, sections, and questions
+            for part in test.parts.all().order_by('part_number'):
                 part_data = {
-                    'id': p.id,
-                    'partNumber': p.part_number,
-                    'part_number': p.part_number,  # Include both formats for compatibility
+                    'partNumber': part.part_number,
                     'sections': []
                 }
                 
-                # Get sections for each part - using the prefetched data
-                for s in p.sections.all().order_by('section_number'):
+                # Process sections
+                for section in part.sections.all().order_by('section_number'):
                     section_data = {
-                        'id': s.id,
-                        'sectionNumber': s.section_number,
-                        'section_number': s.section_number,  # Include both formats for compatibility
-                        'questionType': s.question_type,
-                        'question_type': s.question_type,  # Include both formats for compatibility
+                        'sectionNumber': section.section_number,
+                        'questionType': section.question_type,
                         'questions': []
                     }
                     
-                    # Get questions for this section
-                    test_questions = TestQuestion.objects.filter(test=t, section=s).select_related('question').order_by('order')
-                    for tq in test_questions:
-                        question = tq.question
-                        
-                        # Format answers based on question type
-                        answers_list = list(question.question_answers.all())
-                        answer_data = {}
-                        
-                        # Format answer based on question type
-                        if question.qtype in ['tf', 'mc', 'sa', 'es']:
-                            # These have a single answer
-                            answer_data = {'value': answers_list[0].text if answers_list else None}
-                        elif question.qtype in ['fb', 'ms']:
-                            # These can have multiple answers
-                            for i, ans in enumerate(answers_list):
-                                answer_data[f'answer{i+1}'] = {'value': ans.text}
-                        elif question.qtype == 'ma':
-                            # Matching has pairs
-                            for i, ans in enumerate(answers_list):
-                                answer_data[f'pair{i+1}'] = {'text': ans.text}
-                        
-                        # Format options based on question type
-                        options_list = list(question.question_options.all())
-                        options_data = {}
-                        
-                        if question.qtype == 'tf':
-                            # True/False options
-                            options_data = {
-                                'true': {'text': 'True', 'order': 1},
-                                'false': {'text': 'False', 'order': 2}
-                            }
-                        elif question.qtype == 'mc':
-                            # Multiple choice options (A, B, C, D)
-                            mc_options = ['A', 'B', 'C', 'D']
-                            for i, opt in enumerate(options_list[:4]):
-                                letter = mc_options[i]
-                                options_data[letter] = {
-                                    'text': opt.text,
-                                    'order': i + 1
-                                }
-                                if opt.image and opt.image.name:
-                                    try:
-                                        options_data[letter]['image'] = opt.image.url
-                                    except:
-                                        options_data[letter]['image'] = None
-                        elif question.qtype == 'ms':
-                            # Multiple selection options
-                            for i, opt in enumerate(options_list):
-                                options_data[f'option{i+1}'] = {
-                                    'text': opt.text,
-                                    'order': opt.order or i+1
-                                }
-                        elif question.qtype == 'ma':
-                            # Matching options (pairs and distractions)
-                            pair_count = 0
-                            distraction_count = 0
-                            
-                            for opt in options_list:
-                                if hasattr(opt, 'pair') and opt.pair:
-                                    pair_count += 1
-                                    options_data[f'pair{pair_count}'] = {
-                                        'left': opt.pair.get('left'),
-                                        'right': opt.pair.get('right'),
-                                        'pairNum': opt.pair.get('pairNum') or pair_count
-                                    }
-                                else:
-                                    distraction_count += 1
-                                    options_data[f'distraction{distraction_count}'] = {
-                                        'text': opt.text,
-                                        'order': opt.order or distraction_count
-                                    }
-                            
-                            options_data['numPairs'] = pair_count
-                            options_data['numDistractions'] = distraction_count
-                        
-                        # Safe handling of image fields
-                        img_url = None
-                        if question.img and question.img.name:
-                            try:
-                                img_url = question.img.url
-                            except:
-                                img_url = None
-                                
-                        ansimg_url = None
-                        if question.ansimg and question.ansimg.name:
-                            try:
-                                ansimg_url = question.ansimg.url
-                            except:
-                                ansimg_url = None
-                
-                        # Format question with the structure expected by the front-end
+                    # Process questions
+                    test_questions = TestQuestion.objects.filter(
+                        test=test, 
+                        section=section
+                    ).select_related('question').order_by('order')
+                    
+                    for index, tq in enumerate(test_questions):
                         question_data = {
-                            'id': question.id,
-                            'test_question_id': tq.id,
-                            'text': question.text,
-                            'answer': answer_data,
-                            'qtype': question.qtype,
-                            'score': float(tq.assigned_points) if tq.assigned_points else float(question.score),
-                            'assigned_points': float(tq.assigned_points) if tq.assigned_points else float(question.score),
-                            'directions': question.directions,
-                            'reference': question.reference,
-                            'eta': question.eta,
-                            'img': img_url,
-                            'ansimg': ansimg_url,
-                            'comments': question.comments,
-                            'prompts': [],
-                            'options': options_data,
-                            'chapter': question.chapter,
-                            'section': question.section,
-                            'published': question.published,
-                            'order': tq.order,
-                            'randomize': tq.randomize,
-                            'special_instructions': tq.special_instructions
+                            'id': tq.question.id,
+                            'qtype': tq.question.qtype,
+                            'assigned_points': float(tq.assigned_points) if tq.assigned_points else 1.0,
+                            'order': index
                         }
-                        
                         section_data['questions'].append(question_data)
                     
                     part_data['sections'].append(section_data)
                 
                 test_data['parts'].append(part_data)
             
-            # Get feedback for test
-            for f in t.feedbacks.all():
+            # Process feedback
+            for feedback in test.feedbacks.all():
                 feedback_data = {
-                    "id": f.id,
-                    "username": f.user.username if f.user else "Anonymous",
-                    "rating": f.rating,
-                    "averageScore": float(f.averageScore) if f.averageScore else None,
-                    "comments": f.comments,
-                    "date": f.created_at.isoformat() if f.created_at else None,
-                    "time": f.created_at.isoformat() if f.created_at else None,  # Include both for compatibility
-                    "responses": []
+                    'username': feedback.user.username if feedback.user else 'Anonymous',
+                    'rating': feedback.rating,
+                    'averageScore': float(feedback.averageScore) if feedback.averageScore else None,
+                    'comments': feedback.comments,
+                    'time': feedback.created_at.isoformat() if feedback.created_at else None,
+                    'responses': []
                 }
                 
-                # Get responses to feedback
-                for r in f.responses.all():
+                # Process responses
+                for response in feedback.responses.all():
                     response_data = {
-                        "id": r.id,
-                        "username": r.user.username if r.user else "Anonymous",
-                        "text": r.text,
-                        "date": r.date.isoformat() if r.date else None
+                        'username': response.user.username if response.user else 'Anonymous',
+                        'text': response.text,
+                        'date': response.date.isoformat() if response.date else None
                     }
-                    feedback_data["responses"].append(response_data)
+                    feedback_data['responses'].append(response_data)
                 
                 test_data['feedback'].append(feedback_data)
             
-            # Add test to proper list based on its publication status
-            if t.is_final:
-                test_list['published'][t.id] = test_data
+            # Add to appropriate section based on finalized status
+            if test.is_final:
+                test_list['published'][test.id] = test_data
             else:
-                test_list['drafts'][t.id] = test_data
-        if field == 'course':
-            owner = instance.course_id
-        else:
-            owner = instance.isbn
-        master_test_list[str(owner)] = test_list
-
+                test_list['drafts'][test.id] = test_data
+        
+        # Add to master test list with appropriate key
+        owner_key = instance.course_id if field == 'course' else instance.isbn
+        master_test_list[str(owner_key)] = test_list
     
     return master_test_list
-
 
 def get_cpage_list(field, suite):
     master_cpage_list = {}
