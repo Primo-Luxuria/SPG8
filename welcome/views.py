@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 import openpyxl
 from openpyxl.utils import get_column_letter
-from django.db import connection
+from django.db import connection, IntegrityError
 import copy
 import pandas as pd
 import io
@@ -224,6 +224,10 @@ def parse_qti_xml(request):
             template=template_instance,
             is_final=True
         )
+        if field_exists('Test', 'templateID'):
+            test_instance.templateID = template_instance.id
+            test_instance.save()
+
         test_part_instance = TestPart.objects.create(
             test=test_instance
         )
@@ -1587,7 +1591,11 @@ def import_csv(request):
         if should_continue:
             continue # probably redundant. skips to next iteration. stops executing this iteration.
         else:
-            model.objects.create(**new_record_data_dict) # create record in database
+            try:
+                model.objects.create(**new_record_data_dict)  # create record in database
+            except IntegrityError:
+                print(f"Record with given ID already exists in database table for model")
+                rows_skipped.append(int(index) + 1)
 
     if rows_skipped:
         print(f"rows skipped: {rows_skipped}")
