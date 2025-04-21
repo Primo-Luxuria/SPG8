@@ -107,7 +107,7 @@ This will need to change once hooked up to AWS
 #         'NAME': 'quizpressdb1',  # Ensure this matches your database name
 #         'USER': 'dbadmin',
 #         'PASSWORD': # Same as the one you used in the MySQL client 
-#          'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
+#          'HOST': 'quizpresswindows.cureswu4qmwz.us-east-1.rds.amazonaws.com',
 #         'PORT': '3306',
 #     }
 # }
