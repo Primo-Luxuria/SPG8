@@ -119,6 +119,8 @@ function editQuestion(identity, questionType, questionID) {
         <input type="number" id="editTimeField" min="1" value="${question.eta}"><br><br>
         <label>Reference Text:</label><br/>
         <textarea id="editRefField" rows="4">${question.reference}</textarea><br><br>
+        <label>Required References:</label><br/>
+        <textarea id="reqRefField" rows="3" placeholder="Describe any required references for the grader (either text or attachments)">${question.reqRefs}</textarea><br><br>
         <label>Question Image:</label><br/>
         <select id="qGraphicField">
             <option value="" disabled selected>Select a graphic</option>
@@ -200,9 +202,11 @@ function submitEditQuestion(identity, questionType, questionID) {
     const instcomm = document.getElementById('editInstructorCommentField').value.trim();
     const chapter = document.getElementById('editChapterField').value.trim();
     const section = document.getElementById('editSectionField').value.trim();
+    const reqRefs = document.getElementById("reqRefField").value.trim();
+    
 
-    if (!text || !questionType || !points || !instructions || !time || !chapter || !section) {
-        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
+    if (!text || !questionType || !points || !instructions || !time || !chapter || !section || !reqRefs) {
+        alert("Some fields (Question, Question Type, Default Point Value, Required References, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
         return;
     }
 
@@ -291,6 +295,7 @@ function submitEditQuestion(identity, questionType, questionID) {
                 tests: [],
                 chapter: chapter,
                 section: section,
+                reqRefs: reqRefs,
                 published: 0
             };
 
@@ -730,13 +735,16 @@ function editTest(identity, testID) {
             <select id="testGraphicField" multiple size="5">
             <option value="" disabled selected>Select a graphic</option>
             </select><br><br>
+            <label>Reference Text for the Test (Optional):</label><br>
+            <textarea id=refText rows="4" placeholder="Put any necessary reference text here (Note: Large reference text above 200 chars should be put in an image attachment)">${test.refText}</textarea><br><br>
             <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${identity}', '${false}', ${testID})">Save as Draft</button>
             <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${identity}', '${true}', ${testID})">Publish Test</button>
         </div>
     `;
-
+    
     modalBody.innerHTML = formContent;
-
+    document.getElementById("testDraftButton").disabled = true;
+    document.getElementById("testPublishButton").disabled = true;
     // Populate the template selector
     updateTemplateSelection(identity);
 
@@ -750,8 +758,28 @@ function editTest(identity, testID) {
     // After test parts are populated, load existing questions
     setTimeout(() => {
         populateExistingQuestions(identity, test);
-        updateTestAttachments(identity);
-        updateTestSummary();
+    updateTestAttachments(identity);
+    
+    // Get the select element after it's been populated
+    const testGraphicField = document.getElementById("testGraphicField");
+    // Get current attachments from the test
+    const currentAttachments = test.attachments || [];
+    
+    console.log("Current attachments:", currentAttachments); // For debugging
+    
+    // Preselect the existing attachments
+    if (currentAttachments.length > 0) {
+        Array.from(testGraphicField.options).forEach((option) => {
+            // Handle possible type mismatches between the stored IDs and option values
+            if (currentAttachments.includes(option.value) || 
+                currentAttachments.includes(Number(option.value)) ||
+                currentAttachments.includes(String(option.value))) {
+                option.selected = true;
+                console.log("Selected option:", option.value); // For debugging
+            }
+        });
+    }
+
     }, 500); // Give time for updateTestParts to complete
     
     modal.style.display = 'flex';
@@ -907,11 +935,15 @@ function submitEditedTest(identity, isPublished, testID) {
         name: testName,
         template: template,
         templateName: template.name,
+        refText: document.getElementById("refText").value.trim() || '',
         templateID: templateID,
         attachments: [],
         parts: [],
         feedback: []
     };
+
+    const selectedAttachments = Array.from(document.getElementById("testGraphicField").selectedOptions).map(opt => opt.value);
+    testData.attachments = selectedAttachments;
 
     // Loop through all parts and sections rendered in the UI
     const testParts = document.getElementById("testParts");

@@ -74,6 +74,9 @@ formContent += `
     <label>Reference Text (Optional):</label><br/>
     <textarea id="refField" rows="3" placeholder="Reference text if needed..."></textarea><br><br>
 
+    <label>Required References:</label><br/>
+    <textarea id="reqRefField" rows="3" placeholder="Describe any required references for the grader (either text or attachments)"></textarea><br><br>
+
     <label>Embedded Graphic (Optional):</label><br/>
     <select id="qGraphicField">
         <option value="" disabled selected>Select a graphic</option>
@@ -141,11 +144,12 @@ formContent+= `
         </select> <button id=templateSelection onclick="updateTestParts('${identity}')">Select This One!</button>
         <div id="testParts"> </div>
     </div>
-    <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>
+    <label>Embedded Graphics for the Test (Optional, up to 5):</label><br/>
     <select id="testGraphicField" multiple size="5">
         <option value="" disabled selected>Select a graphic</option>
     </select><br><br>
-    
+    <label>Reference Text for the Test (Optional):</label><br>
+    <textarea id=refText rows="4" placeholder="Put any necessary reference text here (Note: Large reference text above 200 chars should be put in an image attachment)"></textarea><br><br>
     <button class="add-btn" id="testDraftButton" onclick="saveTest('${identity}', '${false}')">Save as Draft</button>
     <button class="add-btn" id="testPublishButton" onclick="saveTest('${identity}', '${true}')">Publish Test</button>
 </div>
@@ -695,9 +699,10 @@ const ansgraphic = document.getElementById("ansGraphicField").value;
 const instcomm = document.getElementById("instructorCommentField").value;
 const chapter = document.getElementById("qChapter").value.trim();
 const section = document.getElementById("qSection").value.trim();
+const reqRefs = document.getElementById("reqRefField").value.trim();
 
-if (!text || !type || !points || !instructions || !time || !chapter || !section) {
-alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
+if (!text || !type || !points || !instructions || !time || !chapter || !section || !reqRefs) {
+alert("Some fields (Question, Question Type, Default Point Value, Required References, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
 return;
 }
 
@@ -777,6 +782,7 @@ feedback: [],
 tests: [],
 chapter: chapter,
 section: section,
+reqRefs: reqRefs,
 published: 0
 };
 
@@ -932,11 +938,16 @@ name: testName,
 template: template,
 templateName: template.name,
 templateID: templateID,
+refText: document.getElementById("refText").value.trim() || '',
 parts: [],
 attachments: [],
 feedback: []
 };
 
+const selectedAttachments = Array.from(document.getElementById("testGraphicField").selectedOptions).map(opt => opt.value);
+testData.attachments = selectedAttachments;
+
+alert(JSON.stringify(testData));
 // Loop through all parts and sections rendered in the UI
 const testParts = document.getElementById("testParts");
 const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]:not([id*="-section-"])');
@@ -1235,13 +1246,13 @@ if (testFilterValue !== "") {
 }
 
 // Apply chapter filter if selected
-if (chapterFilterValue !== "all" && question.chapter != chapterFilterValue) {
+if (chapterFilterValue !== "all" && question.chapter != parseInt(chapterFilterValue)) {
     includeQuestion = false;
 }
 
 // Apply section filter if visible and selected
 if (chapterFilterValue !== "all" && sectionFilterValue !== "all" && 
-    question.section != sectionFilterValue) {
+    question.section != parseInt(sectionFilterValue)) {
     includeQuestion = false;
 }
 

@@ -98,22 +98,208 @@ function getUserIdentity(courseID, isbn) {
   return courseID || isbn;
 }
 
-/**
- * This function is called to update the question content inside the question containers whenever a question is saved
- * Precondition: valid questionType, courseID
- * Postcondition: question content is updated in the question containers
-*/
+
+
+
 function updateQuestionTabs(questionType, identity) {
     const tabContent = document.getElementById(`${questionType}-${identity}`);
     tabContent.innerHTML = ''; // Clear existing content
 
     const questions = masterQuestionList[identity][questionType];
-
-    if (questions.length === 0) {
+    
+    if (!questions || Object.keys(questions).length === 0) {
         tabContent.innerHTML = `<p>No ${questionType.toUpperCase()} questions available...</p>`;
+        return;
+    }
+    
+    // Create filter container
+    const filterContainer = document.createElement('div');
+    filterContainer.className = 'filter-container';
+    filterContainer.style.padding = '10px';
+    filterContainer.style.marginBottom = '15px';
+    filterContainer.style.backgroundColor = '#f5f5f5';
+    filterContainer.style.borderRadius = '4px';
+    
+    // Test filter
+    const testFilterLabel = document.createElement('label');
+    testFilterLabel.textContent = 'Filter by Test: ';
+    testFilterLabel.style.marginRight = '5px';
+    
+    const testFilterSelect = document.createElement('select');
+    testFilterSelect.id = `${questionType}-${identity}-test-filter`;
+    testFilterSelect.innerHTML = '<option value="" selected>All Tests</option>';
+    
+    const testList = {...masterTestList[identity]['drafts'], ...masterTestList[identity]['published']};
+    for (const key in testList) {
+        const test = testList[key];
+        const option = document.createElement('option');
+        option.value = test.id;
+        option.textContent = test.name;
+        testFilterSelect.appendChild(option);
+    }
+    
+    // Chapter filter
+    const chapterFilterLabel = document.createElement('label');
+    chapterFilterLabel.textContent = 'Chapter: ';
+    chapterFilterLabel.style.marginLeft = '15px';
+    chapterFilterLabel.style.marginRight = '5px';
+    
+    const chapterFilterSelect = document.createElement('select');
+    chapterFilterSelect.id = `${questionType}-${identity}-chapter-filter`;
+    
+    // Add "All Chapters" option
+    const allChaptersOption = document.createElement('option');
+    allChaptersOption.value = "all";
+    allChaptersOption.textContent = "All Chapters";
+    chapterFilterSelect.appendChild(allChaptersOption);
+    
+    // Get unique chapters
+    const chapters = [...new Set(Object.values(questions).map(q => q.chapter))].sort((a, b) => a - b);
+    chapters.forEach(chapter => {
+        const option = document.createElement('option');
+        option.value = chapter;
+        option.textContent = `Chapter ${chapter}`;
+        chapterFilterSelect.appendChild(option);
+    });
+    
+    // Section filter (initially hidden)
+    const sectionFilterContainer = document.createElement('div');
+    sectionFilterContainer.id = `${questionType}-${identity}-section-container`;
+    sectionFilterContainer.style.display = 'none';
+    sectionFilterContainer.style.marginTop = '10px';
+    
+    const sectionFilterLabel = document.createElement('label');
+    sectionFilterLabel.textContent = 'Section: ';
+    sectionFilterLabel.style.marginRight = '5px';
+    
+    const sectionFilterSelect = document.createElement('select');
+    sectionFilterSelect.id = `${questionType}-${identity}-section-filter`;
+    
+    // Assemble filter components
+    filterContainer.appendChild(testFilterLabel);
+    filterContainer.appendChild(testFilterSelect);
+    filterContainer.appendChild(chapterFilterLabel);
+    filterContainer.appendChild(chapterFilterSelect);
+    
+    sectionFilterContainer.appendChild(sectionFilterLabel);
+    sectionFilterContainer.appendChild(sectionFilterSelect);
+    filterContainer.appendChild(sectionFilterContainer);
+    
+    // Add the filter container to the tab content
+    tabContent.appendChild(filterContainer);
+    
+    // Create question container to hold the filtered questions
+    const questionContainer = document.createElement('div');
+    questionContainer.id = `${questionType}-${identity}-question-container`;
+    tabContent.appendChild(questionContainer);
+    
+    // Initial render of all questions
+    renderFilteredQuestions(questionType, identity);
+    
+    // Add event listeners for filters
+    testFilterSelect.addEventListener('change', () => renderFilteredQuestions(questionType, identity));
+    
+    chapterFilterSelect.addEventListener('change', function() {
+        const selectedChapter = this.value;
+        const sectionContainer = document.getElementById(`${questionType}-${identity}-section-container`);
+        const sectionSelect = document.getElementById(`${questionType}-${identity}-section-filter`);
+        
+        // Clear and hide section filter if "All Chapters" is selected
+        if (selectedChapter === "all") {
+            sectionContainer.style.display = 'none';
+            sectionSelect.innerHTML = '';
+        } else {
+            // Show section filter and populate with sections from selected chapter
+            sectionContainer.style.display = 'block';
+            
+            // Clear existing options
+            sectionSelect.innerHTML = '';
+            
+            // Add "All Sections" option
+            const allSectionsOption = document.createElement('option');
+            allSectionsOption.value = "all";
+            allSectionsOption.textContent = "All Sections";
+            sectionSelect.appendChild(allSectionsOption);
+            
+            // Get unique sections for the selected chapter
+            const sectionsInChapter = [...new Set(
+                Object.values(questions)
+                .filter(q => q.chapter == parseInt(selectedChapter))
+                .map(q => q.section)
+            )].sort((a, b) => a - b);
+            
+            sectionsInChapter.forEach(section => {
+                const option = document.createElement('option');
+                option.value = section;
+                option.textContent = `Section ${section}`;
+                sectionSelect.appendChild(option);
+            });
+        }
+        
+        // Apply filters
+        renderFilteredQuestions(questionType, identity);
+    });
+    
+    // Section filter change event
+    sectionFilterSelect.addEventListener('change', () => renderFilteredQuestions(questionType, identity));
+}
+
+function renderFilteredQuestions(questionType, identity) {
+    const questions = masterQuestionList[identity][questionType];
+    const questionContainer = document.getElementById(`${questionType}-${identity}-question-container`);
+    questionContainer.innerHTML = '';
+    
+    // Get filter values
+    const testFilterValue = document.getElementById(`${questionType}-${identity}-test-filter`).value;
+    const chapterFilterValue = document.getElementById(`${questionType}-${identity}-chapter-filter`).value;
+    const sectionFilterSelect = document.getElementById(`${questionType}-${identity}-section-filter`);
+    const sectionFilterValue = sectionFilterSelect && sectionFilterSelect.style.display !== 'none' ? 
+                               sectionFilterSelect.value : "all";
+    
+    // Filter questions
+    const filteredQuestions = {};
+    
+    for (const key in questions) {
+        let includeQuestion = true;
+        let question = questions[key];
+        
+        // Apply test filter if selected
+        if (testFilterValue !== "") {
+            const testID = parseInt(testFilterValue);
+            let idMatch = false;
+            for (let i = 0; i < question.tests.length; i++) {
+                if (question.tests[i] == testID) {
+                    idMatch = true;
+                    break;
+                }
+            }
+            if (!idMatch) {
+                includeQuestion = false;
+            }
+        }
+        
+        // Apply chapter filter if selected
+        if (chapterFilterValue !== "all" && question.chapter != parseInt(chapterFilterValue)) {
+            includeQuestion = false;
+        }
+        
+        // Apply section filter if visible and selected
+        if (chapterFilterValue !== "all" && sectionFilterValue !== "all" && 
+            question.section != parseInt(sectionFilterValue)) {
+            includeQuestion = false;
+        }
+        
+        if (includeQuestion) {
+            filteredQuestions[key] = question;
+        }
+    }
+    
+    // Display filtered questions
+    if (Object.keys(filteredQuestions).length === 0) {
+        questionContainer.innerHTML = '<p>No questions match the selected filters.</p>';
     } else {
-        for(const key in questions){
-            let question = questions[key];
+        for (const key in filteredQuestions) {
+            let question = filteredQuestions[key];
             const questionDiv = document.createElement('div');
             questionDiv.style.backgroundColor = '#d0d0d0';
             questionDiv.style.padding = '5px';
@@ -124,18 +310,18 @@ function updateQuestionTabs(questionType, identity) {
             questionDiv.dataset.itemID = question.id;
             questionDiv.dataset.identity = identity;
             questionDiv.dataset.questionType = questionType;
-
+            
             questionDiv.innerHTML = `
                 <p><strong>${question.text}</strong></p>
                 <p>Points: ${question.score}</p>
                 <p>Estimated Time: ${question.eta} minutes</p>
+                <p>Chapter: ${question.chapter}, Section: ${question.section}</p>
             `;
-
-            tabContent.appendChild(questionDiv);
+            
+            questionContainer.appendChild(questionDiv);
         }
-    } // RED TASK: ADD FILTERS
+    }
 }
-
 
 
 
@@ -797,6 +983,7 @@ function serializeQuestion(question, identity) {
         eta: parseInt(question.eta) || 1, 
         directions: question.directions || null,
         reference: question.reference || null,
+        requiredRefs: question.reqRefs || null,
         comments: question.comments || null,
         score: parseFloat(question.score) || 1.0, 
         chapter: parseInt(question.chapter) || 0, 
@@ -972,13 +1159,15 @@ function serializeQuestion(question, identity) {
     };
     
     let template = masterTemplateList[identity][test.templateID];
-    // Format the test data
+    let coverPage = masterCoverPageList[identity][template.coverPageID];
     requestData.test = {
         id: test.id || null,
         name: test.name || 'Untitled Test',
         date: test.date || null,
-        filename: masterCoverPageList[identity][template.coverPageID].file || null,
+        refText: test.refText || null,
+        filename: coverPage.file || null,
         is_final: Boolean(test.published), 
+        attachments: test.attachments || null,
         templateID: parseInt(test.templateID) || 0
     };
     
@@ -1036,18 +1225,6 @@ function serializeQuestion(question, identity) {
         }
     }
     
-    // Format attachments if available
-    if (Array.isArray(test.attachments) && test.attachments.length > 0) {
-        requestData.attachments = test.attachments
-            .filter(attachment => attachment) // Filter out null/undefined values
-            .map(attachment => {
-                return typeof attachment === 'object' && attachment !== null 
-                    ? (attachment.id || null) 
-                    : attachment;
-            })
-            .filter(id => id !== null); // Filter out null or undefined values
-    }
-    
     console.log(JSON.stringify(requestData));
     return requestData;
 }
@@ -1065,13 +1242,11 @@ function renderUserData(data){
         DBTextbookList = data.textbook_list;
         if(window.userRole == "teacher"){
             courseList = data.container_list;
-            console.log("courseList: ",courseList);
         }else{
             textbookList = data.container_list;
         }
         
         masterCoverPageList = data.cpage_list;
-        console.log("Cover Pages:", masterCoverPageList);
         refreshData();
         populateExistingSelectors();
 }
@@ -1743,14 +1918,16 @@ function updateGraphicSelectors(identity) {
 
 function updateTestAttachments(identity) {
     const testGraphicField = document.getElementById('testGraphicField');
-
-    testGraphicField.innerHTML = '<option value="" disabled selected>Select required attachments</option>';
-
+    
+    // Clear the dropdown first
+    testGraphicField.innerHTML = '<option value="" disabled>Select required attachments</option>';
+    
+    // Populate with attachment options
     for(const key in masterAttachmentList[identity]){
         let attachment = masterAttachmentList[identity][key];
         const option = document.createElement('option');
         option.value = attachment.id;
-        option.textContent = attachment.url;
+        option.textContent = attachment.name || attachment.url;
         testGraphicField.appendChild(option);
     }
 }

@@ -227,6 +227,7 @@ def update_user(request):
     
     return Response({"status": "success", "message": "User updated successfully"})
 
+
 @api_view(['POST'])
 @require_POST
 def fetch_user_data(request):
@@ -265,18 +266,156 @@ def fetch_user_data(request):
     course_list = {course.id: course.name for course in Course.objects.all()}
     textbook_list = {book.id: book.isbn for book in Textbook.objects.all()}
 
-
     try:
         if role == "teacher":
+            # Get teacher's courses
             courses = Course.objects.filter(teachers=user)
-            master_question_list = get_question_list('course', courses)
+            
+            # Get content from courses directly
+            course_question_list = get_question_list('course', courses)
+            
+            # Get all textbooks assigned to these courses
+            course_textbooks = []
+            for course in courses:
+                course_textbooks.extend(list(course.textbooks.all()))
+            
+            # Remove duplicates by converting to set then back to list
+            unique_textbooks = list({textbook.id: textbook for textbook in course_textbooks}.values())
+            
+            # Get textbook content
+            if unique_textbooks:
+                textbook_question_list = get_question_list('textbook', unique_textbooks)
+                
+                # Merge course and textbook question lists
+                for textbook in unique_textbooks:
+                    isbn = textbook.isbn
+                    if isbn in textbook_question_list:
+                        for qtype, questions in textbook_question_list[isbn].items():
+                            # For each course that uses this textbook
+                            for course in courses:
+                                if textbook in course.textbooks.all():
+                                    course_id = course.course_id
+                                    # Initialize question type dict if needed
+                                    if course_id not in master_question_list:
+                                        master_question_list[course_id] = {}
+                                    if qtype not in master_question_list[course_id]:
+                                        master_question_list[course_id][qtype] = {}
+                                    
+                                    # Add textbook questions to course
+                                    for q_id, q_data in questions.items():
+                                        # Mark the source as a textbook
+                                        q_data['source'] = 'textbook'
+                                        q_data['textbook_id'] = isbn
+                                        master_question_list[course_id][qtype][q_id] = q_data
+            
+            # Add direct course questions
+            for course_id, qtypes in course_question_list.items():
+                if course_id not in master_question_list:
+                    master_question_list[course_id] = {}
+                
+                for qtype, questions in qtypes.items():
+                    if qtype not in master_question_list[course_id]:
+                        master_question_list[course_id][qtype] = {}
+                    
+                    for q_id, q_data in questions.items():
+                        # Mark as direct course content
+                        q_data['source'] = 'course'
+                        master_question_list[course_id][qtype][q_id] = q_data
 
+            # Do the same for tests, templates, cover pages, and attachments
             with transaction.atomic():
-                master_test_list = get_test_list('course', courses)
-                master_template_list = get_template_list('course', courses)
-                master_cpage_list = get_cpage_list('course', courses)
-                master_attachment_list = get_attachment_list('course', courses)
+                # Get course content
+                course_test_list = get_test_list('course', courses)
+                course_template_list = get_template_list('course', courses)
+                course_cpage_list = get_cpage_list('course', courses)
+                course_attachment_list = get_attachment_list('course', courses)
+                
+                # Get textbook content
+                if unique_textbooks:
+                    textbook_test_list = get_test_list('textbook', unique_textbooks)
+                    textbook_template_list = get_template_list('textbook', unique_textbooks)
+                    textbook_cpage_list = get_cpage_list('textbook', unique_textbooks)
+                    textbook_attachment_list = get_attachment_list('textbook', unique_textbooks)
+                    
+                    # Merge test lists
+                    for textbook in unique_textbooks:
+                        isbn = textbook.isbn
+                        if isbn in textbook_test_list:
+                            for course in courses:
+                                if textbook in course.textbooks.all():
+                                    course_id = course.course_id
+                                    if course_id not in master_test_list:
+                                        master_test_list[course_id] = {'drafts': {}, 'published': {}}
+                                    
+                                    # Add published and draft tests
+                                    for status in ['drafts', 'published']:
+                                        for test_id, test_data in textbook_test_list[isbn].get(status, {}).items():
+                                            test_data['source'] = 'textbook'
+                                            test_data['textbook_id'] = isbn
+                                            master_test_list[course_id][status][test_id] = test_data
+                
+                # Add direct course tests
+                for course_id, tests in course_test_list.items():
+                    if course_id not in master_test_list:
+                        master_test_list[course_id] = {'drafts': {}, 'published': {}}
+                    
+                    for status in ['drafts', 'published']:
+                        for test_id, test_data in tests.get(status, {}).items():
+                            test_data['source'] = 'course'
+                            master_test_list[course_id][status][test_id] = test_data
+                
+                # Merge template lists
+                master_template_list = course_template_list.copy()
+                if unique_textbooks:
+                    for textbook in unique_textbooks:
+                        isbn = textbook.isbn
+                        if isbn in textbook_template_list:
+                            for course in courses:
+                                if textbook in course.textbooks.all():
+                                    course_id = course.course_id
+                                    if course_id not in master_template_list:
+                                        master_template_list[course_id] = {}
+                                    
+                                    for template_id, template_data in textbook_template_list[isbn].items():
+                                        template_data['source'] = 'textbook'
+                                        template_data['textbook_id'] = isbn
+                                        master_template_list[course_id][template_id] = template_data
+                
+                # Merge cover page lists
+                master_cpage_list = course_cpage_list.copy()
+                if unique_textbooks:
+                    for textbook in unique_textbooks:
+                        isbn = textbook.isbn
+                        if isbn in textbook_cpage_list:
+                            for course in courses:
+                                if textbook in course.textbooks.all():
+                                    course_id = course.course_id
+                                    if course_id not in master_cpage_list:
+                                        master_cpage_list[course_id] = {}
+                                    
+                                    for cpage_id, cpage_data in textbook_cpage_list[isbn].items():
+                                        cpage_data['source'] = 'textbook'
+                                        cpage_data['textbook_id'] = isbn
+                                        master_cpage_list[course_id][cpage_id] = cpage_data
+                
+                # Merge attachment lists
+                master_attachment_list = course_attachment_list.copy()
+                if unique_textbooks:
+                    for textbook in unique_textbooks:
+                        isbn = textbook.isbn
+                        if isbn in textbook_attachment_list:
+                            for course in courses:
+                                if textbook in course.textbooks.all():
+                                    course_id = course.course_id
+                                    if course_id not in master_attachment_list:
+                                        master_attachment_list[course_id] = {}
+                                    
+                                    for attachment_id, attachment_data in textbook_attachment_list[isbn].items():
+                                        attachment_data['source'] = 'textbook'
+                                        attachment_data['textbook_id'] = isbn
+                                        master_attachment_list[course_id][attachment_id] = attachment_data
 
+                # Populate container list with course info
                 for course in courses:
                     container_list[course.course_id] = {
                         "courseID": course.course_id,
@@ -318,7 +457,6 @@ def fetch_user_data(request):
         else:
             raise Exception("Invalid user role")
 
-        
         response_data = {
             "status": "success",
             "username": user.username,
@@ -338,7 +476,6 @@ def fetch_user_data(request):
         return Response({"status": f"An error occurred: {str(e)}"}, status=500)
 
     return Response(response_data)
-
 
 @api_view(['POST'])
 @transaction.atomic
@@ -375,8 +512,7 @@ def save_test(request):
         test_data = data.get('test', {})
         parts_data = data.get('parts', [])
         owner_role = data.get('ownerRole')
-        print(test_data);
-        print(parts_data);
+    
         # Validate required fields
         if owner_role is None:
             return Response({'error': 'Owner role is required'}, status=400)
@@ -420,18 +556,52 @@ def save_test(request):
                 'date': test_data.get('date'),
                 'filename': test_data.get('filename'),
                 'is_final': bool(test_data.get('is_final')),
+                'refText': test_data.get('refText'),
                 'templateID': template_id,
                 'course': course,
                 'textbook': textbook,
                 'template': template
             }
         )
-        
+
+        attachment_list = test_data.get("attachments", [])
+        test.attachments.clear()
+        for attachment_id in attachment_list:
+            try:
+                attachment = Attachment.objects.get(id=attachment_id)
+                test.attachments.add(attachment)
+                attachment.published = 1 if test.is_final == True else attachment.published
+                attachment.save()
+            except Attachment.DoesNotExist:
+                continue
+
         if created:
             test.author = request.user
         test.save()
 
-        
+        if test.is_final:
+            if test.author == request.user:
+                role = owner_role  
+            else:
+                author_profile = UserProfile.objects.get(user=test.author)
+                role = author_profile.role
+
+            if role == 'teacher':
+                course.published = 1
+                course.save()
+            else:
+                textbook.published = 1
+                textbook.save()
+            if template and template.coverPageID:
+                template.published = 1
+                template.save()
+                try:
+                    coverpage = CoverPage.objects.get(id=template.coverPageID)
+                    coverpage.published = 1
+                    coverpage.save()
+                except CoverPage.DoesNotExist:
+                    return Response({"status": "error", "message": "Missing cover page!"})
+            
         # Process parts, sections, and questions
         if parts_data:
             # Delete existing parts (cascades to sections and questions)
@@ -469,6 +639,10 @@ def save_test(request):
                                     order=question_data.get('order', 0),
                                     section=section
                                 )
+                                question.tests.add(test)
+                                if test.is_final:
+                                    question.published = 1
+                                    question.save()
                             except Question.DoesNotExist:
                                 continue  # Skip invalid questions
         
@@ -763,6 +937,7 @@ def save_question(request):
         newQ.published = question_data.get('published', False)
         newQ.course = course
         newQ.textbook = textbook
+        newQ.requiredRefs = question_data.get('requiredRefs', '')
 
         # Safe image field handling
         img = question_data.get('img')
@@ -976,7 +1151,7 @@ def get_question_list(field, suite):
 
         # Identify the object
         identity = instance.course_id if field == "course" else instance.isbn
-
+        
         question_lists = {
             'tf': {},
             'mc': {},
@@ -987,6 +1162,7 @@ def get_question_list(field, suite):
             'fb': {},
             'dy': {}
         }
+
         master_question_list[identity] = question_lists
 
         try:
@@ -1095,6 +1271,7 @@ def get_question_list(field, suite):
                     'score': float(q.score) if q.score else 0.0,
                     'directions': q.directions,
                     'reference': q.reference,
+                    'reqRefs': q.requiredRefs,
                     'eta': q.eta,
                     'img': img_url,
                     'ansimg': ansimg_url,
@@ -1104,7 +1281,8 @@ def get_question_list(field, suite):
                     'section': q.section,
                     'published': q.published,
                     'author': q.author.username if q.author else None,
-                    'feedback': feedback_list
+                    'feedback': feedback_list,
+                    'tests': list(q.tests.values_list('id', flat=True))
                 }
 
                 if q.qtype in question_lists:
@@ -1169,12 +1347,7 @@ def get_test_list(field, suite):
         
         for test in tests:
             # Get template if exists
-            template = None
-            if test.templateID > 0:
-                try:
-                    template = Template.objects.get(id=test.templateID)
-                except Template.DoesNotExist:
-                    pass
+            template = test.template
             
             # Basic test data structure matching frontend format
             test_data = {
@@ -1182,6 +1355,7 @@ def get_test_list(field, suite):
                 'name': test.name,
                 'templateName': template.name if template else None,
                 'templateID': test.templateID,
+                'refText': test.refText,
                 'date': test.date.isoformat() if test.date else None,
                 'filename': test.filename,
                 'parts': [],
@@ -1193,13 +1367,7 @@ def get_test_list(field, suite):
             
             # Process attachments
             for attachment in test.attachments.all():
-                attachment_data = {
-                    'id': attachment.id,
-                    'name': attachment.name,
-                    'file': attachment.file.name if attachment.file else None,
-                    'url': attachment.file.url if attachment.file else None
-                }
-                test_data['attachments'].append(attachment_data)
+                test_data['attachments'].append(attachment.id)
             
             # Process parts, sections, and questions
             for part in test.parts.all().order_by('part_number'):
@@ -1327,130 +1495,3 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-
-def add_textbook_questions(textbook, master_question_list, course_id):
-    """
-    Add questions from a textbook to the master question list for a course
-    that is associated with that textbook.
-    
-    Args:
-        textbook: Textbook object
-        master_question_list: Dictionary containing all questions
-        course_id: ID of the course to associate questions with
-    
-    Returns:
-        Updated master_question_list with textbook questions
-    """
-    # Get all published questions from the textbook
-    textbook_questions = Question.objects.filter(
-        textbook=textbook,
-        published=True
-    ).select_related('author')
-    
-    # Process each question
-    for question in textbook_questions:
-        # Check if the question is already in the master list
-        if str(question.id) not in master_question_list:
-            # Get answers for this question
-            answers = Answers.objects.filter(question=question)
-            answers_data = {}
-            
-            # Process answers based on question type
-            if question.qtype in ['tf', 'mc', 'sa', 'es']:
-                # These question types have a single answer
-                if answers.exists():
-                    answers_data = {'value': answers.first().text}
-            elif question.qtype == 'fb':
-                # Fill in the blank can have multiple answers
-                for i, answer in enumerate(answers):
-                    answers_data[f'blank{i+1}'] = {'value': answer.text}
-            elif question.qtype == 'ma':
-                # Matching has pairs
-                for i, answer in enumerate(answers):
-                    answers_data[f'pair{i+1}'] = {
-                        'text': answer.text,
-                        'pair': answer.pair
-                    }
-            elif question.qtype == 'ms':
-                # Multiple selection can have multiple correct answers
-                for i, answer in enumerate(answers):
-                    answers_data[f'option{i+1}'] = {'value': answer.text}
-            
-            # Get options for this question
-            options = Options.objects.filter(question=question)
-            options_data = {}
-            
-            # Process options based on question type
-            if question.qtype == 'tf':
-                # True/False options are standard
-                pass
-            elif question.qtype == 'mc':
-                # Multiple choice options - map order to letters without assuming all exist
-                # Define the mapping from order to option letter
-                order_to_letter = {
-                    1: 'A', 2: 'B', 3: 'C', 4: 'D'
-                }
-                
-                for option in options:
-                    if option.order in order_to_letter:
-                        letter = order_to_letter[option.order]
-                        options_data[letter] = {
-                            'text': option.text, 
-                            'order': option.order
-                        }
-            elif question.qtype == 'ms':
-                # Multiple selection options
-                for i, option in enumerate(options):
-                    options_data[f'option{i+1}'] = {
-                        'text': option.text,
-                        'order': option.order
-                    }
-            elif question.qtype == 'ma':
-                # Matching options
-                pair_count = 0
-                distraction_count = 0
-                
-                for option in options:
-                    if option.pair:
-                        pair_count += 1
-                        options_data[f'pair{pair_count}'] = {
-                            'left': option.pair.get('left', ''),
-                            'right': option.pair.get('right', ''),
-                            'pairNum': option.pair.get('pairNum', pair_count)
-                        }
-                    else:
-                        distraction_count += 1
-                        options_data[f'distraction{distraction_count}'] = {
-                            'text': option.text,
-                            'order': option.order
-                        }
-            
-            # Add the question to the master list with the course_id as a reference
-            qtype = str(question.qtype)
-            qid = str(question.id)
-            if qtype not in master_question_list:
-                master_question_list[qtype] = {}
-
-            master_question_list[qtype][qid]= {
-                'id': str(question.id),
-                'text': question.text,
-                'qtype': question.qtype,
-                'score': float(question.score),
-                'directions': question.directions,
-                'reference': question.reference,
-                'eta': question.eta,
-                'img': question.img,
-                'ansimg': question.ansimg,
-                'comments': question.comments,
-                'chapter': question.chapter,
-                'section': question.section,
-                'published': question.published,
-                'author': question.author.username if question.author else None,
-                'owner_type': 'textbook',
-                'owner_id': textbook.isbn,
-                'course_id': course_id,  
-                'answers': answers_data,
-                'options': options_data
-            }
-    
-    return master_question_list
