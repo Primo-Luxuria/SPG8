@@ -735,6 +735,7 @@ function editTest(identity, testID) {
     setTimeout(() => {
         populateExistingQuestions(identity, test);
         updateTestAttachments(identity);
+        updateTestSummary();
     }, 500); // Give time for updateTestParts to complete
     
     modal.style.display = 'flex';
@@ -795,6 +796,9 @@ function populateExistingQuestions(identity, test) {
                     <p>${questionData.text || 'Question text not available'}</p>
                     <label>Points: </label>
                     <input type="number" class="question-points" min="1" value="${question.assigned_points || 1}" style="width: 60px;">
+                    <label>Time: </label>
+                    <input type="number" class="question-time" min="1" value="${questionData.eta || 1}" style="width: 60px;" disabled>
+                
                 `;
 
                 selectedQuestionsDiv.appendChild(questionElement);
@@ -816,7 +820,7 @@ function populateExistingQuestions(identity, test) {
             selectedQuestionsDiv.appendChild(randomizer);
         });
     });
-    
+    updateTestSummary();
 }
 
 

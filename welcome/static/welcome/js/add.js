@@ -1342,6 +1342,8 @@ questionElement.innerHTML = `
     <p>${question.text}</p>
     <label>Points: </label>
     <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;">
+    <label>Time: </label>
+    <input type="number" class="question-time" min="1" value="${question.eta}" style="width: 60px;" disabled>
 `;
 
 selectedQuestionsDiv.appendChild(questionElement);
@@ -1474,6 +1476,8 @@ function addSelectedBonusQuestions(identity) {
             <p>${question.text}</p>
             <label>Points: </label>
             <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
+            <label>Time: </label>
+            <input type="number" class="question-time" min="1" value="${question.eta}" style="width: 60px;" disabled>
             `;
         selectedQuestionsDiv.appendChild(questionElement);
     });
@@ -1679,8 +1683,8 @@ function updateTestSummary() {
     document.querySelectorAll('.question-points').forEach(input => {
       totalPoints += parseInt(input.value, 10) || 0;
     });
-    document.querySelectorAll('.question-time').forEach(span => {
-      totalTime += parseInt(span.textContent, 10) || 0;
+    document.querySelectorAll('.question-time').forEach(input => {
+      totalTime += parseInt(input.value, 10) || 0;
     });
     
     document.getElementById('totalPoints').textContent = totalPoints;

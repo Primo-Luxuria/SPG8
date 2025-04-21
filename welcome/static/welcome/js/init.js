@@ -10,6 +10,77 @@ var masterTextbookList = {};
 var DBCourseList = {};
 var DBTextbookList = {}; 
 
+function addExistingCourse() {
+    const courseSelect = document.getElementById("existingCourse");
+    const selectedCourseID = courseSelect.value;
+
+    if (!selectedCourseID) {
+        alert("Please select a course to add.");
+        return;
+    }
+
+    // Optional: Prevent duplicate additions
+    if (AddedCourses.has(selectedCourseID)) {
+        alert("This course has already been added.");
+        return;
+    }
+
+    // Retrieve course name (if needed)
+    const courseName = DBCourseList[selectedCourseID];
+
+    // Example: Track added courses in memory
+    AddedCourses.add(selectedCourseID);
+
+    // Example: Show the course somewhere on screen
+    const container = document.getElementById("addedCoursesDisplay");
+    const courseEntry = document.createElement("div");
+    courseEntry.textContent = `${selectedCourseID} - ${courseName}`;
+    container.appendChild(courseEntry);
+
+    // Optional: send to backend
+    // fetch('/api/add_course/', {
+    //     method: 'POST',
+    //     headers: {'Content-Type': 'application/json'},
+    //     body: JSON.stringify({ course_id: selectedCourseID })
+    // });
+
+    // Optional: Clear dropdown or give visual feedback
+    courseSelect.selectedIndex = 0;
+}
+
+
+
+function assignTextbooksToCourse() {
+    const textbookSelect = document.getElementById("existingTextbook");
+    const courseSelect = document.getElementById("courseTargets");
+
+    const selectedTextbooks = Array.from(textbookSelect.selectedOptions).map(opt => opt.value);
+    const selectedCourse = courseSelect.value;
+
+    if (!selectedCourse) {
+        alert("Please select a course to assign the textbooks to.");
+        return;
+    }
+
+    if (selectedTextbooks.length === 0) {
+        alert("Please select at least one textbook.");
+        return;
+    }
+
+    // Here you’d update a local object or send this to the backend
+    // For example, updating a dictionary like:
+    if (!CourseToTextbookMap[selectedCourse]) {
+        CourseToTextbookMap[selectedCourse] = new Set();
+    }
+    selectedTextbooks.forEach(isbn => CourseToTextbookMap[selectedCourse].add(isbn));
+
+    alert(`Assigned ${selectedTextbooks.length} textbook(s) to course ${selectedCourse}`);
+    
+    // Optionally: refresh or show assignment somewhere
+}
+
+
+
 /**
  * getUserIdentity to determine identity based on user role
 */
