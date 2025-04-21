@@ -183,11 +183,13 @@ def fetch_user_data(request):
     master_attachment_list = {}
     container_list = {}
 
+    course_list = {course.course_id: course.name for course in Course.objects.all()}
+    textbook_list = {book.isbn: book.title for book in Textbook.objects.all()}
+
+
     try:
         if role == "teacher":
-            courses = Course.objects.filter(teachers=user).select_related('textbook')
-
-            # Run this OUTSIDE the atomic block
+            courses = Course.objects.filter(teachers=user)
             master_question_list = get_question_list('course', courses)
 
             with transaction.atomic():
@@ -202,7 +204,7 @@ def fetch_user_data(request):
                         "crn": course.crn,
                         "name": course.name,
                         "sem": course.sem,
-                        "textbook": textbook.id, #RED TASK: Make many to many field
+                        "textbook": [textbook.id for textbook in course.textbook.all()],
                         "id": course.id
                     }
 
@@ -247,7 +249,9 @@ def fetch_user_data(request):
             "template_list": master_template_list,
             "cpage_list": master_cpage_list,
             "attachment_list": master_attachment_list,
-            "container_list": container_list
+            "container_list": container_list,
+            "course_list": course_list,
+            "textbook_list": textbook_list
         }
 
     except Exception as e:
@@ -390,10 +394,35 @@ def save_test(request):
                                 continue  # Skip invalid questions
         
         # Process feedback if provided
-        feedback_data = data.get('feedback', [])
-        if feedback_data:
-            # Process feedback logic here (depends on your feedback model)
-            pass
+        fb_list = data.get('feedback', [])
+        for fb_item in fb_list:
+            fb_user = User.objects.get(username=fb_item.get('username'))
+            feedback, created = Feedback.objects.update_or_create(
+                    id=fb_item.get('id'),
+                    defaults ={
+                        'test':test,
+                        'user':fb_user,
+                        'rating':fb_item.get('rating'),
+                        'averageScore':fb_item.get('averageScore'),
+                        'comments':fb_item.get('comments'),
+                        'time':fb_item.get('time')
+                    }
+                    
+                )
+
+            for resp in fb_item.get('responses', []):
+                try:
+                    resp_user = User.objects.get(username=resp.get('username')) if resp.get('username') else None
+                except User.DoesNotExist:
+                    resp_user = None
+                FeedbackResponse.objects.update_or_create(
+                    id=resp.get('id'),
+                    defaults ={
+                        'feedback':feedback,
+                        'user':resp_user,
+                        'text':resp.get('text'),
+                        'date':resp.get('date')
+                    })
         
         return Response({
             'status': 'success',
@@ -783,13 +812,17 @@ def save_question(request):
                 except User.DoesNotExist:
                     fb_user = None
 
-                feedback = Feedback.objects.create(
-                    question=newQ,
-                    user=fb_user,
-                    rating=fb_item.get('rating'),
-                    averageScore=fb_item.get('averageScore'),
-                    comments=fb_item.get('comments'),
-                    time=fb_item.get('time')
+                feedback,created = Feedback.objects.update_or_create(
+                    id=fb_item.get('id'),
+                    defaults ={
+                        'question':newQ,
+                        'user':fb_user,
+                        'rating':fb_item.get('rating'),
+                        'averageScore':fb_item.get('averageScore'),
+                        'comments':fb_item.get('comments'),
+                        'time':fb_item.get('time')
+                    }
+                    
                 )
 
                 for resp in fb_item.get('responses', []):
@@ -797,12 +830,15 @@ def save_question(request):
                         resp_user = User.objects.get(username=resp.get('username')) if resp.get('username') else None
                     except User.DoesNotExist:
                         resp_user = None
-
-                    FeedbackResponse.objects.create(
-                        feedback=feedback,
-                        user=resp_user,
-                        text=resp.get('text'),
-                        date=resp.get('date')
+                    FeedbackResponse.objects.update_or_create(
+                        id=resp.get('id'),
+                        defaults ={
+                            'feedback':feedback,
+                            'user':resp_user,
+                            'text':resp.get('text'),
+                            'date':resp.get('date')
+                        }
+                        
                     )
 
         return Response({'status': 'success', 'created': created, 'question_id': newQ.id})
@@ -950,7 +986,7 @@ def get_question_list(field, suite):
                     answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
                 else:
                     answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
-                print(json.dumps(answer) + " " + q.qtype)
+                 
                 # === Options ===
                 options = {}
                 if q.qtype == 'tf':
@@ -1008,6 +1044,7 @@ def get_question_list(field, suite):
                         "averageScore": float(f.averageScore) if f.averageScore else None,
                         "comments": f.comments,
                         "time": float(f.time) if f.time else None,
+                        "date": f.created_at.isoformat() if f.created_at else None,
                         "responses": [
                             {
                                 "id": r.id,
@@ -1170,17 +1207,20 @@ def get_test_list(field, suite):
             # Process feedback
             for feedback in test.feedbacks.all():
                 feedback_data = {
+                    'id': feedback.id,
                     'username': feedback.user.username if feedback.user else 'Anonymous',
                     'rating': feedback.rating,
                     'averageScore': float(feedback.averageScore) if feedback.averageScore else None,
                     'comments': feedback.comments,
-                    'time': feedback.created_at.isoformat() if feedback.created_at else None,
+                    'time': feedback.time if feedback.time else None,
+                    'date': feedback.created_at.isoformat() if feedback.created_at else None,
                     'responses': []
                 }
                 
                 # Process responses
                 for response in feedback.responses.all():
                     response_data = {
+                        'id': response.id,
                         'username': response.user.username if response.user else 'Anonymous',
                         'text': response.text,
                         'date': response.date.isoformat() if response.date else None

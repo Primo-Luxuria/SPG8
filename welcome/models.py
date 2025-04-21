@@ -96,10 +96,8 @@ class Course(models.Model):
         default='Fall 2021'
     ) 
     # Link to the associated textbook.
-    textbook = models.ForeignKey(
+    textbook = models.ManyToManyField(
         Textbook,
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         help_text='Textbook associated with this course.'
     )

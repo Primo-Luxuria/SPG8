@@ -81,9 +81,13 @@ function submitFeedback(identity, questionType, questionID) {
         question.feedback = [];
     }
     question.feedback.push(feedback);
-
-    closeModal();
-    viewQuestionFeedback(identity, questionType, questionID);
+    if(window.userRole=="teacher"){
+        saveData("question",question,identity);
+    }else{
+        saveData("question",question,{}, identity);
+    }
+    viewFeedback();
+    
 }
 
 function submitTestFeedback(identity, testID) {
@@ -125,9 +129,12 @@ function submitTestFeedback(identity, testID) {
         test.feedback = [];
     }
     test.feedback.push(feedback);
-
-    closeModal();
-    viewTestFeedback(identity, testID);
+    if(window.userRole=="teacher"){
+        saveData("test",test,identity);
+    }else{
+        saveData("test",test,{}, identity);
+    }
+    viewFeedback();
 }
 
 
@@ -253,7 +260,11 @@ function submitResponse(identity, questionType, questionIndex, feedbackIndex) {
 
     const question = masterQuestionList[identity][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
-
+    if(window.userRole=="teacher"){
+        saveData("test",test,identity);
+    }else{
+        saveData("test",test,{}, identity);
+    }
     viewQuestionFeedback(identity, questionType, questionIndex);
 }
 
@@ -275,6 +286,10 @@ function submitTestResponse(identity, testIndex, feedbackIndex) {
 
     const test = masterTestList[identity]['drafts'][testIndex] || masterTestList[identity]['published'][testIndex];
     test.feedback[feedbackIndex].responses.push(response);
-
+    if(window.userRole=="teacher"){
+        saveData("test",test,identity);
+    }else{
+        saveData("test",test,{}, identity);
+    }
     viewTestFeedback(identity, testIndex);
 }

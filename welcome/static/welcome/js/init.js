@@ -7,7 +7,8 @@ var courseList = {};
 var textbookList = {};
 var masterCoverPageList = {};
 var masterTextbookList = {};
-
+var DBCourseList = {};
+var DBTextbookList = {}; 
 
 /**
  * getUserIdentity to determine identity based on user role
@@ -28,8 +29,7 @@ function getUserIdentity(courseID, isbn) {
  * Precondition: valid questionType, courseID
  * Postcondition: question content is updated in the question containers
 */
-function updateQuestionTabs(questionType, courseID, isbn) {
-    const identity = getUserIdentity(courseID, isbn);
+function updateQuestionTabs(questionType, identity) {
     const tabContent = document.getElementById(`${questionType}-${identity}`);
     tabContent.innerHTML = ''; // Clear existing content
 
@@ -49,8 +49,6 @@ function updateQuestionTabs(questionType, courseID, isbn) {
             questionDiv.dataset.itemType = 'question';
             questionDiv.dataset.itemID = question.id;
             questionDiv.dataset.identity = identity;
-            questionDiv.dataset.courseID = courseID;
-            questionDiv.dataset.isbn = isbn;
             questionDiv.dataset.questionType = questionType;
 
             questionDiv.innerHTML = `
@@ -151,7 +149,7 @@ async function addContent() {
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
                 if(window.userRole=="teacher"){
-                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}')">Import Test</button>
                     <input type="file" id="fileInput">`;
                 }
                 formdata += `
@@ -442,7 +440,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
     let headers = {
         'X-CSRFToken': getCSRFToken()
     };
-    
+    const identity = getUserIdentity(courseID, isbn);
     const ownerRole = window.userRole;
     
     try {
@@ -460,25 +458,25 @@ async function saveData(type, entry, courseID = null, isbn = null) {
                 break;
             case "question":
                 api_call = "/api/save_question/";
-                requestData = serializeQuestion(entry, courseID, isbn);
+                requestData = serializeQuestion(entry, identity);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
             case "template":
                 api_call = "/api/save_template/";
-                requestData = serializeTemplate(entry, courseID, isbn);
+                requestData = serializeTemplate(entry, identity);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
             case "coverPage":
                 api_call = "/api/save_cpage/";
-                requestData = serializeCoverPage(entry, courseID, isbn);
+                requestData = serializeCoverPage(entry, identity);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
             case "test":
                 api_call = "/api/save_test/";
-                requestData = serializeTest(entry, courseID, isbn);
+                requestData = serializeTest(entry, identity);
                 headers['Content-Type'] = 'application/json';
                 break;
                 
@@ -640,13 +638,13 @@ function serializeTextbook(textbook){
 /**
  * Serialize a template object for the API
  */
-function serializeTemplate(template, courseID = null, isbn = null) {
+function serializeTemplate(template, identity) {
     const ownerRole = window.userRole;
     // Build the request data
     const requestData = {
         ownerRole: ownerRole,
-        courseID: courseID || null,
-        isbn: isbn || null,
+        courseID: Boolean(ownerRole=="teacher") ? identity : null,
+        isbn: Boolean(ownerRole=="teacher") ? null : identity,
         template: {
             id: template.id || null,
             name: template.name || 'Untitled Template',
@@ -677,14 +675,14 @@ function serializeTemplate(template, courseID = null, isbn = null) {
 /**
  * Serialize a cover page object for the API
  */
-function serializeCoverPage(coverPage, courseID = null, isbn=null) {
+function serializeCoverPage(coverPage, identity) {
     const ownerRole = window.userRole;
     
     // Build the request data
     const requestData = {
         ownerRole: ownerRole,
-        courseID: courseID || null,
-        isbn: isbn || null,
+        courseID: Boolean(ownerRole=="teacher") ? identity : null,
+        isbn: Boolean(ownerRole=="teacher") ? null : identity,
         coverPage: {
             id: coverPage.id || null,
             name: coverPage.name || 'Untitled Cover Page',
@@ -706,14 +704,14 @@ function serializeCoverPage(coverPage, courseID = null, isbn=null) {
  * Serialize a question object for the API
  * Fixed to handle null values and improve data validation
  */
-function serializeQuestion(question, courseID=null, isbn=null) {
+function serializeQuestion(question, identity) {
     const ownerRole = window.userRole;
     
     // Build the base request data
     const requestData = {
         ownerRole: ownerRole,
-        courseID: courseID,
-        isbn: isbn
+        courseID: Boolean(ownerRole=="teacher") ? identity : null,
+        isbn: Boolean(ownerRole=="teacher") ? null : identity,
     };
     
     
@@ -865,6 +863,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
         requestData.feedback = question.feedback
             .filter(fb => fb) // FIX: Filter out null/undefined values
             .map(fb => ({
+                id: fb.id || null,
                 username: fb.username || null,
                 rating: fb.rating || null,
                 averageScore: fb.averageScore || null,
@@ -873,6 +872,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                 responses: Array.isArray(fb.responses) ? fb.responses
                     .filter(resp => resp) 
                     .map(resp => ({
+                        id: resp.id || null,
                         username: resp.username || null,
                         text: resp.text || null,
                         date: resp.date || null
@@ -887,23 +887,23 @@ function serializeQuestion(question, courseID=null, isbn=null) {
  * Serialize a test object for the API
  * Fixed to handle null values and improve data transformation
  */
- function serializeTest(test, courseID=null, isbn=null) {
+ function serializeTest(test, identity) {
     const ownerRole = window.userRole;
-    console.log(test, courseID, isbn);
 
     // Build the base request data
     const requestData = {
         ownerRole: ownerRole,
-        courseID: courseID,
-        isbn: isbn
+        courseID: Boolean(ownerRole=="teacher") ? identity : null,
+        isbn: Boolean(ownerRole=="teacher") ? null : identity,
     };
     
+    let template = masterTemplateList[identity][test.templateID];
     // Format the test data
     requestData.test = {
         id: test.id || null,
         name: test.name || 'Untitled Test',
         date: test.date || null,
-        filename: masterCoverPageList[courseID][test.template.coverPageID].file || masterCoverPageList[isbn][test.template.coverPageID].file|| null,
+        filename: masterCoverPageList[identity][template.coverPageID].file || null,
         is_final: Boolean(test.published), 
         templateID: parseInt(test.templateID) || 0
     };
@@ -944,6 +944,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
             requestData.feedback = test.feedback
                 .filter(fb => fb) 
                 .map(fb => ({
+                    id: fb.id || null,
                     username: fb.username || null,
                     rating: fb.rating || null,
                     averageScore: fb.averageScore || null,
@@ -952,6 +953,7 @@ function serializeQuestion(question, courseID=null, isbn=null) {
                     responses: Array.isArray(fb.responses) ? fb.responses
                         .filter(resp => resp) 
                         .map(resp => ({
+                            id: resp.id || null,
                             username: resp.username || null,
                             text: resp.text || null,
                             date: resp.date || null
@@ -976,6 +978,27 @@ function serializeQuestion(question, courseID=null, isbn=null) {
     return requestData;
 }
 
+function populateExistingSelectors() {
+    const existingCourse = document.getElementById("existingCourse");
+    const courseTargets = document.getElementById("courseTargets");
+    const existingTextbook = document.getElementById("existingTextbook");
+
+    existingCourse.innerHTML = `<option value="" disabled selected>Choose a Course</option>`;
+    courseTargets.innerHTML = `<option value="" disabled selected>Choose a Course for the Textbooks:</option>`;
+    existingTextbook.innerHTML = ``; // clear first
+
+    for (const [course_id, course_name] of Object.entries(DBCourseList)) {
+        const option = `<option value="${course_id}">${course_id} - ${course_name}</option>`;
+        existingCourse.innerHTML += option;
+        courseTargets.innerHTML += option;
+    }
+
+    for (const [isbn, title] of Object.entries(DBTextbookList)) {
+        const option = `<option value="${isbn}">${title} - ${isbn}</option>`;
+        existingTextbook.innerHTML += option;
+    }
+}
+
 
 function renderUserData(data){
         masterQuestionList = data.question_list;
@@ -983,6 +1006,8 @@ function renderUserData(data){
         masterTemplateList = data.template_list;
         masterTestList = data.test_list;
         console.log(window.userRole);
+        DBCourseList = data.course_list;
+        DBTextbookList = data.textbook_list;
         if(window.userRole == "teacher"){
             courseList = data.container_list;
             console.log("courseList: ",courseList);
@@ -993,7 +1018,7 @@ function renderUserData(data){
         masterCoverPageList = data.cpage_list;
         console.log("Cover Pages:", masterCoverPageList);
         refreshData();
-        
+        populateExistingSelectors();
 }
 
 function refreshData(){
@@ -1079,7 +1104,7 @@ function loadContent(identity) {
                 <summary>Tests</summary>
                 <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
                 if(window.userRole=="teacher"){
-                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}', '${textbookTitle}', '${textbookAuthor}', '${textbookVersion}', '${textbookISBN}', '${textbookLink}')">Import Test</button>
+                    formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}')">Import Test</button>
                     <input type="file" id="fileInput">`;
                 }
                 formdata += `
@@ -1199,11 +1224,7 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
 } //RED TASK: IGNORE THIS AND REMOVE IT FROM PUBLISHER
 
 
-/**
- * This function is called to update the test content inside of the test containers whenever a test is saved
- * Precondition: valid courseID
- * Postcondition: test content is updated in the test containers    
-*/ 
+
 function updateTestTabs(identity) {
     const draftsContainer = document.getElementById(`drafts-${identity}`);
     const publishedContainer = document.getElementById(`published-${identity}`);
@@ -1577,11 +1598,7 @@ function exportTestKeyToHTML(identity, testID) {
 }  //RED TASK: UPDATE KEY
 
 
-/**
- * This function is called to update the coverpage options inside any template editor
- * Precondition: valid courseID
- * Postcondition: cover page options are updated in the template editor
-*/
+
 function updateCoverPages(identity) {
     const coverPageContainer = document.getElementById(`coverpages-${identity}`);
     coverPageContainer.innerHTML = ''; // Clear existing content
@@ -1613,11 +1630,7 @@ function updateCoverPages(identity) {
     }
 }
 
-/**
- * This function updates the templates inside of the template container UI when a template is saved/edited
- * Precondition: valid courseID
- * Postcondition: templates are updated in the template container
-*/
+
 function updateTemplates(identity) {
     const templateContainer = document.getElementById(`templates-${identity}`);
     templateContainer.innerHTML = ''; 
@@ -1650,12 +1663,7 @@ function updateTemplates(identity) {
 
 
     
-/**
- * This function is called to update the graphics fields in the editor modal with the available graphics for the course.
- * This version of the function is used when the user is first creating a question.
- * Precondition: valid courseID, attachments exist in the course attachment list
- * Postcondition: graphics fields are updated with the available graphics for the course in the edit modal
-*/
+
 function updateGraphicSelectors(identity) {
     const qGraphicField = document.getElementById('qGraphicField');
     const ansGraphicField = document.getElementById('ansGraphicField');
@@ -1678,6 +1686,19 @@ function updateGraphicSelectors(identity) {
     }
 }
 
+function updateTestAttachments(identity) {
+    const testGraphicField = document.getElementById('testGraphicField');
+
+    testGraphicField.innerHTML = '<option value="" disabled selected>Select required attachments</option>';
+
+    for(const key in masterAttachmentList[identity]){
+        let attachment = masterAttachmentList[identity][key];
+        const option = document.createElement('option');
+        option.value = attachment.id;
+        option.textContent = attachment.url;
+        testGraphicField.appendChild(option);
+    }
+}
 
 /**
  * This function is called when the user clicks the delete button in the context menu.
@@ -1705,7 +1726,7 @@ async function deleteItem() {
         case 'test':
             type="Test"
             console.log("Trying to delete:", {
-                courseID: identity,
+                identity: identity,
                 testType,
                 itemID,
                 masterTestList: masterTestList[identity],

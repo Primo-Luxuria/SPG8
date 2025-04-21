@@ -696,6 +696,11 @@ function editTest(identity, testID) {
     const formContent = `
         <div style="background:#e0e0e0;padding:20px;" id="testEditor">
             <label>Test Name:</label><br/>
+            <!-- Test summary section inserted here -->
+            <div id="testSummary">
+            <p><strong>Total Points:</strong> <span id="totalPoints">0</span></p>
+            <p><strong>Estimated Time:</strong> <span id="estimatedTime">0</span> minutes</p>
+            </div>
             <input type="text" id="nameField" value="${test.name}"><br><br>
             <p>Choose a Template!</p><br/>
             <div id="templateSelectorPane">
@@ -705,6 +710,10 @@ function editTest(identity, testID) {
                 <button id="templateSelection" onclick="updateTestParts('${identity}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
+            <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>
+            <select id="testGraphicField" multiple size="5">
+            <option value="" disabled selected>Select a graphic</option>
+            </select><br><br>
             <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${identity}', '${false}', ${testID})">Save as Draft</button>
             <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${identity}', '${true}', ${testID})">Publish Test</button>
         </div>
@@ -725,6 +734,7 @@ function editTest(identity, testID) {
     // After test parts are populated, load existing questions
     setTimeout(() => {
         populateExistingQuestions(identity, test);
+        updateTestAttachments(identity);
     }, 500); // Give time for updateTestParts to complete
     
     modal.style.display = 'flex';

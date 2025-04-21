@@ -129,6 +129,11 @@ formContent+= `
 if (type === "Test"){
 formContent+= `
 <div style="background:#e0e0e0;padding:20px;" id="testEditor">
+    <!-- Test summary section inserted here -->
+            <div id="testSummary">
+            <p><strong>Total Points:</strong> <span id="totalPoints">0</span></p>
+            <p><strong>Estimated Time:</strong> <span id="estimatedTime">0</span> minutes</p>
+            </div>
     <p>Choose a Template!</p><br/>
     <div id=templateSelectorPane>
         <select id=templateSelector>
@@ -136,12 +141,18 @@ formContent+= `
         </select> <button id=templateSelection onclick="updateTestParts('${identity}')">Select This One!</button>
         <div id="testParts"> </div>
     </div>
+    <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>
+    <select id="testGraphicField" multiple size="5">
+        <option value="" disabled selected>Select a graphic</option>
+    </select><br><br>
+    
     <button class="add-btn" id="testDraftButton" onclick="saveTest('${identity}', '${false}')">Save as Draft</button>
     <button class="add-btn" id="testPublishButton" onclick="saveTest('${identity}', '${true}')">Publish Test</button>
 </div>
 `;
 setTimeout(() => {
 updateTemplateSelection(identity);
+updateTestAttachments(identity);
 }, 50);
 
 }
@@ -1334,6 +1345,8 @@ questionElement.innerHTML = `
 `;
 
 selectedQuestionsDiv.appendChild(questionElement);
+const pointsInput = questionElement.querySelector('.question-points');
+pointsInput.addEventListener('input', updateTestSummary);
 }
 
 const randomizer = document.createElement("button");
@@ -1349,9 +1362,9 @@ questionElements.forEach((element, index) => {
 });
 };
 selectedQuestionsDiv.appendChild(randomizer);
-
-
+updateTestSummary();
 closeQuestionModal();
+
 }
 
 
@@ -1459,7 +1472,8 @@ function addSelectedBonusQuestions(identity) {
 
         questionElement.innerHTML = `
             <p>${question.text}</p>
-            <p>Points: ${question.score}</p>
+            <label>Points: </label>
+            <input type="number" class="question-points" min="1" value="${question.score}" style="width: 60px;" disabled>
             `;
         selectedQuestionsDiv.appendChild(questionElement);
     });
@@ -1545,8 +1559,9 @@ function addSelectedBonusQuestions(identity) {
         console.error("CRITICAL: Could not find or create container!");
         alert("Error: Could not display selected bonus questions. Please try refreshing the page.");
     }
-    
+    updateTestSummary();
     closeQuestionModal();
+    
     console.log("Modal closed, function complete");
 }
 
@@ -1639,7 +1654,7 @@ function updateSectionPoints(partNum, sectionNum) {
     pointInputs.forEach(input => {
         input.value = newPointValue;
     });
-
+    updateTestSummary();
     alert(`Updated all questions in Part ${partNum + 1}, Section ${sectionNum + 1} to ${newPointValue} points each.`);
 }
 
@@ -1655,3 +1670,19 @@ function closeQuestionModal(){
     document.getElementById("questionModal").style.display = "none";
     document.getElementById("questionModal").style.opacity = "0";
 }
+
+
+function updateTestSummary() {
+    let totalPoints = 0;
+    let totalTime = 0;
+    
+    document.querySelectorAll('.question-points').forEach(input => {
+      totalPoints += parseInt(input.value, 10) || 0;
+    });
+    document.querySelectorAll('.question-time').forEach(span => {
+      totalTime += parseInt(span.textContent, 10) || 0;
+    });
+    
+    document.getElementById('totalPoints').textContent = totalPoints;
+    document.getElementById('estimatedTime').textContent = totalTime;
+  }
