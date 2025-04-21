@@ -37,6 +37,10 @@ function editQuestion(identity, questionType, questionID) {
            return;
         }
     }
+    if(masterQuestionList[identity][questionType][questionID].author != window.username){
+        alert("You are not the author of this question!");
+        return;
+    }
     const question = masterQuestionList[identity][questionType][questionID];
 
     // Open the edit modal and populate it with the question data
@@ -337,6 +341,10 @@ function editCoverPage(identity, pageID) {
         alert("This page is published. You cannot edit it.");
         return;
     }
+    if(coverPage.author != window.username){
+        alert("You are not the author of this cover page!");
+        return;
+    }
     modalTitle.innerText = 'Edit Cover Page';
 
     const formContent = `
@@ -420,6 +428,10 @@ function editTemplate(identity, templateID) {
     modalTitle.innerText = 'Edit Template';
     if(template.published === 1){
         alert("This template is published. You cannot edit it.");
+        return;
+    }
+    if(template.author != window.username){
+        alert("You are not the author of this template!");
         return;
     }
 
@@ -684,6 +696,10 @@ function editTest(identity, testID) {
     const test = masterTestList[identity]['drafts'][testID];
     if(masterTestList[identity]['published'][testID]){
         alert("You cannot edit published tests.");
+        return;
+    }
+    if(test.author != window.username){
+        alert("You are not the author of this test!");
         return;
     }
     // Open the edit modal and populate it with the test data

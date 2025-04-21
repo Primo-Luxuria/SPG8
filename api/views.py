@@ -22,6 +22,85 @@ class ValidationError(Exception):
     pass
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction
+
+@api_view(['POST'])
+@transaction.atomic
+def join_course(request):
+    user = request.user
+    course_id = request.data.get('id')
+
+    if not course_id:
+        return Response({"status": "error", "message": "Course ID is required"}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user_profile = UserProfile.objects.get(user=user)
+    except UserProfile.DoesNotExist:
+        return Response({"status": "error", "message": "User profile not found"}, 
+                        status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return Response({"status": "error", "message": "Course not found"}, 
+                        status=status.HTTP_404_NOT_FOUND)
+
+    if user_profile.role != "teacher":
+        return Response({"status": "error", "message": "Only teachers can join courses"}, 
+                        status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        course.teachers.add(user)
+        return Response({"status": "success", "message": "Successfully added teacher to course"})
+    except Exception as e:
+        return Response({"status": "error", "message": f"An error occurred: {str(e)}"}, 
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@transaction.atomic
+def assign_books(request):
+    user = request.user
+    data = request.data
+    course_id = data.get('id', '')
+    textbook_ids = data.get('textbook_ids', [])
+
+    print(course_id)
+    print(textbook_ids)
+    if not course_id or not isinstance(textbook_ids, list):
+        return Response({"status": "error", "message": "Invalid data."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        course = Course.objects.get(id=course_id)
+    except Course.DoesNotExist:
+        return Response({"status": "error", "message": "Course not found."},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    
+    if not course.teachers.filter(id=user.id).exists():
+        return Response({"status": "error", "message": "You are not a teacher for this course."},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    # Get all textbook objects matching the provided IDs
+    textbooks = Textbook.objects.filter(id__in=textbook_ids)
+
+    if not textbooks.exists():
+        return Response({"status": "error", "message": "No valid textbooks found."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # Add textbooks to the course
+    course.textbooks.add(*textbooks)
+
+    return Response({
+        "status": "success",
+        "message": f"{textbooks.count()} textbook(s) assigned to course {course.course_id}."
+    })
+
+
 
 @api_view(['POST'])
 @transaction.atomic
@@ -183,8 +262,8 @@ def fetch_user_data(request):
     master_attachment_list = {}
     container_list = {}
 
-    course_list = {course.course_id: course.name for course in Course.objects.all()}
-    textbook_list = {book.isbn: book.title for book in Textbook.objects.all()}
+    course_list = {course.id: course.name for course in Course.objects.all()}
+    textbook_list = {book.id: book.isbn for book in Textbook.objects.all()}
 
 
     try:
@@ -204,7 +283,7 @@ def fetch_user_data(request):
                         "crn": course.crn,
                         "name": course.name,
                         "sem": course.sem,
-                        "textbook": [textbook.id for textbook in course.textbook.all()],
+                        "textbooks": [textbook.id for textbook in course.textbooks.all()],
                         "id": course.id
                     }
 
@@ -439,54 +518,7 @@ def save_test(request):
 def save_course(request):
     try:
         data = request.data
-        owner_role = data.get('ownerRole')
         course_data = data.get('course', {})
-        textbook_data = data.get('textbook', {})
-        
-        # Process textbook data if available
-        if textbook_data:
-            textbook_id = textbook_data.get('id')
-            if textbook_id and Textbook.objects.filter(id=textbook_id).exists():
-                # Update existing textbook
-                textbook = Textbook.objects.get(id=textbook_id)
-                textbook.title = textbook_data.get('title', textbook.title)
-                textbook.author = textbook_data.get('author', textbook.author)
-                textbook.version = textbook_data.get('version', textbook.version)
-                textbook.isbn = textbook_data.get('isbn', textbook.isbn)
-                textbook.link = textbook_data.get('link', textbook.link)
-                # Only update publisher if the user is a publisher
-                if request.user.userprofile.role == 'publisher':
-                    textbook.publisher = request.user
-                textbook.published = textbook_data.get('published', textbook.published)
-                textbook.save()
-            else:
-                # Create new textbook if textbook details provided
-                isbn = textbook_data.get('isbn')
-                title = textbook_data.get('title')
-                author = textbook_data.get('author')
-                version = textbook_data.get('version')
-                link = textbook_data.get('link')
-                published = textbook_data.get('published', False)
-                
-                # Try to find existing textbook by ISBN or create new one
-                if isbn and Textbook.objects.filter(isbn=isbn).exists():
-                    textbook = Textbook.objects.filter(isbn=isbn).first()
-                elif title and author and Textbook.objects.filter(title=title, author=author).exists():
-                    textbook = Textbook.objects.filter(title=title, author=author).first()
-                else:
-                    # Set publisher if user is a publisher, otherwise leave it null
-                    publisher = request.user if request.user.userprofile.role == 'publisher' else None
-                    textbook = Textbook.objects.create(
-                        title=title or 'Untitled Textbook',
-                        author=author,
-                        version=version,
-                        isbn=isbn,
-                        link=link,
-                        publisher=publisher,
-                        published=published
-                    )
-        else:
-            textbook = None
         
         # Process course data
         course_id = course_data.get('id')
@@ -498,8 +530,6 @@ def save_course(request):
             course.crn = course_data.get('crn', course.crn)
             course.sem = course_data.get('sem', course.sem)
             course.published = course_data.get('published', course.published)
-            if textbook:
-                course.textbook = textbook
             course.save()
             created = False
         else:
@@ -509,7 +539,6 @@ def save_course(request):
                 name=course_data.get('name', 'Untitled Course'),
                 crn=course_data.get('crn', ''),
                 sem=course_data.get('sem', ''),
-                textbook=textbook,
                 published=course_data.get('published', False),
                 user=request.user
             )
@@ -931,7 +960,8 @@ def get_template_list(field, suite):
                 "bonusSection": t.bonusSection,
                 "bonusQuestions": t.bonusQuestions,
                 "published": t.published,
-                "feedback": []
+                "feedback": [],
+                "author": t.author.username if t.author else None
             }
             master_template_list[identity][str(template_data["id"])] = template_data
     return master_template_list
@@ -1157,7 +1187,8 @@ def get_test_list(field, suite):
                 'parts': [],
                 'attachments': [],
                 'feedback': [],
-                'published': test.is_final
+                'published': test.is_final,
+                'author': test.author.username if test.author else None
             }
             
             # Process attachments
@@ -1261,7 +1292,8 @@ def get_cpage_list(field, suite):
                 "blank": c.blank,
                 "instructions": c.instructions,
                 "published": c.published,
-                "feedback": []
+                "feedback": [],
+                "author": c.author.username if c.author else None
             }
             master_cpage_list[identity][str(cpage_data["id"])]=cpage_data
     return master_cpage_list

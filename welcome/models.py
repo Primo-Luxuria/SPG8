@@ -96,7 +96,7 @@ class Course(models.Model):
         default='Fall 2021'
     ) 
     # Link to the associated textbook.
-    textbook = models.ManyToManyField(
+    textbooks = models.ManyToManyField(
         Textbook,
         blank=True,
         help_text='Textbook associated with this course.'
@@ -108,6 +108,7 @@ class Course(models.Model):
         limit_choices_to={'userprofile__role': 'teacher'}
     )
     published = models.BooleanField(default=False)
+
     
     def __str__(self):
         return f"{self.course_id} - {self.name}"

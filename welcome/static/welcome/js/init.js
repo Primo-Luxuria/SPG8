@@ -10,6 +10,29 @@ var masterTextbookList = {};
 var DBCourseList = {};
 var DBTextbookList = {}; 
 
+function populateExistingSelectors() {
+    const existingCourse = document.getElementById("existingCourse");
+    const courseTargets = document.getElementById("courseTargets");
+    const existingTextbook = document.getElementById("existingTextbook");
+
+    existingCourse.innerHTML = `<option value="" disabled selected>Choose a Course</option>`;
+    courseTargets.innerHTML = `<option value="" disabled selected>Choose a Course for the Textbooks:</option>`;
+    existingTextbook.innerHTML = ``; // clear first
+
+    for (const [id, course_name] of Object.entries(DBCourseList)) {
+        const option = `<option value="${id}">${course_name}</option>`;
+        existingCourse.innerHTML += option;
+        courseTargets.innerHTML += option;
+    }
+
+    for (const [id, isbn] of Object.entries(DBTextbookList)) {
+        const option = `<option value="${id}">ISBN:${isbn}</option>`;
+        existingTextbook.innerHTML += option;
+    }
+}
+
+
+// Used AI for speed
 function addExistingCourse() {
     const courseSelect = document.getElementById("existingCourse");
     const selectedCourseID = courseSelect.value;
@@ -19,33 +42,14 @@ function addExistingCourse() {
         return;
     }
 
-    // Optional: Prevent duplicate additions
-    if (AddedCourses.has(selectedCourseID)) {
-        alert("This course has already been added.");
-        return;
-    }
+    requestData = {id: selectedCourseID};
+    fetch('/api/join_course/', {
+      method: 'POST',
+       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken()},
+        body: JSON.stringify(requestData)
+   });
 
-    // Retrieve course name (if needed)
-    const courseName = DBCourseList[selectedCourseID];
-
-    // Example: Track added courses in memory
-    AddedCourses.add(selectedCourseID);
-
-    // Example: Show the course somewhere on screen
-    const container = document.getElementById("addedCoursesDisplay");
-    const courseEntry = document.createElement("div");
-    courseEntry.textContent = `${selectedCourseID} - ${courseName}`;
-    container.appendChild(courseEntry);
-
-    // Optional: send to backend
-    // fetch('/api/add_course/', {
-    //     method: 'POST',
-    //     headers: {'Content-Type': 'application/json'},
-    //     body: JSON.stringify({ course_id: selectedCourseID })
-    // });
-
-    // Optional: Clear dropdown or give visual feedback
-    courseSelect.selectedIndex = 0;
+    reloadData();
 }
 
 
@@ -67,16 +71,15 @@ function assignTextbooksToCourse() {
         return;
     }
 
-    // Here you’d update a local object or send this to the backend
-    // For example, updating a dictionary like:
-    if (!CourseToTextbookMap[selectedCourse]) {
-        CourseToTextbookMap[selectedCourse] = new Set();
-    }
-    selectedTextbooks.forEach(isbn => CourseToTextbookMap[selectedCourse].add(isbn));
+    requestData = {id: selectedCourse, textbook_ids:selectedTextbooks};
+    fetch('/api/assign_books/', {
+      method: 'POST',
+       headers: {'Content-Type': 'application/json','X-CSRFToken': getCSRFToken()},
+        body: JSON.stringify(requestData)
+   });
 
-    alert(`Assigned ${selectedTextbooks.length} textbook(s) to course ${selectedCourse}`);
-    
-    // Optionally: refresh or show assignment somewhere
+    reloadData();
+
 }
 
 
@@ -1049,26 +1052,7 @@ function serializeQuestion(question, identity) {
     return requestData;
 }
 
-function populateExistingSelectors() {
-    const existingCourse = document.getElementById("existingCourse");
-    const courseTargets = document.getElementById("courseTargets");
-    const existingTextbook = document.getElementById("existingTextbook");
 
-    existingCourse.innerHTML = `<option value="" disabled selected>Choose a Course</option>`;
-    courseTargets.innerHTML = `<option value="" disabled selected>Choose a Course for the Textbooks:</option>`;
-    existingTextbook.innerHTML = ``; // clear first
-
-    for (const [course_id, course_name] of Object.entries(DBCourseList)) {
-        const option = `<option value="${course_id}">${course_id} - ${course_name}</option>`;
-        existingCourse.innerHTML += option;
-        courseTargets.innerHTML += option;
-    }
-
-    for (const [isbn, title] of Object.entries(DBTextbookList)) {
-        const option = `<option value="${isbn}">${title} - ${isbn}</option>`;
-        existingTextbook.innerHTML += option;
-    }
-}
 
 
 function renderUserData(data){
