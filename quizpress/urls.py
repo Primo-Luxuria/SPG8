@@ -33,7 +33,8 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path("export-csv/", views.export_csv, name="export_csv"),
     path('export_preview/', views.export_preview, name='export_preview'),
-    path('import_csv/', views.import_csv, name='import_csv')
+    path('import_csv/', views.import_csv, name='import_csv'),
+    path('create_csv_template/', views.create_csv_template, name='create_csv_template')
 ]
 
 if settings.DEBUG:

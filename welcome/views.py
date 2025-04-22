@@ -1,6 +1,9 @@
+import csv
 import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
+from http.client import responses
+
 import openpyxl
 from openpyxl.utils import get_column_letter
 from django.db import connection, IntegrityError
@@ -1606,6 +1609,103 @@ def import_csv(request):
 
     #print("end of import_csv function.")
     # end of import_csv function
+#
+
+
+def create_csv_template(request):
+
+    # start of create_csv_template function
+    print('start of create_csv_template function')
+
+    model_for_template = request.body.decode('utf-8')  # decode the byte string to normal string
+    print(f"Model for template: {model_for_template}")
+    if model_for_template is None or model_for_template == '':
+        return JsonResponse({'error': 'No model was given to create a CSV template for'}, status=400)
+
+    column_names_list = []
+    row_one = []
+    row_two = []
+
+    if model_for_template == 'Textbook':
+        column_names_list = ['id', 'title', 'author', 'version', 'isbn', 'link', 'published', 'publisher_id']
+        row_one = ['1', 'Linear Algebra', '"Math Teacher"', '5', '123456789', 'amazon.com/book1', '1', '5']
+        row_two = ['2', 'C++ for Everyone', '"Some other author"', '3', '678216378', 'pearson.com/book2', '1', '3']
+    elif model_for_template == 'UserProfile':
+        column_names_list = ['id', 'role', 'user_id']
+        row_one = ['1', 'teacher', '1']
+        row_two = ['2', 'publisher', '2']
+    elif model_for_template == 'Course':
+        column_names_list = ['id', 'course_id', 'name', 'crn', 'sem', 'user_id', 'published', 'textbook_id']
+        row_one = ['1', 'CS499' ,'"Senior Project Design"', '3213', '"Fall 2024"', '1', '1', '3']
+        row_two = ['2', 'MA385' ,'"Intro to Probability and Statistics"', '2131', 'Spring 2025', '2', '0', '1']
+    elif model_for_template == 'Question':
+        column_names_list = ['id', 'text', 'ansimg', 'score', 'eta', 'reference', 'directions', 'comments', 'created_at', 'updated_at', 'course_id', 'author_id', 'chapter', 'answer', 'section', 'img', 'qtype', 'textbook_id', 'published']
+        row_one = ['1', '"Who is the greatest Fortnite player in the world?"', '"/media/ansimg1.jpg"', '2', '5', 'reference1', 'directions1', '"sample comment"', '"2025-04-16 10:32:03.405280"', '"2025-04-16 10:32:03.390905"', '1', '1', '0', 'NULL', '1', 'media/img1.jpg', 'mc', '4', '1']
+        row_two = ['2', '"How much wood would a ..."', '"/media/ansimg1.jpg"', '4', '2', 'reference2', 'directions2', '"another sample comment"', '"2025-04-17 10:32:03.385875"', '"2025-04-27 10:32:03.405297"', '2', '1', '1', 'NULL', '2', 'media.img2.jpg', 'fb', '2', '0']
+    elif model_for_template == 'Options':
+        column_names_list = ['id', 'text', 'question_id', 'image', 'order', 'pair']
+        row_one = ['1', '"yes, because it is needed"', '3', 'NULL', '1', 'NULL']
+        row_two = ['2', '"Certain activities are prohibited."', '2', '/media/image.jpg', '2', 'NULL']
+    elif model_for_template == 'Answers':
+        column_names_list = ['id', 'text', 'answer_graphic', 'response_feedback_text', 'response_feedback_graphic', 'question_id', 'pair']
+        row_one = ['1', 'D', 'NULL', 'NULL', '', '1', 'NULL']
+        row_two = ['2', 'true', '', 'NULL', '/media/feedback_graphic.jpg', '2', 'NULL']
+    elif model_for_template == 'Template':
+        column_names_list = ['id', 'name', 'bodyFont', 'bodyFontSize', 'headerText', 'footerText', 'course_id', 'coverPageID', 'pageNumbersInFooter', 'pageNumbersInHeader', 'subtitleFont', 'subtitleFontSize', 'titleFont', 'titleFontSize', 'textbook_id', 'partStructure', 'bonusSection', 'published', 'author_id', 'courseTag', 'dateTag', 'nameTag', 'bonusQuestions']
+        row_one = ['1', '"System Default"', '"Times New Roman"', '12', '', '"Please read all questions carefully"', '1', '0', '1', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', 'NULL', '"[{""sections"": [{""questionType"": ""tf"", ""sectionNumber"": 1}], ""partNumber"": 1}]"', '0', '1', '1', '', '', '', '[]']
+        row_two = ['2', '"QTI Default"', '"Times New Roman"', '12', 'NULL', 'NULL', '1', '0', '0', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', '1', '"[{""sections"": [{""questionType"": ""mc"", ""sectionNumber"": 1}, {""questionType"": ""tf"", ""sectionNumber"": 2}, {""questionType"": ""fb"", ""sectionNumber"": 3}, {""questionType"": ""es"", ""sectionNumber"": 4}, {""questionType"": ""ma"", ""sectionNumber"": 5}, {""questionType"": ""ms"", ""sectionNumber"": 6}], ""partNumber"": 1}]"', '0', '1', '1', 'NULL', 'NULL', 'NULL', 'NULL']
+    elif model_for_template == 'CoverPage':
+        column_names_list = ['id', 'name', 'testNum', 'date', 'file', 'showFilename', 'instructions', 'course_id', 'blank', 'published', 'textbook_id', 'author_id']
+        row_one = ['1', 'Coverpage1', '1', '"2025-04-19"', 'defaultpage', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+        row_two = ['2', '"Coverpage 2"', '2', '"2025-04-19"', '"defaultpage_3"', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+    elif model_for_template == 'Attachment':
+        column_names_list = ['id', 'file', 'course_id', 'name', 'published', 'textbook_id', 'author_id']
+        row_one = ['1', '"attachments/example.csv"', '1', '"attachment name 1"', '0', 'NULL', '1']
+        row_two = ['2', '"attachments/another_example.jpg"', '2', 'name2', '0', 'NULL', '1']
+    elif model_for_template == 'Test':
+        column_names_list = ['id', 'name', 'date', 'filename', 'is_final', 'created_at', 'updated_at', 'course_id', 'template_id', 'textbook_id', 'templateID', 'author_id']
+        row_one = []
+        row_two = []
+    elif model_for_template == 'TestPart':
+        column_names_list = ['id', 'part_number', 'test_id']
+        row_one = ['1', '1', '1']
+        row_two = ['2', '2', '1']
+    elif model_for_template == 'TestSection':
+        column_names_list = ['id', 'section_number', 'question_type', 'part_id']
+        row_one = ['1', '1', 'mc', '1']
+        row_two = ['2', '1', 'tf', '2']
+    elif model_for_template == 'TestQuestion':
+        column_names_list = ['id', 'assigned_points', 'order', 'randomize', 'special_instructions', 'question_id', 'test_id', 'section_id']
+        row_one = ['1', '5', '1', '1', '"special instructions"', '2', '6', '1']
+        row_two = ['2', '7', '2', '0', '"more special instructions"', '5', '3', '2']
+    elif model_for_template == 'Feedback':
+        column_names_list = ['id', 'rating', 'comments', 'created_at', 'user_id', 'question_id', 'test_id', 'averageScore', 'time']
+        row_one = []
+        row_two = []
+    elif model_for_template == 'FeedbackResponse':
+        column_names_list = ['id', 'text', 'date', 'created_at', 'feedback_id', 'user_id']
+        row_one = []
+        row_two = []
+    else:
+        print('Invalid model name given')
+        return JsonResponse({'error': 'Invalid model name given'}, status=400)
+
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
+
+    #file_writer = csv.writer(response)
+    file_writer = csv.writer(response, quoting=csv.QUOTE_MINIMAL, quotechar="'")
+
+    file_writer.writerow(column_names_list)
+    file_writer.writerow(row_one)
+    file_writer.writerow(row_two)
+
+    print('Template csv created!')
+    return response
+
+    # end of create_csv_template function
+    # print('end of create_csv_template function')
 #
 
 

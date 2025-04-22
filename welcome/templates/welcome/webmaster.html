@@ -728,6 +728,56 @@ async function deleteItem(element) {
 
     }
 
+    function downloadCsvTemplate()
+    {
+        let modelForTemplate;
+        let radioButton = document.querySelector('input[name="importSelection"]:checked');
+
+        if (radioButton)
+        {
+            modelForTemplate = radioButton.value;
+        }
+        else
+        {
+            alert("Please select a model to download template for");
+            return;
+        }
+
+        fetch('/create_csv_template/', {
+            method: 'POST',
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: modelForTemplate
+        })
+            .then(response => {
+                if (!response.ok)
+                {
+                    return response.json().then(data => {
+                        alert("Error: " + data.error);
+                        return null; // return null to signal we should not continue
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                if (!blob)
+                {
+                    return;
+                }
+                // create a temporary download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "templateForImport.csv";  // name of downloaded file
+                document.body.appendChild(a);
+                a.click();  // trigger download
+                a.remove();  // clean up the DOM
+                window.URL.revokeObjectURL(url);  // release memory
+            })
+            .catch(error => console.error("An error occurred while attempting to download template", error));
+    }
+
 </script>
 <div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
 <div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
@@ -786,6 +836,7 @@ async function deleteItem(element) {
                 </form>
                 <button onclick="importTableToDatabase()">Import</button>
                 <input type="file" id="importedCsv" accept=".csv" />
+                <button onclick = "downloadCsvTemplate()" style="float: right;" >Download Template</button>
             </div>
 
         </div>
