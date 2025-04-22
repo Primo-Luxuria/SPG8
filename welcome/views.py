@@ -1,22 +1,27 @@
+import csv
 import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
+from http.client import responses
+
 import openpyxl
 from openpyxl.utils import get_column_letter
-from django.db import connection
+from django.db import connection, IntegrityError
 import copy
+import pandas as pd
+import io
+from django.apps import apps
+from django.db import models
 
 from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
-from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, login
 from django.middleware.csrf import get_token
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.template.loader import render_to_string
 
 from welcome.models import *
 
@@ -110,6 +115,7 @@ def parse_qti_xml(request):
     This supports QTI version 1.2 only.
     """
     start_time = time.perf_counter()
+
     class ImageDataPair:
         def __init__(self, raw_image_data, actual_image_name):
             self.raw_image_data = raw_image_data
@@ -124,7 +130,8 @@ def parse_qti_xml(request):
     # creates a new question record/entry
     def create_question(g_course, g_q_type, g_q_text, g_points):
         temp_question_instance = Question.objects.create(
-            course=g_course, # this is because, logically, when questions/tests are uploaded to a course, are they not part of it?
+            course=g_course,
+            # this is because, logically, when questions/tests are uploaded to a course, are they not part of it?
             qtype=g_q_type,
             text=g_q_text,
             score=g_points
@@ -132,7 +139,7 @@ def parse_qti_xml(request):
 
         # checks if user is logged in
         if request.user.is_authenticated:
-            temp_question_instance.author = request.user # sets to the current user
+            temp_question_instance.author = request.user  # sets to the current user
             temp_question_instance.save()
 
         return temp_question_instance
@@ -164,7 +171,23 @@ def parse_qti_xml(request):
         else:
             return data_to_return
 
-    def parse_just_xml(meta_path, non_meta_path, the_course):
+
+    def field_exists(given_model_name, given_field_name):
+
+        try:
+            model = apps.get_model(app_label='welcome', model_name=given_model_name)  # get Model class from Welcome app in Django
+        except LookupError:  # if model could not be found
+            print(f'Model {given_model_name} not found.')
+            return False
+
+        model_fields_names_list = [field.name for field in model._meta.fields]  # model._meta.fields is a list of field objects
+
+        if given_field_name in model_fields_names_list:
+            return True
+        else:
+            return False
+
+    def parse_just_xml(meta_path, non_meta_path, the_course, template_instance):
 
         print(f"processing file: {meta_path}")
         # path to metadata file
@@ -193,26 +216,35 @@ def parse_qti_xml(request):
             return JsonResponse({"error": f"Element '{my_tag}' not found in XML!"}, status=400)
 
         # Extract 'ident' and 'title' attribute from the element that node represents
-        the_test_title = node.get("title") # test name
+        the_test_title = node.get("title")  # test name
         test_identifier = node.get("ident")
 
         # Create a new Test record
         test_instance = Test.objects.create(
             course=the_course,
             textbook=the_course.textbook,
-            name=the_test_title
+            name=the_test_title,
+            template=template_instance,
+            is_final=True
         )
+        if field_exists('Test', 'templateID'):
+            test_instance.templateID = template_instance.id
+            test_instance.save()
+
         test_part_instance = TestPart.objects.create(
             test=test_instance
         )
         number_of_sections = 0
 
+        mc_item_list = []
+        tf_item_list = []
+        fb_item_list = []
+        es_item_list = []
+        ma_item_list = []
+        ms_item_list = []
+
         for section in root.findall(".//section"):
-            number_of_sections = number_of_sections + 1
-            test_section_instance = TestSection.objects.create(
-                part=test_part_instance,
-                section_number=number_of_sections
-            )
+            # number_of_sections = number_of_sections + 1
 
             for item in section.findall(".//item"):
 
@@ -263,7 +295,7 @@ def parse_qti_xml(request):
                     if image_data_pair is not None:
                         # Save the image to the img field, then update the record/entry
                         question_instance.img.save(image_data_pair.actual_image_name,
-                                                                ContentFile(image_data_pair.raw_image_data))
+                                                   ContentFile(image_data_pair.raw_image_data))
                         question_instance.save()
                         print(f"{question_instance.img.url}")
 
@@ -271,43 +303,88 @@ def parse_qti_xml(request):
                         html_obj = BeautifulSoup(question_text_field, 'html.parser')
                         # Find the element with "img" tag
                         my_img_element = html_obj.find('img')
-                        my_img_element['src'] = question_instance.img.url # change src attribute
-                        question_text_field = str(html_obj) # save html as string
-                        question_instance.text = question_text_field # update text field
-                        question_instance.save() # save/update entry in database
+                        my_img_element['src'] = question_instance.img.url  # change src attribute
+                        question_text_field = str(html_obj)  # save html as string
+                        question_instance.text = question_text_field  # update text field
+                        question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
 
+                    mc_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
+
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key == correct_answer_ident:
-                            question_instance.answer = value
+                            #question_instance.answer = value
+                            option_letter = get_column_letter(current_place)
+                            answer_instance = Answers.objects.create(
+                                text=option_letter,
+                                question=question_instance
+                            )
+                            option_instance = Options.objects.create(
+                                text=value,
+                                question=question_instance,
+                                order=current_place
+                            )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
-                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
 
                                 # Parse the HTML using BeautifulSoup4 library
                                 html_obj = BeautifulSoup(value, 'html.parser')
                                 # Find the element with "img" tag
                                 my_img_element = html_obj.find('img')
-                                my_img_element['src'] = question_instance.ansimg.url  # change src attribute
-                                value = str(html_obj)  # save html as string
-                                question_instance.answer = value  # update answer text field
-                                question_instance.save()  # save/update entry in database
+
+                                if field_exists('Question', 'ansimg'):
+                                    question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
+                                                                  ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = question_instance.ansimg.url  # change src attribute
+
+                                    value = str(html_obj)  # save html as string
+
+                                    if field_exists('Question', 'answer'):
+                                        question_instance.answer = value  # update answer text field
+
+                                    question_instance.save()  # save/update entry in database
+
+                                if field_exists('Answers', 'answer_graphic'):
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
+
+                                if field_exists('Options', 'image'):
+                                    option_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = option_instance.image.url
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
 
                             question_instance.save()
                         else:
                             options_instance = Options.objects.create(
+                                text=value,
                                 question=question_instance,
-                                text=value
+                                order=current_place
                             )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
-                                options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+                                options_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                            ContentFile(temp_img_data_pair.raw_image_data))
                                 options_instance.save()
 
                                 # Parse the HTML using BeautifulSoup4 library
@@ -356,22 +433,36 @@ def parse_qti_xml(request):
                         question_instance.text = question_text_field  # update text field
                         question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
 
+                    tf_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
+
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key == correct_answer_ident:
-                            question_instance.answer = value
-                            temp_img_data_pair = check_embedded_graphic(value)
-                            if temp_img_data_pair is not None:
-                                question_instance.ansimg.save(temp_img_data_pair.actual_image_name,
-                                                              ContentFile(temp_img_data_pair.raw_image_data))
+                            if field_exists('Question', 'answer'):
+                                question_instance.answer = value
+                            answer_instance = Answers.objects.create(
+                                text=value.lower(),
+                                question=question_instance
+                            )
 
-                            question_instance.save()
+                    current_place = 0
+                    for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
+                        option_instance = Options.objects.create(
+                            text=value,
+                            question=question_instance,
+                            order=current_place
+                        )
 
                 elif the_question_type == 'short_answer_question':  # fill-in-the-blank question (single)
 
@@ -402,12 +493,16 @@ def parse_qti_xml(request):
                         question_instance.text = question_text_field  # update text field
                         question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
+
+                    fb_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
                     node = item.find('resprocessing')
                     for respcondition_elem in node.findall('.//respcondition'):
@@ -419,10 +514,11 @@ def parse_qti_xml(request):
                                 )
                                 temp_img_data_pair = check_embedded_graphic(varequal_elem.text)
                                 if temp_img_data_pair is not None:
-                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
                                     answer_instance.save()
 
-                elif the_question_type == 'multiple_answers_question': # Multiple Selections question
+                elif the_question_type == 'multiple_answers_question':  # Multiple Selections question
 
                     the_question_type = 'ms'
 
@@ -462,42 +558,74 @@ def parse_qti_xml(request):
                         question_instance.text = question_text_field  # update text field
                         question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
 
+                    ms_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
+
+                    current_place = 0
                     for key, value in answer_choices_dict.items():
+                        current_place = current_place + 1
                         if key in correct_answer_ident_list:
                             answer_instance = Answers.objects.create(
                                 question=question_instance,
                                 text=value
                             )
-                            temp_img_data_pair = check_embedded_graphic(value)
-                            if temp_img_data_pair is not None:
-                                answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
-                                                                    ContentFile(temp_img_data_pair.raw_image_data))
-                                answer_instance.save()
-
-                                # Parse the HTML using BeautifulSoup4 library
-                                html_obj = BeautifulSoup(value, 'html.parser')
-                                # Find the element with "img" tag
-                                my_img_element = html_obj.find('img')
-                                my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
-                                value = str(html_obj)  # save html as string
-                                answer_instance.text = value  # update answer_instance text field
-                                answer_instance.save()  # save/update entry in database
-
-                        else:
-                            options_instance = Options.objects.create(
+                            option_instance = Options.objects.create(
+                                text=value,
                                 question=question_instance,
-                                text=value
+                                order=current_place
                             )
                             temp_img_data_pair = check_embedded_graphic(value)
                             if temp_img_data_pair is not None:
-                                options_instance.image.save(temp_img_data_pair.actual_image_name, ContentFile(temp_img_data_pair.raw_image_data))
+
+                                if field_exists('Answers', 'answer_graphic'):
+                                    answer_instance.answer_graphic.save(temp_img_data_pair.actual_image_name,
+                                                                        ContentFile(temp_img_data_pair.raw_image_data))
+                                    answer_instance.save()
+
+                                    # Parse the HTML using BeautifulSoup4 library
+                                    html_obj = BeautifulSoup(value, 'html.parser')
+                                    # Find the element with "img" tag
+                                    my_img_element = html_obj.find('img')
+                                    my_img_element['src'] = answer_instance.answer_graphic.url  # change src attribute
+                                    value = str(html_obj)  # save html as string
+                                    answer_instance.text = value  # update answer_instance text field
+                                    answer_instance.save()  # save/update entry in database
+
+                                if field_exists('Options', 'image'):
+                                    # Parse the HTML using BeautifulSoup4 library
+                                    html_obj = BeautifulSoup(value, 'html.parser')
+                                    # Find the element with "img" tag
+                                    my_img_element = html_obj.find('img')
+
+
+                                    # save the image to ImageField
+                                    option_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                               ContentFile(temp_img_data_pair.raw_image_data))
+                                    my_img_element['src'] = option_instance.image.url
+
+                                    value = str(html_obj)  # save html as string
+
+                                    option_instance.text = value
+                                    option_instance.save()
+
+                        else:
+                            options_instance = Options.objects.create(
+                                text=value,
+                                question=question_instance,
+                                order=current_place
+                            )
+                            temp_img_data_pair = check_embedded_graphic(value)
+                            if temp_img_data_pair is not None:
+                                options_instance.image.save(temp_img_data_pair.actual_image_name,
+                                                            ContentFile(temp_img_data_pair.raw_image_data))
                                 options_instance.save()
 
                                 # Parse the HTML using BeautifulSoup4 library
@@ -509,12 +637,12 @@ def parse_qti_xml(request):
                                 options_instance.text = value  # update option text field
                                 options_instance.save()  # save/update entry in database
 
-                elif the_question_type == 'matching_question': # this is explicitly stated in rubric to support
+                elif the_question_type == 'matching_question':  # this is explicitly stated in rubric to support
                     # Canvas requires you to add at least one answer
 
                     the_question_type = 'ma'
 
-                    answer_choices_dict = {} # right side options and their ID's
+                    answer_choices_dict = {}  # right side options and their ID's
                     left_side_dict = {}
 
                     question_instance = create_question(the_course, the_question_type, question_text_field,
@@ -538,20 +666,25 @@ def parse_qti_xml(request):
                         question_instance.text = question_text_field  # update text field
                         question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
+
+                    ma_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
                     # find left sides
-                    for response_lid_elem in node.findall('response_lid'): # for all response_lid elements in list
+                    for response_lid_elem in node.findall('response_lid'):  # for all response_lid elements in list
                         side_key = response_lid_elem.get('ident')
                         side_text = response_lid_elem.find('material').find('mattext').text
                         left_side_dict[side_key] = side_text
                     # find right sides
-                    for response_label_elem in node.find('response_lid').find('render_choice').findall('response_label'):
+                    for response_label_elem in node.find('response_lid').find('render_choice').findall(
+                            'response_label'):
                         side_key = response_label_elem.get('ident')
                         side_text = response_label_elem.find('.//mattext').text
                         answer_choices_dict[side_key] = side_text
@@ -567,30 +700,40 @@ def parse_qti_xml(request):
                             right_side_key_to_delete_list.append(right_key)
                             # this makes a dictionary of matching pairs
                             matching_pairs_dict[left_side_dict.get(left_key)] = answer_choices_dict.get(right_key)
-                    unique_key_list_to_del = list(set(right_side_key_to_delete_list)) # this removes duplicate keys from list
+                    unique_key_list_to_del = list(
+                        set(right_side_key_to_delete_list))  # this removes duplicate keys from list
                     for key_string in unique_key_list_to_del:
                         del answer_choices_dict[key_string]  # deletes a response option that was a correct right side
+
+                    current_place = 0
+                    pair_number = 0
                     # now save matching pairs to database
                     for key, value in matching_pairs_dict.items():
-                        matching_pair_string = ""
-                        if key is not None:
-                            matching_pair_string += key
-                        matching_pair_string += ";;;;; "
-                        if value is None:
-                            matching_pair_string += ";;;;;"
-                        else:
-                            matching_pair_string += value
+                        pair_number = pair_number + 1
+                        current_place = current_place + 1
+                        matching_pair_string = f"{{{key}, {value}}}"
 
                         # matching questions CANNOT have embedded graphics in responses
                         answer_instance = Answers.objects.create(
                             question=question_instance,
                             text=matching_pair_string
                         )
-                    # save distractors to database
-                    for value in answer_choices_dict.values():
+
+                        options_pair_dict = {'left': key, 'right': value, 'pairNum': pair_number}
                         option_instance = Options.objects.create(
                             question=question_instance,
-                            text=value
+                            order=current_place,
+                            pair=options_pair_dict
+                        )
+
+                    current_place = 0
+                    # save distractors to database
+                    for value in answer_choices_dict.values():
+                        current_place = current_place + 1
+                        option_instance = Options.objects.create(
+                            text=value,
+                            question=question_instance,
+                            order=current_place
                         )
 
                 elif the_question_type == 'essay_question':
@@ -620,12 +763,16 @@ def parse_qti_xml(request):
                         question_instance.text = question_text_field  # update text field
                         question_instance.save()  # save/update entry in database
 
+                    """
                     testquestion_instance = TestQuestion.objects.create(
                         test=test_instance,
                         question=question_instance,
                         assigned_points=max_points_for_question,
                         section=test_section_instance
                     )
+                    """
+
+                    es_item_list.append({'question': question_instance, 'assigned_points': max_points_for_question})
 
                 # commented out because currently not supported
                 """
@@ -645,6 +792,125 @@ def parse_qti_xml(request):
                     # placeholder for any future changes, but 99.9% sure this is done
                     print('')
                 """
+
+        # comment
+        if mc_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='mc'
+            )
+
+            for item in mc_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
+        if tf_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='tf'
+            )
+
+            for item in tf_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
+        if fb_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='fb'
+            )
+            for item in fb_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
+        if ms_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='ms'
+            )
+
+            for item in ms_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
+        if es_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='es'
+            )
+            for item in es_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
+
+        if ma_item_list:
+            number_of_sections += 1
+            test_section_instance = TestSection.objects.create(
+                part=test_part_instance,
+                section_number=number_of_sections,
+                question_type='ma'
+            )
+
+            for item in ma_item_list:
+                testquestion_instance = TestQuestion.objects.create(
+                    test=test_instance,
+                    question=item.get('question'),
+                    assigned_points=item.get('assigned_points'),
+                    section=test_section_instance
+                )
+
+                # update test section
+                item.get('question').section = number_of_sections
+                item.get('question').save()
 
                 #
 
@@ -670,7 +936,7 @@ def parse_qti_xml(request):
         print("No file uploaded to website.")
 
     if uploaded_file is None:
-        return JsonResponse({"message": "No file uploaded or it doesn't exist.", "file_info": file_info})
+        return JsonResponse({"error": "No file uploaded or it doesn't exist.", "file_info": file_info}, status=400)
 
     course_id = request.POST.get("courseID")
     course_name = request.POST.get("courseName")
@@ -705,10 +971,11 @@ def parse_qti_xml(request):
     # Check if the user is authenticated (logged in)
     if request.user.is_authenticated:
 
-        course_instance.user = request.user # sets field to current user
+        current_user = request.user
+
+        course_instance.user = current_user  # sets field to current user
         course_instance.save()
 
-        current_user = request.user
         # Check if teacher already in course
         if current_user in course_instance.teachers.all():
             print(f'{current_user.username} teacher already in {course_instance.name} course')
@@ -718,6 +985,38 @@ def parse_qti_xml(request):
             print(f'{current_user.username} teacher ADDED to {course_instance.name} course')
     else:
         print("User is not logged in.")
+
+    # Check if the user is authenticated (logged in)
+    if request.user.is_authenticated:
+        default_parsed_template, created = Template.objects.get_or_create(
+            course=course_instance,
+            textbook=textbook_instance,
+            name="QTI Default",
+            author=request.user,
+            defaults={
+                # "author": request.user,
+                "titleFont": "Times New Roman",
+                "titleFontSize": 36,
+                "subtitleFont": "Times New Roman",
+                "subtitleFontSize": 24,
+                "bodyFont": "Times New Roman",
+                "bodyFontSize": 12,
+                "pageNumbersInHeader": False,
+                "pageNumbersInFooter": False,
+                "coverPageID": 0,
+                "partStructure": [{"sections": [{"questionType": "mc", "sectionNumber": 1},
+                                                {"questionType": "tf", "sectionNumber": 2},
+                                                {"questionType": "fb", "sectionNumber": 3},
+                                                {"questionType": "es", "sectionNumber": 4},
+                                                {"questionType": "ma", "sectionNumber": 5},
+                                                {"questionType": "ms", "sectionNumber": 6}], "partNumber": 1}],
+                "bonusSection": False,
+                "published": True
+            }
+        )
+    else:
+        print("User is not authenticated")
+        return JsonResponse({"error": "User is not authenticated."}, status=401)
 
     # 00 End
     # """
@@ -742,9 +1041,16 @@ def parse_qti_xml(request):
     else:
         path_to_zip_file = uploaded_file
 
+    if not path_to_zip_file.name.endswith('.zip'):
+        return JsonResponse({"error": "File is not a QTI file."}, status=400)
+
     with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
         # List all files inside the zip file
         filename_list = zip_ref.namelist()
+
+        if "imsmanifest.xml" not in filename_list:
+            print("File is not valid QTI file.")
+            return JsonResponse({"error": "File is not a valid QTI file."}, status=400)
 
         for file_name in filename_list:
 
@@ -774,7 +1080,7 @@ def parse_qti_xml(request):
                             inner_file.seek(0)
 
                             # this calls the function that actually handles the parsing
-                            parse_just_xml(outer_file, inner_file, course_instance)
+                            parse_just_xml(outer_file, inner_file, course_instance, default_parsed_template)
                             #
 
     #
@@ -783,15 +1089,15 @@ def parse_qti_xml(request):
     print(execution_time)
     # this is here because the javascript that calls the Parser depends on what it returns
     if file_info is None:
-        print("Success! Created test record")
-        return JsonResponse({"Success": "created Test record."}, status=555)
-        
+        print("Successfully imported QTI file!")
+        return JsonResponse({"success": "Successfully imported QTI file!"}, status=200)
+
     else:
         print("File processed successfully!")
-        return JsonResponse({"message": "File processed successfully!", "file_info": file_info})
-        
-#
+        return JsonResponse({"success": "Successfully imported QTI file!", "file_info": file_info}, status=200)
 
+
+#
 
 
 def export_preview(request):
@@ -1142,6 +1448,273 @@ def export_csv(request):
 #
 
 
+
+def import_csv(request):
+
+    # start of import_csv function
+    print("import_csv views function started")
+
+    imported_csv_file = None
+
+    if request.method != "POST":
+        print("request.method was not POST")
+        return JsonResponse({'error': 'request.method was not POST', 'success': False}, status=400)
+
+    if request.FILES.get("imported_csv_file"):
+        imported_csv_file = request.FILES["imported_csv_file"]  # Get the uploaded file
+        print("File uploaded:", imported_csv_file.name)
+    else:
+        print("No file uploaded to website.")
+        return JsonResponse({'error': 'No file uploaded to website.', 'success': False}, status=400)
+
+    if  not imported_csv_file.name.endswith(".csv"):
+        print("File uploaded is not a .csv file.")
+        return JsonResponse({'error': 'File uploaded is not a .csv file.', 'success': False}, status=400)
+
+    chosen_table_name = None
+    if request.POST.get("table_to_import"):
+        chosen_table_name = request.POST.get("table_to_import")
+    else:
+        print("No table name was given to import")
+        return JsonResponse({'error': 'No table name was given to import', 'success': False}, status=400)
+
+    delete_all_rows = request.POST.get("deleteAllRows")
+
+    if delete_all_rows is None:
+        print("No indication as to whether or not to delete all rows was given")
+        return JsonResponse({'error': 'No indication as to whether or not to delete all rows was given', 'success': False}, status=400)
+
+    should_del_all_rows = False
+    if delete_all_rows == "true":
+        should_del_all_rows = True
+
+    try:
+        # [possibly detect encoding in file. ex: utf-8]
+        # encoding only supports utf-8
+
+        raw_file_bytes = imported_csv_file.read() # files uploaded by HTTP are always bytes. bytes object
+        encoding_type = 'utf-8'
+        decoded_file_bytes = raw_file_bytes.decode(encoding_type) # turn raw bytes into a Python string
+        file_like_string = io.StringIO(decoded_file_bytes) # wraps the string in a file-like object
+
+        # df is a Pandas DataFrame. pd is "alias" for Pandas library
+        df = pd.read_csv(file_like_string)
+
+    except pd.errors.ParserError: # if csv-parsing error
+        print("Error while parsing CSV. The uploaded file may not be a valid CSV file.")
+        return JsonResponse({'error': 'Error while parsing CSV. The uploaded file may not be a valid CSV file.', 'success': False}, status=400)
+    except UnicodeDecodeError: # if decoding error
+        print("The uploaded file could not be decoded")
+        return JsonResponse({'error': 'The uploaded file could not be decoded', 'success': False}, status=400)
+    except Exception as e:
+        print(f"An unexpected error occurred in Django while initially handling the file: {str(e)}")
+        return JsonResponse({'error': 'An unexpected error occurred while initially handling the file.', 'success': False}, status=400)
+
+    if df.empty: # if csv is empty
+        print("The uploaded CSV file is empty")
+        return JsonResponse({'error': 'The uploaded CSV file is empty', 'success': False}, status=400)
+
+    model_name = chosen_table_name
+
+    try:
+        model = apps.get_model(app_label='welcome', model_name=model_name) # get Model class
+        print("Importing into model:", model.__name__)
+    except LookupError: # if model could not be found
+        return JsonResponse({'error': f'Model {model_name} not found.', 'success': False}, status=400)
+
+    model.objects.all().delete() # deletes all rows in respective table
+
+    rows_skipped = [] # keeps track of rows that couldn't be processed
+
+    model_fields = {field.name: field for field in model._meta.fields} # model._meta.fields is a list of field objects
+
+    # this code checks to make sure every given column is a field in Model. returns if a column is not a real field
+    column_names_list = list(df.columns)
+    for column_name in column_names_list:
+        if column_name not in model_fields:
+            if column_name.endswith('_id'):
+                real_name = column_name[:-3]
+                if real_name not in model_fields:
+                    print(f"Error: Column name {real_name} not found in model fields.")
+                    return JsonResponse({'error': f"Column name {real_name} not found in model fields.", 'success': False}, status=400)
+            else:
+                print(f"Error: Column name {column_name} not found in model fields.")
+                return JsonResponse({'error': f"Column name {column_name} not found in model fields.", 'success': False}, status=400)
+
+    # for debugging
+
+    # print(model_fields)
+    # for field in model_fields:
+    #     print(field)
+
+    successfully_imported_rows = 0
+
+    for index, row in df.iterrows():
+        should_continue = False
+        new_record_data_dict = {}
+
+        #print(index+1) # debugging
+
+        for column_name, value in row.items():
+
+            if column_name.endswith('_id'):
+                real_name = column_name[:-3]
+                field = model_fields.get(real_name)
+            else:
+                field = model_fields.get(column_name)
+
+            if field is None: # if field with column name doesn't exist
+                rows_skipped.append(int(index)+1)
+                should_continue = True
+                break
+
+            if value is None or pd.isna(value): # NaN is pandas version of NULL or None. one result of pd.isna() is whether value is NaN or not; boolean
+                if not field.null:  # if field does NOT allow a null value
+                    rows_skipped.append(int(index)+1)
+                    should_continue = True
+                    break
+                else:  # if field allows a null value
+                    new_record_data_dict[field.name] = None
+            else:
+
+                if field.is_relation:  # check if ForeignKey
+
+                    related_model = field.related_model # get Model class
+                    try:
+                        related_instance = related_model.objects.get(id=int(value)) # get instance of related Model
+                        new_record_data_dict[field.name] = related_instance
+                    except related_model.DoesNotExist:  # if the desired instance doesn't exist
+                        print(
+                            f"Record with ID of {value} does not exist in database table for {related_model.__name__} model")
+                        rows_skipped.append(int(index)+1)
+                        should_continue = True
+                        break
+                else:
+                    new_record_data_dict[field.name] = value
+
+
+        if should_continue:
+            continue # probably redundant. skips to next iteration. stops executing this iteration.
+        else:
+            try:
+                model.objects.create(**new_record_data_dict)  # create record in database
+                successfully_imported_rows += 1
+            except IntegrityError:
+                print(f"Record with given ID already exists in database table for model")
+                rows_skipped.append(int(index) + 1)
+
+    if successfully_imported_rows == 0:
+        print('No rows were imported')
+        return JsonResponse({'error': "All rows were skipped", 'success': False}, status=400)
+    if rows_skipped:
+        print(f"rows skipped: {rows_skipped}")
+        return JsonResponse({'message': 'CSV file imported. Some rows were skipped.', 'success': True, 'rows_skipped': rows_skipped}, status=200)
+    else:
+        print("All rows were imported successfully!")
+        return JsonResponse({'message': 'CSV file imported. All rows were imported successfully!', 'success': True}, status=200)
+
+    #print("end of import_csv function.")
+    # end of import_csv function
+#
+
+
+def create_csv_template(request):
+
+    # start of create_csv_template function
+    print('start of create_csv_template function')
+
+    model_for_template = request.body.decode('utf-8')  # decode the byte string to normal string
+    print(f"Model for template: {model_for_template}")
+    if model_for_template is None or model_for_template == '':
+        return JsonResponse({'error': 'No model was given to create a CSV template for'}, status=400)
+
+    column_names_list = []
+    row_one = []
+    row_two = []
+
+    if model_for_template == 'Textbook':
+        column_names_list = ['id', 'title', 'author', 'version', 'isbn', 'link', 'published', 'publisher_id']
+        row_one = ['1', 'Linear Algebra', '"Math Teacher"', '5', '123456789', 'amazon.com/book1', '1', '5']
+        row_two = ['2', 'C++ for Everyone', '"Some other author"', '3', '678216378', 'pearson.com/book2', '1', '3']
+    elif model_for_template == 'UserProfile':
+        column_names_list = ['id', 'role', 'user_id']
+        row_one = ['1', 'teacher', '1']
+        row_two = ['2', 'publisher', '2']
+    elif model_for_template == 'Course':
+        column_names_list = ['id', 'course_id', 'name', 'crn', 'sem', 'user_id', 'published', 'textbook_id']
+        row_one = ['1', 'CS499' ,'"Senior Project Design"', '3213', '"Fall 2024"', '1', '1', '3']
+        row_two = ['2', 'MA385' ,'"Intro to Probability and Statistics"', '2131', 'Spring 2025', '2', '0', '1']
+    elif model_for_template == 'Question':
+        column_names_list = ['id', 'text', 'ansimg', 'score', 'eta', 'reference', 'directions', 'comments', 'created_at', 'updated_at', 'course_id', 'author_id', 'chapter', 'answer', 'section', 'img', 'qtype', 'textbook_id', 'published']
+        row_one = ['1', '"Who is the greatest Fortnite player in the world?"', '"/media/ansimg1.jpg"', '2', '5', 'reference1', 'directions1', '"sample comment"', '"2025-04-16 10:32:03.405280"', '"2025-04-16 10:32:03.390905"', '1', '1', '0', 'NULL', '1', 'media/img1.jpg', 'mc', '4', '1']
+        row_two = ['2', '"How much wood would a ..."', '"/media/ansimg1.jpg"', '4', '2', 'reference2', 'directions2', '"another sample comment"', '"2025-04-17 10:32:03.385875"', '"2025-04-27 10:32:03.405297"', '2', '1', '1', 'NULL', '2', 'media.img2.jpg', 'fb', '2', '0']
+    elif model_for_template == 'Options':
+        column_names_list = ['id', 'text', 'question_id', 'image', 'order', 'pair']
+        row_one = ['1', '"yes, because it is needed"', '3', 'NULL', '1', 'NULL']
+        row_two = ['2', '"Certain activities are prohibited."', '2', '/media/image.jpg', '2', 'NULL']
+    elif model_for_template == 'Answers':
+        column_names_list = ['id', 'text', 'answer_graphic', 'response_feedback_text', 'response_feedback_graphic', 'question_id', 'pair']
+        row_one = ['1', 'D', 'NULL', 'NULL', '', '1', 'NULL']
+        row_two = ['2', 'true', '', 'NULL', '/media/feedback_graphic.jpg', '2', 'NULL']
+    elif model_for_template == 'Template':
+        column_names_list = ['id', 'name', 'bodyFont', 'bodyFontSize', 'headerText', 'footerText', 'course_id', 'coverPageID', 'pageNumbersInFooter', 'pageNumbersInHeader', 'subtitleFont', 'subtitleFontSize', 'titleFont', 'titleFontSize', 'textbook_id', 'partStructure', 'bonusSection', 'published', 'author_id', 'courseTag', 'dateTag', 'nameTag', 'bonusQuestions']
+        row_one = ['1', '"System Default"', '"Times New Roman"', '12', '', '"Please read all questions carefully"', '1', '0', '1', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', 'NULL', '"[{""sections"": [{""questionType"": ""tf"", ""sectionNumber"": 1}], ""partNumber"": 1}]"', '0', '1', '1', '', '', '', '[]']
+        row_two = ['2', '"QTI Default"', '"Times New Roman"', '12', 'NULL', 'NULL', '1', '0', '0', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', '1', '"[{""sections"": [{""questionType"": ""mc"", ""sectionNumber"": 1}, {""questionType"": ""tf"", ""sectionNumber"": 2}, {""questionType"": ""fb"", ""sectionNumber"": 3}, {""questionType"": ""es"", ""sectionNumber"": 4}, {""questionType"": ""ma"", ""sectionNumber"": 5}, {""questionType"": ""ms"", ""sectionNumber"": 6}], ""partNumber"": 1}]"', '0', '1', '1', 'NULL', 'NULL', 'NULL', 'NULL']
+    elif model_for_template == 'CoverPage':
+        column_names_list = ['id', 'name', 'testNum', 'date', 'file', 'showFilename', 'instructions', 'course_id', 'blank', 'published', 'textbook_id', 'author_id']
+        row_one = ['1', 'Coverpage1', '1', '"2025-04-19"', 'defaultpage', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+        row_two = ['2', '"Coverpage 2"', '2', '"2025-04-19"', '"defaultpage_3"', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+    elif model_for_template == 'Attachment':
+        column_names_list = ['id', 'file', 'course_id', 'name', 'published', 'textbook_id', 'author_id']
+        row_one = ['1', '"attachments/example.csv"', '1', '"attachment name 1"', '0', 'NULL', '1']
+        row_two = ['2', '"attachments/another_example.jpg"', '2', 'name2', '0', 'NULL', '1']
+    elif model_for_template == 'Test':
+        column_names_list = ['id', 'name', 'date', 'filename', 'is_final', 'created_at', 'updated_at', 'course_id', 'template_id', 'textbook_id', 'templateID', 'author_id']
+        row_one = ['1', '"Final Exam"', 'NULL', 'NULL', '1', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '7', '6', '7', '2']
+        row_two = ['1', '"Test of Honor"', 'NULL', 'NULL', '0', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '11', '2', '11', '1']
+    elif model_for_template == 'TestPart':
+        column_names_list = ['id', 'part_number', 'test_id']
+        row_one = ['1', '1', '1']
+        row_two = ['2', '2', '1']
+    elif model_for_template == 'TestSection':
+        column_names_list = ['id', 'section_number', 'question_type', 'part_id']
+        row_one = ['1', '1', 'mc', '1']
+        row_two = ['2', '1', 'tf', '2']
+    elif model_for_template == 'TestQuestion':
+        column_names_list = ['id', 'assigned_points', 'order', 'randomize', 'special_instructions', 'question_id', 'test_id', 'section_id']
+        row_one = ['1', '5', '1', '1', '"special instructions"', '2', '6', '1']
+        row_two = ['2', '7', '2', '0', '"more special instructions"', '5', '3', '2']
+    elif model_for_template == 'Feedback':
+        column_names_list = ['id', 'rating', 'comments', 'created_at', 'user_id', 'question_id', 'test_id', 'averageScore', 'time']
+        row_one = ['1', '5', 'comment1', '"2025-04-17 10:32:03.385875"', '5', '4', '3', '"93.24"', '']
+        row_two = ['2', '2', '"comment 2"', '"2025-04-17 10:32:03.385875"', '1', '5', '1', '"77.01"', 'NULL']
+    elif model_for_template == 'FeedbackResponse':
+        column_names_list = ['id', 'text', 'date', 'created_at', 'feedback_id', 'user_id']
+        row_one = ['1', '"feedback response"', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '1']
+        row_two = ['2', '"yes morefeedbackreponses"', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '2', '4']
+    else:
+        print('Invalid model name given')
+        return JsonResponse({'error': 'Invalid model name given'}, status=400)
+
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
+
+    #file_writer = csv.writer(response)
+    file_writer = csv.writer(response, quoting=csv.QUOTE_MINIMAL, quotechar="'")
+
+    file_writer.writerow(column_names_list)
+    file_writer.writerow(row_one)
+    file_writer.writerow(row_two)
+
+    print('Template csv created!')
+    return response
+
+    # end of create_csv_template function
+    # print('end of create_csv_template function')
+#
+
+
 # testing connecting the html files
 
 
@@ -1205,40 +1778,9 @@ def signup_handler(request):
         # For a GET request, simply render the signup form
         return render(request, 'signup.html')
 
-def export_test_view(request, test_id):
-    """
-    Exports the specified Test in HTML format.
-    If the URL query parameter "key" is "true", the export is the answer key
-    version (with answers in red and grading instructions in blue).
-    
-    """
-    # Key vs. normal check
-    key_export = request.GET.get('key', 'false').lower() == 'true'
-    
-    # Look up the test
-    test = get_object_or_404(Test, id=test_id)
-    
-    # Build context
-    context = {
-        'test': test,
-        'key_export': key_export,
-    }
-    
-    # Render the export template using render_to_string
-    html_output = render_to_string('export_test.html', context, request=request)
-    
-    # Build a filename based on the test name and whether it is a test key
-    file_suffix = "Key" if key_export else "Test"
-    filename = f"{test.name}-{file_suffix}.html"
-    
-    # Return the HTML as a downloadable file
-    response = HttpResponse(html_output, content_type="text/html")
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+
 
 
 """
-FAQ view
+The teacher view
 """
-def faq_view(request):
-    return render(request, 'welcome/faq.html')
