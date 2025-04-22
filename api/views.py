@@ -1299,6 +1299,7 @@ def get_question_list(field, suite):
 
     return master_question_list
 
+
 def get_attachment_list(field, suite):
     master_attachment_list = {}
     for instance in suite:
@@ -1495,3 +1496,130 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+
+def add_textbook_questions(textbook, master_question_list, course_id):
+    """
+    Add questions from a textbook to the master question list for a course
+    that is associated with that textbook.
+    
+    Args:
+        textbook: Textbook object
+        master_question_list: Dictionary containing all questions
+        course_id: ID of the course to associate questions with
+    
+    Returns:
+        Updated master_question_list with textbook questions
+    """
+    # Get all published questions from the textbook
+    textbook_questions = Question.objects.filter(
+        textbook=textbook,
+        published=True
+    ).select_related('author')
+    
+    # Process each question
+    for question in textbook_questions:
+        # Check if the question is already in the master list
+        if str(question.id) not in master_question_list:
+            # Get answers for this question
+            answers = Answers.objects.filter(question=question)
+            answers_data = {}
+            
+            # Process answers based on question type
+            if question.qtype in ['tf', 'mc', 'sa', 'es']:
+                # These question types have a single answer
+                if answers.exists():
+                    answers_data = {'value': answers.first().text}
+            elif question.qtype == 'fb':
+                # Fill in the blank can have multiple answers
+                for i, answer in enumerate(answers):
+                    answers_data[f'blank{i+1}'] = {'value': answer.text}
+            elif question.qtype == 'ma':
+                # Matching has pairs
+                for i, answer in enumerate(answers):
+                    answers_data[f'pair{i+1}'] = {
+                        'text': answer.text,
+                        'pair': answer.pair
+                    }
+            elif question.qtype == 'ms':
+                # Multiple selection can have multiple correct answers
+                for i, answer in enumerate(answers):
+                    answers_data[f'option{i+1}'] = {'value': answer.text}
+            
+            # Get options for this question
+            options = Options.objects.filter(question=question)
+            options_data = {}
+            
+            # Process options based on question type
+            if question.qtype == 'tf':
+                # True/False options are standard
+                pass
+            elif question.qtype == 'mc':
+                # Multiple choice options - map order to letters without assuming all exist
+                # Define the mapping from order to option letter
+                order_to_letter = {
+                    1: 'A', 2: 'B', 3: 'C', 4: 'D'
+                }
+                
+                for option in options:
+                    if option.order in order_to_letter:
+                        letter = order_to_letter[option.order]
+                        options_data[letter] = {
+                            'text': option.text, 
+                            'order': option.order
+                        }
+            elif question.qtype == 'ms':
+                # Multiple selection options
+                for i, option in enumerate(options):
+                    options_data[f'option{i+1}'] = {
+                        'text': option.text,
+                        'order': option.order
+                    }
+            elif question.qtype == 'ma':
+                # Matching options
+                pair_count = 0
+                distraction_count = 0
+                
+                for option in options:
+                    if option.pair:
+                        pair_count += 1
+                        options_data[f'pair{pair_count}'] = {
+                            'left': option.pair.get('left', ''),
+                            'right': option.pair.get('right', ''),
+                            'pairNum': option.pair.get('pairNum', pair_count)
+                        }
+                    else:
+                        distraction_count += 1
+                        options_data[f'distraction{distraction_count}'] = {
+                            'text': option.text,
+                            'order': option.order
+                        }
+            
+            # Add the question to the master list with the course_id as a reference
+            qtype = str(question.qtype)
+            qid = str(question.id)
+            if qtype not in master_question_list:
+                master_question_list[qtype] = {}
+
+            master_question_list[qtype][qid]= {
+                'id': str(question.id),
+                'text': question.text,
+                'qtype': question.qtype,
+                'score': float(question.score),
+                'directions': question.directions,
+                'reference': question.reference,
+                'eta': question.eta,
+                'img': question.img,
+                'ansimg': question.ansimg,
+                'comments': question.comments,
+                'chapter': question.chapter,
+                'section': question.section,
+                'published': question.published,
+                'author': question.author.username if question.author else None,
+                'owner_type': 'textbook',
+                'owner_id': textbook.isbn,
+                'course_id': course_id,  
+                'answers': answers_data,
+                'options': options_data
+            }
+    
+    return master_question_list

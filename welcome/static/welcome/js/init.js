@@ -1417,6 +1417,7 @@ function questionTypeLabel(type) {
 }
 
 
+// Imports a QTI file into the MySQL database
 function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersion, isbn, link) {
     let fileInput = document.getElementById("fileInput");
     let file = fileInput.files[0];
@@ -1438,6 +1439,9 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
     formData.append("courseTextbookISBN", isbn);
     formData.append("courseTextbookLink", link);
 
+    //let templateId = "1";
+    //formData.append("templateId", templateId);
+
     fetch(window.quizpressSettings.parseQTIUrl, {
         method: "POST",
         body: formData,
@@ -1449,6 +1453,18 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
     .then(data => {
         console.log("Imported questions:", data);
         // You could loop through data.questions and inject them into the DOM here
+
+
+        // I thought these would refresh the tests automatically, but they don't seem to actually do that when called like this.
+        //reloadData();
+        //updateTestTabs(courseID);
+
+        if (data.success) {
+            alert(data.success);
+        } else {
+            alert("Error: " + data.error);
+        }
+
     })
     .catch(error => console.error("Error:", error));
 } //RED TASK: IGNORE THIS AND REMOVE IT FROM PUBLISHER

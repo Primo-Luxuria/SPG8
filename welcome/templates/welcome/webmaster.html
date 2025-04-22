@@ -35,6 +35,9 @@
 <div>
 <button onclick="openPreviewMenu()">Export Database</button>
 </div>
+    <div>
+        <button onclick="openImportMenu()">Import</button>
+    </div>
 <script>
 function flattenQuestionList(questionList) {
     let flat = {};
@@ -475,6 +478,7 @@ async function deleteItem(element) {
 
 
 
+    // does NOT actually export CSV. exports a xlsx, Excel file
     // function to export parts of database or entire database
     // cannot do multiple export types
     // valid export types are: 'course', 'test', 'question', 'all courses', 'everything'
@@ -644,6 +648,136 @@ async function deleteItem(element) {
     }
 
 
+    function importTableToDatabase() {
+        let importButton = document.getElementById("importedCsv");
+        let imported_csv_file;
+
+        if (importButton.files.length > 0) {
+            imported_csv_file = importButton.files[0];
+        }
+        else {
+            alert("Please select a CSV file to import.");
+            return;
+        }
+
+        let table_to_import;
+        let radioButton = document.querySelector('input[name="importSelection"]:checked');
+
+        if (radioButton)
+        {
+            table_to_import = radioButton.value;
+        }
+        else
+        {
+            alert("Please select a table to import.");
+            return;
+        }
+
+        let deleteAllRows = "true"; // hardcoded for testing
+
+        let formData = new FormData();
+        formData.append("imported_csv_file", imported_csv_file);
+        formData.append("table_to_import", table_to_import);
+        formData.append("deleteAllRows", deleteAllRows);
+
+        fetch("/import_csv/", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            }
+        })
+
+            .then(response => response.json())
+            .then(data => {
+                if (data.success)
+                {
+                    if (data.rows_skipped && data.rows_skipped.length > 0)
+                    {
+                        alert("Partial success. Skipped rows were: " + data.rows_skipped);
+                    }
+                    else
+                    {
+                        alert("Import successful!");
+                    }
+                }
+                else
+                {
+                    alert("Import failed. Error: " + data.error);
+                }
+            })
+            .catch(err => {
+                console.error("Unexpected JS error while importing CSV: ", err);
+            });
+    }
+
+    function openImportMenu() {
+        document.getElementById("importMenu").style.display = "flex";
+    }
+
+    function closeImportMenu() {
+        document.getElementById("importMenu").style.display = "none";
+
+        // clears radio button selection
+        let radioButtonList = document.querySelectorAll('input[name="importSelection"]');
+        radioButtonList.forEach(radioButton => radioButton.checked = false);
+
+        // clears file input
+        let fileInput = document.getElementById('importedCsv');
+        fileInput.value = '';
+
+    }
+
+    function downloadCsvTemplate()
+    {
+        let modelForTemplate;
+        let radioButton = document.querySelector('input[name="importSelection"]:checked');
+
+        if (radioButton)
+        {
+            modelForTemplate = radioButton.value;
+        }
+        else
+        {
+            alert("Please select a model to download template for");
+            return;
+        }
+
+        fetch('/create_csv_template/', {
+            method: 'POST',
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: modelForTemplate
+        })
+            .then(response => {
+                if (!response.ok)
+                {
+                    return response.json().then(data => {
+                        alert("Error: " + data.error);
+                        return null; // return null to signal we should not continue
+                    });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                if (!blob)
+                {
+                    return;
+                }
+                // create a temporary download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "templateForImport.csv";  // name of downloaded file
+                document.body.appendChild(a);
+                a.click();  // trigger download
+                a.remove();  // clean up the DOM
+                window.URL.revokeObjectURL(url);  // release memory
+            })
+            .catch(error => console.error("An error occurred while attempting to download template", error));
+    }
+
 </script>
 <div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
 <div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
@@ -663,5 +797,50 @@ async function deleteItem(element) {
 </div>
 </div>
 </div>
+
+    <!-- since this div container style's display will be set to "flex", "flex-direction: column" makes it so
+        the items will be populated/grow vertically. by default, flex-container items grow horizontally -->
+    <div id="importMenu" style="display:none; flex-direction: column; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:10px; width:60%; max-height:80%; overflow-y:auto;">
+            <h2>Import Menu<button onclick="closeImportMenu()" style="float:right;">Close</button></h2>
+            <h3>Please select a model-table to import.</h3>
+            <p>Please use commas as delimiters. If a field has a space, comma, line break, or carriage return, enclose the field in double quotes (").
+                If an enclosed field has double quotes inside the field, replace each single double quotes (") with
+                2 double quotes ("").
+                If a field value is required but the value is invalid or not given, the row will be skipped.
+                If a column is given that doesn't exist in the model, nothing will be imported.
+                IDs do not need to be given. If IDs are given, any rows with duplicate IDs will be skipped.
+                All prior records will be deleted. Only supports UTF-8 encoding.</p>
+            <h4>Example</h4>
+            <p>id,text,course_id<br>
+            1,"sample text",5</p>
+
+            <div>
+                <form>
+                    <label><input type="radio" name="importSelection" value="Textbook">Textbook</label><br>
+                    <label><input type="radio" name="importSelection" value="UserProfile">UserProfile</label><br>
+                    <label><input type="radio" name="importSelection" value="Course">Course</label><br>
+                    <label><input type="radio" name="importSelection" value="Question">Question</label><br>
+                    <label><input type="radio" name="importSelection" value="Options">Options</label><br>
+                    <label><input type="radio" name="importSelection" value="Answers">Answers</label><br>
+                    <!-- <label><input type="radio" name="importSelection" value="DynamicQuestionParameter">DynamicQuestionParameter</label><br> -->
+                    <label><input type="radio" name="importSelection" value="Template">Template</label><br>
+                    <label><input type="radio" name="importSelection" value="CoverPage">CoverPage</label><br>
+                    <label><input type="radio" name="importSelection" value="Attachment">Attachment</label><br>
+                    <label><input type="radio" name="importSelection" value="Test">Test</label><br>
+                    <label><input type="radio" name="importSelection" value="TestPart">TestPart</label><br>
+                    <label><input type="radio" name="importSelection" value="TestSection">TestSection</label><br>
+                    <label><input type="radio" name="importSelection" value="TestQuestion">TestQuestion</label><br>
+                    <label><input type="radio" name="importSelection" value="Feedback">Feedback</label><br>
+                    <label><input type="radio" name="importSelection" value="FeedbackResponse">FeedbackResponse</label><br><br>
+                </form>
+                <button onclick="importTableToDatabase()">Import</button>
+                <input type="file" id="importedCsv" accept=".csv" />
+                <button onclick = "downloadCsvTemplate()" style="float: right;" >Download Template</button>
+            </div>
+
+        </div>
+    </div>
+
 </body>
 </html>
