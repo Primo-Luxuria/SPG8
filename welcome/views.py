@@ -10,11 +10,13 @@ from bs4 import BeautifulSoup
 from django.core.files.base import ContentFile
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import authenticate, login
 from django.middleware.csrf import get_token
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.template.loader import render_to_string
 
 from welcome.models import *
 
@@ -1203,9 +1205,40 @@ def signup_handler(request):
         # For a GET request, simply render the signup form
         return render(request, 'signup.html')
 
-
+def export_test_view(request, test_id):
+    """
+    Exports the specified Test in HTML format.
+    If the URL query parameter "key" is "true", the export is the answer key
+    version (with answers in red and grading instructions in blue).
+    
+    """
+    # Key vs. normal check
+    key_export = request.GET.get('key', 'false').lower() == 'true'
+    
+    # Look up the test
+    test = get_object_or_404(Test, id=test_id)
+    
+    # Build context
+    context = {
+        'test': test,
+        'key_export': key_export,
+    }
+    
+    # Render the export template using render_to_string
+    html_output = render_to_string('export_test.html', context, request=request)
+    
+    # Build a filename based on the test name and whether it is a test key
+    file_suffix = "Key" if key_export else "Test"
+    filename = f"{test.name}-{file_suffix}.html"
+    
+    # Return the HTML as a downloadable file
+    response = HttpResponse(html_output, content_type="text/html")
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 """
-The teacher view
+FAQ view
 """
+def faq_view(request):
+    return render(request, 'welcome/faq.html')
