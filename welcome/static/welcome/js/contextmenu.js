@@ -1,10 +1,16 @@
 
 
+/**
+ * This function opens up the modal to produce a feedback form
+ * It allows the user to leave a rating out of five stars, the average score, average time taken, and comments
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback form is opened 
+*/
 function addFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
-    const identity = contextMenu.dataset.identity;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
 
     // Open the feedback modal and populate it with the feedback form
@@ -26,9 +32,9 @@ function addFeedback() {
         `;
 
     if (itemType === 'question') {
-        formContent += `<button class="add-btn" onclick="submitFeedback('${identity}', '${questionType}', ${itemID})">Submit Feedback</button>`;
+        formContent += `<button class="add-btn" onclick="submitFeedback('${courseID}', '${questionType}', ${itemID})">Submit Feedback</button>`;
     } else if (itemType === 'test') {
-        formContent += `<button class="save-btn" onclick="submitTestFeedback('${identity}', ${itemID})">Submit Feedback</button>`;
+        formContent += `<button class="save-btn" onclick="submitTestFeedback('${courseID}', ${itemID})">Submit Feedback</button>`;
     } else {
         alert("Feedback can only be added to questions and tests.");
     }
@@ -43,7 +49,12 @@ function addFeedback() {
     
 }
 
-function submitFeedback(identity, questionType, questionID) {
+/**
+ * This function is called to submit feedback for a question
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback is submitted and saved in the master list
+*/
+function submitFeedback(courseID, questionType, questionID) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -76,21 +87,22 @@ function submitFeedback(identity, questionType, questionID) {
         responses: []
     };
 
-    const question = masterQuestionList[identity][questionType][questionID];
+    const question = masterQuestionList[courseID][questionType][questionID];
     if (!question.feedback) {
         question.feedback = [];
     }
     question.feedback.push(feedback);
-    if(window.userRole=="teacher"){
-        saveData("question",question,identity);
-    }else{
-        saveData("question",question,{}, identity);
-    }
-    viewFeedback();
-    
+
+    closeModal();
+    viewQuestionFeedback(courseID, questionType, questionID);
 }
 
-function submitTestFeedback(identity, testID) {
+/**
+ * This function is called to submit feedback for a test
+ * Precondition: valid courseID, testIndex
+ * Postcondition: feedback is submitted and saved in the master list
+*/
+function submitTestFeedback(courseID, testID) {
     const rating = parseInt(document.getElementById('feedbackRating').value);
     const averageScore = parseFloat(document.getElementById('feedbackAverageScore').value);
     const comments = document.getElementById('feedbackComments').value.trim();
@@ -124,37 +136,44 @@ function submitTestFeedback(identity, testID) {
         responses: []
     };
 
-    const test = masterTestList[identity]['drafts'][testID] || masterTestList[identity]['published'][testID];
+    const test = masterTestList[courseID]['drafts'][testID] || masterTestList[courseID]['published'][testID];
     if (!test.feedback) {
         test.feedback = [];
     }
     test.feedback.push(feedback);
-    if(window.userRole=="teacher"){
-        saveData("test",test,identity);
-    }else{
-        saveData("test",test,{}, identity);
-    }
-    viewFeedback();
+
+    closeModal();
+    viewTestFeedback(courseID, testID);
 }
 
-
+/**
+ * This function is called to view feedback for a question or test
+ * It opens up an amazon review-like page
+ * Precondition: valid courseID, questionType (for questions), questionIndex stored in context menu
+ * Postcondition: feedback is displayed in the modal
+*/
 function viewFeedback() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
-    const identity = contextMenu.dataset.identity;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
     if (itemType === 'question') {
-        viewQuestionFeedback(identity, questionType, itemID);
+        viewQuestionFeedback(courseID, questionType, itemID);
     } else if (itemType === 'test') {
-        viewTestFeedback(identity, itemID);
+        viewTestFeedback(courseID, itemID);
     } else {
         alert("Feedback can only be viewed for questions and tests.");
     }
 }
 
-function viewQuestionFeedback(identity, questionType, questionIndex) {
-    const question = masterQuestionList[identity][questionType][questionIndex];
+/**
+ * This function is called to view the feedback to questions, it is called by viewFeedback
+ * Precondition: valid courseID, questionType, questionIndex
+ * Postcondition: feedback is displayed in the modal
+*/
+function viewQuestionFeedback(courseID, questionType, questionIndex) {
+    const question = masterQuestionList[courseID][questionType][questionIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -184,7 +203,7 @@ function viewQuestionFeedback(identity, questionType, questionIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitResponse('${identity}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitResponse('${courseID}', '${questionType}', ${questionIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -197,9 +216,13 @@ function viewQuestionFeedback(identity, questionType, questionIndex) {
     }, 10);
 }
 
-
-function viewTestFeedback(identity, testIndex) {
-    const test = masterTestList[identity]['drafts'][testIndex] || masterTestList[identity]['published'][testIndex];
+/**
+ * This function is called to view the feedback to tests, it is called by viewFeedback
+ * Precondition: valid courseID, testIndex
+ * Postcondition: feedback is displayed in the modal
+*/
+function viewTestFeedback(courseID, testIndex) {
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
 
     // Open the feedback modal and populate it with the feedback reviews
     const modal = document.getElementById('editModal');
@@ -229,7 +252,7 @@ function viewTestFeedback(identity, testIndex) {
                         `).join('')}
                     </div>
                     <textarea id="responseText-${feedbackIndex}" rows="2" placeholder="Add a response..."></textarea><br>
-                    <button class="add-btn" onclick="submitTestResponse('${identity}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
+                    <button class="add-btn" onclick="submitTestResponse('${courseID}', ${testIndex}, ${feedbackIndex})">Submit Response</button>
                 </div>
             `;
         });
@@ -242,8 +265,12 @@ function viewTestFeedback(identity, testIndex) {
     }, 10);
 }
 
-
-function submitResponse(identity, questionType, questionIndex, feedbackIndex) {
+/**
+ * This function is called to submit response inside of the feedback modal
+ * Precondition: valid courseID, questionType, questionIndex, feedbackIndex
+ * Postcondition: response is submitted and saved in the master list, displayed on the review page
+*/
+function submitResponse(courseID, questionType, questionIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -258,18 +285,18 @@ function submitResponse(identity, questionType, questionIndex, feedbackIndex) {
         date: new Date().toLocaleString()
     };
 
-    const question = masterQuestionList[identity][questionType][questionIndex];
+    const question = masterQuestionList[courseID][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
-    if(window.userRole=="teacher"){
-        saveData("test",test,identity);
-    }else{
-        saveData("test",test,{}, identity);
-    }
-    viewQuestionFeedback(identity, questionType, questionIndex);
+
+    viewQuestionFeedback(courseID, questionType, questionIndex);
 }
 
-
-function submitTestResponse(identity, testIndex, feedbackIndex) {
+/**
+ * This function is called to submit response inside of the feedback modal for tests
+ * Precondition: valid courseID, testIndex, feedbackIndex
+ * Postcondition: response is submitted and saved in the master list, displayed on the review page
+*/
+function submitTestResponse(courseID, testIndex, feedbackIndex) {
     const responseText = document.getElementById(`responseText-${feedbackIndex}`).value.trim();
 
     if (!responseText) {
@@ -284,12 +311,8 @@ function submitTestResponse(identity, testIndex, feedbackIndex) {
         date: new Date().toLocaleString()
     };
 
-    const test = masterTestList[identity]['drafts'][testIndex] || masterTestList[identity]['published'][testIndex];
+    const test = masterTestList[courseID]['drafts'][testIndex] || masterTestList[courseID]['published'][testIndex];
     test.feedback[feedbackIndex].responses.push(response);
-    if(window.userRole=="teacher"){
-        saveData("test",test,identity);
-    }else{
-        saveData("test",test,{}, identity);
-    }
-    viewTestFeedback(identity, testIndex);
+
+    viewTestFeedback(courseID, testIndex);
 }

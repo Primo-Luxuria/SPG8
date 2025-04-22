@@ -22,85 +22,6 @@ class ValidationError(Exception):
     pass
 
 
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from django.db import transaction
-
-@api_view(['POST'])
-@transaction.atomic
-def join_course(request):
-    user = request.user
-    course_id = request.data.get('id')
-
-    if not course_id:
-        return Response({"status": "error", "message": "Course ID is required"}, 
-                        status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        user_profile = UserProfile.objects.get(user=user)
-    except UserProfile.DoesNotExist:
-        return Response({"status": "error", "message": "User profile not found"}, 
-                        status=status.HTTP_404_NOT_FOUND)
-
-    try:
-        course = Course.objects.get(id=course_id)
-    except Course.DoesNotExist:
-        return Response({"status": "error", "message": "Course not found"}, 
-                        status=status.HTTP_404_NOT_FOUND)
-
-    if user_profile.role != "teacher":
-        return Response({"status": "error", "message": "Only teachers can join courses"}, 
-                        status=status.HTTP_403_FORBIDDEN)
-
-    try:
-        course.teachers.add(user)
-        return Response({"status": "success", "message": "Successfully added teacher to course"})
-    except Exception as e:
-        return Response({"status": "error", "message": f"An error occurred: {str(e)}"}, 
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-@api_view(['POST'])
-@transaction.atomic
-def assign_books(request):
-    user = request.user
-    data = request.data
-    course_id = data.get('id', '')
-    textbook_ids = data.get('textbook_ids', [])
-
-    print(course_id)
-    print(textbook_ids)
-    if not course_id or not isinstance(textbook_ids, list):
-        return Response({"status": "error", "message": "Invalid data."},
-                        status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        course = Course.objects.get(id=course_id)
-    except Course.DoesNotExist:
-        return Response({"status": "error", "message": "Course not found."},
-                        status=status.HTTP_404_NOT_FOUND)
-
-    
-    if not course.teachers.filter(id=user.id).exists():
-        return Response({"status": "error", "message": "You are not a teacher for this course."},
-                        status=status.HTTP_403_FORBIDDEN)
-
-    # Get all textbook objects matching the provided IDs
-    textbooks = Textbook.objects.filter(id__in=textbook_ids)
-
-    if not textbooks.exists():
-        return Response({"status": "error", "message": "No valid textbooks found."},
-                        status=status.HTTP_400_BAD_REQUEST)
-
-    # Add textbooks to the course
-    course.textbooks.add(*textbooks)
-
-    return Response({
-        "status": "success",
-        "message": f"{textbooks.count()} textbook(s) assigned to course {course.course_id}."
-    })
-
-
 
 @api_view(['POST'])
 @transaction.atomic
@@ -227,7 +148,6 @@ def update_user(request):
     
     return Response({"status": "success", "message": "User updated successfully"})
 
-
 @api_view(['POST'])
 @require_POST
 def fetch_user_data(request):
@@ -263,168 +183,45 @@ def fetch_user_data(request):
     master_attachment_list = {}
     container_list = {}
 
-    course_list = {course.id: course.name for course in Course.objects.all()}
-    textbook_list = {book.id: book.isbn for book in Textbook.objects.all()}
-
     try:
         if role == "teacher":
-            # Get teacher's courses
-            courses = Course.objects.filter(teachers=user)
-            
-            # Get content from courses directly
-            course_question_list = get_question_list('course', courses)
-            
-            # Get all textbooks assigned to these courses
-            course_textbooks = []
-            for course in courses:
-                course_textbooks.extend(list(course.textbooks.all()))
-            
-            # Remove duplicates by converting to set then back to list
-            unique_textbooks = list({textbook.id: textbook for textbook in course_textbooks}.values())
-            
-            # Get textbook content
-            if unique_textbooks:
-                textbook_question_list = get_question_list('textbook', unique_textbooks)
-                
-                # Merge course and textbook question lists
-                for textbook in unique_textbooks:
-                    isbn = textbook.isbn
-                    if isbn in textbook_question_list:
-                        for qtype, questions in textbook_question_list[isbn].items():
-                            # For each course that uses this textbook
-                            for course in courses:
-                                if textbook in course.textbooks.all():
-                                    course_id = course.course_id
-                                    # Initialize question type dict if needed
-                                    if course_id not in master_question_list:
-                                        master_question_list[course_id] = {}
-                                    if qtype not in master_question_list[course_id]:
-                                        master_question_list[course_id][qtype] = {}
-                                    
-                                    # Add textbook questions to course
-                                    for q_id, q_data in questions.items():
-                                        # Mark the source as a textbook
-                                        q_data['source'] = 'textbook'
-                                        q_data['textbook_id'] = isbn
-                                        master_question_list[course_id][qtype][q_id] = q_data
-            
-            # Add direct course questions
-            for course_id, qtypes in course_question_list.items():
-                if course_id not in master_question_list:
-                    master_question_list[course_id] = {}
-                
-                for qtype, questions in qtypes.items():
-                    if qtype not in master_question_list[course_id]:
-                        master_question_list[course_id][qtype] = {}
-                    
-                    for q_id, q_data in questions.items():
-                        # Mark as direct course content
-                        q_data['source'] = 'course'
-                        master_question_list[course_id][qtype][q_id] = q_data
+            courses = Course.objects.filter(teachers=user).select_related('textbook')
 
-            # Do the same for tests, templates, cover pages, and attachments
+            # Run this OUTSIDE the atomic block
+            master_question_list = get_question_list('course', courses)
+
             with transaction.atomic():
-                # Get course content
-                course_test_list = get_test_list('course', courses)
-                course_template_list = get_template_list('course', courses)
-                course_cpage_list = get_cpage_list('course', courses)
-                course_attachment_list = get_attachment_list('course', courses)
-                
-                # Get textbook content
-                if unique_textbooks:
-                    textbook_test_list = get_test_list('textbook', unique_textbooks)
-                    textbook_template_list = get_template_list('textbook', unique_textbooks)
-                    textbook_cpage_list = get_cpage_list('textbook', unique_textbooks)
-                    textbook_attachment_list = get_attachment_list('textbook', unique_textbooks)
-                    
-                    # Merge test lists
-                    for textbook in unique_textbooks:
-                        isbn = textbook.isbn
-                        if isbn in textbook_test_list:
-                            for course in courses:
-                                if textbook in course.textbooks.all():
-                                    course_id = course.course_id
-                                    if course_id not in master_test_list:
-                                        master_test_list[course_id] = {'drafts': {}, 'published': {}}
-                                    
-                                    # Add published and draft tests
-                                    for status in ['drafts', 'published']:
-                                        for test_id, test_data in textbook_test_list[isbn].get(status, {}).items():
-                                            test_data['source'] = 'textbook'
-                                            test_data['textbook_id'] = isbn
-                                            master_test_list[course_id][status][test_id] = test_data
-                
-                # Add direct course tests
-                for course_id, tests in course_test_list.items():
-                    if course_id not in master_test_list:
-                        master_test_list[course_id] = {'drafts': {}, 'published': {}}
-                    
-                    for status in ['drafts', 'published']:
-                        for test_id, test_data in tests.get(status, {}).items():
-                            test_data['source'] = 'course'
-                            master_test_list[course_id][status][test_id] = test_data
-                
-                # Merge template lists
-                master_template_list = course_template_list.copy()
-                if unique_textbooks:
-                    for textbook in unique_textbooks:
-                        isbn = textbook.isbn
-                        if isbn in textbook_template_list:
-                            for course in courses:
-                                if textbook in course.textbooks.all():
-                                    course_id = course.course_id
-                                    if course_id not in master_template_list:
-                                        master_template_list[course_id] = {}
-                                    
-                                    for template_id, template_data in textbook_template_list[isbn].items():
-                                        template_data['source'] = 'textbook'
-                                        template_data['textbook_id'] = isbn
-                                        master_template_list[course_id][template_id] = template_data
-                
-                # Merge cover page lists
-                master_cpage_list = course_cpage_list.copy()
-                if unique_textbooks:
-                    for textbook in unique_textbooks:
-                        isbn = textbook.isbn
-                        if isbn in textbook_cpage_list:
-                            for course in courses:
-                                if textbook in course.textbooks.all():
-                                    course_id = course.course_id
-                                    if course_id not in master_cpage_list:
-                                        master_cpage_list[course_id] = {}
-                                    
-                                    for cpage_id, cpage_data in textbook_cpage_list[isbn].items():
-                                        cpage_data['source'] = 'textbook'
-                                        cpage_data['textbook_id'] = isbn
-                                        master_cpage_list[course_id][cpage_id] = cpage_data
-                
-                # Merge attachment lists
-                master_attachment_list = course_attachment_list.copy()
-                if unique_textbooks:
-                    for textbook in unique_textbooks:
-                        isbn = textbook.isbn
-                        if isbn in textbook_attachment_list:
-                            for course in courses:
-                                if textbook in course.textbooks.all():
-                                    course_id = course.course_id
-                                    if course_id not in master_attachment_list:
-                                        master_attachment_list[course_id] = {}
-                                    
-                                    for attachment_id, attachment_data in textbook_attachment_list[isbn].items():
-                                        attachment_data['source'] = 'textbook'
-                                        attachment_data['textbook_id'] = isbn
-                                        master_attachment_list[course_id][attachment_id] = attachment_data
+                master_test_list = get_test_list('course', courses)
+                master_template_list = get_template_list('course', courses)
+                master_cpage_list = get_cpage_list('course', courses)
+                master_attachment_list = get_attachment_list('course', courses)
 
-                # Populate container list with course info
                 for course in courses:
+                    textbook_data = None
+                    if course.textbook:
+                        textbook_data = {
+                            "title": course.textbook.title,
+                            "author": course.textbook.author,
+                            "version": course.textbook.version,
+                            "isbn": course.textbook.isbn,
+                            "link": course.textbook.link
+                        }
+
                     container_list[course.course_id] = {
-                        "courseID": course.course_id,
+                        "id": course.course_id,
                         "crn": course.crn,
                         "name": course.name,
                         "sem": course.sem,
-                        "textbooks": [textbook.id for textbook in course.textbooks.all()],
-                        "id": course.id
+                        "textbook": textbook_data,
+                        "dbid": course.id
                     }
+
+                    if course.textbook:
+                        textbook = Textbook.objects.filter(isbn=course.textbook.isbn).first()
+                        if textbook:
+                            master_question_list = add_textbook_questions(
+                                textbook, master_question_list, course.course_id
+                            )
 
         elif role == "publisher":
             textbooks = Textbook.objects.filter(publisher=user)
@@ -457,6 +254,7 @@ def fetch_user_data(request):
         else:
             raise Exception("Invalid user role")
 
+        
         response_data = {
             "status": "success",
             "username": user.username,
@@ -466,9 +264,7 @@ def fetch_user_data(request):
             "template_list": master_template_list,
             "cpage_list": master_cpage_list,
             "attachment_list": master_attachment_list,
-            "container_list": container_list,
-            "course_list": course_list,
-            "textbook_list": textbook_list
+            "container_list": container_list
         }
 
     except Exception as e:
@@ -476,6 +272,7 @@ def fetch_user_data(request):
         return Response({"status": f"An error occurred: {str(e)}"}, status=500)
 
     return Response(response_data)
+
 
 @api_view(['POST'])
 @transaction.atomic
@@ -493,9 +290,6 @@ def save_textbook(request):
             }
         )
     newtextbook.save()
-    if created:
-        newtextbook.publisher = request.user
-        newtextbook.save()
     return Response({
             'status': 'success',
             'created': created,
@@ -512,7 +306,8 @@ def save_test(request):
         test_data = data.get('test', {})
         parts_data = data.get('parts', [])
         owner_role = data.get('ownerRole')
-    
+        print(test_data);
+        print(parts_data);
         # Validate required fields
         if owner_role is None:
             return Response({'error': 'Owner role is required'}, status=400)
@@ -556,52 +351,18 @@ def save_test(request):
                 'date': test_data.get('date'),
                 'filename': test_data.get('filename'),
                 'is_final': bool(test_data.get('is_final')),
-                'refText': test_data.get('refText'),
                 'templateID': template_id,
                 'course': course,
                 'textbook': textbook,
                 'template': template
             }
         )
-
-        attachment_list = test_data.get("attachments", [])
-        test.attachments.clear()
-        for attachment_id in attachment_list:
-            try:
-                attachment = Attachment.objects.get(id=attachment_id)
-                test.attachments.add(attachment)
-                attachment.published = 1 if test.is_final == True else attachment.published
-                attachment.save()
-            except Attachment.DoesNotExist:
-                continue
-
+        
         if created:
             test.author = request.user
         test.save()
 
-        if test.is_final:
-            if test.author == request.user:
-                role = owner_role  
-            else:
-                author_profile = UserProfile.objects.get(user=test.author)
-                role = author_profile.role
-
-            if role == 'teacher':
-                course.published = 1
-                course.save()
-            else:
-                textbook.published = 1
-                textbook.save()
-            if template and template.coverPageID:
-                template.published = 1
-                template.save()
-                try:
-                    coverpage = CoverPage.objects.get(id=template.coverPageID)
-                    coverpage.published = 1
-                    coverpage.save()
-                except CoverPage.DoesNotExist:
-                    return Response({"status": "error", "message": "Missing cover page!"})
-            
+        
         # Process parts, sections, and questions
         if parts_data:
             # Delete existing parts (cascades to sections and questions)
@@ -639,43 +400,14 @@ def save_test(request):
                                     order=question_data.get('order', 0),
                                     section=section
                                 )
-                                question.tests.add(test)
-                                if test.is_final:
-                                    question.published = 1
-                                    question.save()
                             except Question.DoesNotExist:
                                 continue  # Skip invalid questions
         
         # Process feedback if provided
-        fb_list = data.get('feedback', [])
-        for fb_item in fb_list:
-            fb_user = User.objects.get(username=fb_item.get('username'))
-            feedback, created = Feedback.objects.update_or_create(
-                    id=fb_item.get('id'),
-                    defaults ={
-                        'test':test,
-                        'user':fb_user,
-                        'rating':fb_item.get('rating'),
-                        'averageScore':fb_item.get('averageScore'),
-                        'comments':fb_item.get('comments'),
-                        'time':fb_item.get('time')
-                    }
-                    
-                )
-
-            for resp in fb_item.get('responses', []):
-                try:
-                    resp_user = User.objects.get(username=resp.get('username')) if resp.get('username') else None
-                except User.DoesNotExist:
-                    resp_user = None
-                FeedbackResponse.objects.update_or_create(
-                    id=resp.get('id'),
-                    defaults ={
-                        'feedback':feedback,
-                        'user':resp_user,
-                        'text':resp.get('text'),
-                        'date':resp.get('date')
-                    })
+        feedback_data = data.get('feedback', [])
+        if feedback_data:
+            # Process feedback logic here (depends on your feedback model)
+            pass
         
         return Response({
             'status': 'success',
@@ -692,7 +424,54 @@ def save_test(request):
 def save_course(request):
     try:
         data = request.data
+        owner_role = data.get('ownerRole')
         course_data = data.get('course', {})
+        textbook_data = data.get('textbook', {})
+        
+        # Process textbook data if available
+        if textbook_data:
+            textbook_id = textbook_data.get('id')
+            if textbook_id and Textbook.objects.filter(id=textbook_id).exists():
+                # Update existing textbook
+                textbook = Textbook.objects.get(id=textbook_id)
+                textbook.title = textbook_data.get('title', textbook.title)
+                textbook.author = textbook_data.get('author', textbook.author)
+                textbook.version = textbook_data.get('version', textbook.version)
+                textbook.isbn = textbook_data.get('isbn', textbook.isbn)
+                textbook.link = textbook_data.get('link', textbook.link)
+                # Only update publisher if the user is a publisher
+                if request.user.userprofile.role == 'publisher':
+                    textbook.publisher = request.user
+                textbook.published = textbook_data.get('published', textbook.published)
+                textbook.save()
+            else:
+                # Create new textbook if textbook details provided
+                isbn = textbook_data.get('isbn')
+                title = textbook_data.get('title')
+                author = textbook_data.get('author')
+                version = textbook_data.get('version')
+                link = textbook_data.get('link')
+                published = textbook_data.get('published', False)
+                
+                # Try to find existing textbook by ISBN or create new one
+                if isbn and Textbook.objects.filter(isbn=isbn).exists():
+                    textbook = Textbook.objects.filter(isbn=isbn).first()
+                elif title and author and Textbook.objects.filter(title=title, author=author).exists():
+                    textbook = Textbook.objects.filter(title=title, author=author).first()
+                else:
+                    # Set publisher if user is a publisher, otherwise leave it null
+                    publisher = request.user if request.user.userprofile.role == 'publisher' else None
+                    textbook = Textbook.objects.create(
+                        title=title or 'Untitled Textbook',
+                        author=author,
+                        version=version,
+                        isbn=isbn,
+                        link=link,
+                        publisher=publisher,
+                        published=published
+                    )
+        else:
+            textbook = None
         
         # Process course data
         course_id = course_data.get('id')
@@ -704,6 +483,8 @@ def save_course(request):
             course.crn = course_data.get('crn', course.crn)
             course.sem = course_data.get('sem', course.sem)
             course.published = course_data.get('published', course.published)
+            if textbook:
+                course.textbook = textbook
             course.save()
             created = False
         else:
@@ -713,6 +494,7 @@ def save_course(request):
                 name=course_data.get('name', 'Untitled Course'),
                 crn=course_data.get('crn', ''),
                 sem=course_data.get('sem', ''),
+                textbook=textbook,
                 published=course_data.get('published', False),
                 user=request.user
             )
@@ -937,7 +719,6 @@ def save_question(request):
         newQ.published = question_data.get('published', False)
         newQ.course = course
         newQ.textbook = textbook
-        newQ.requiredRefs = question_data.get('requiredRefs', '')
 
         # Safe image field handling
         img = question_data.get('img')
@@ -1016,17 +797,13 @@ def save_question(request):
                 except User.DoesNotExist:
                     fb_user = None
 
-                feedback,created = Feedback.objects.update_or_create(
-                    id=fb_item.get('id'),
-                    defaults ={
-                        'question':newQ,
-                        'user':fb_user,
-                        'rating':fb_item.get('rating'),
-                        'averageScore':fb_item.get('averageScore'),
-                        'comments':fb_item.get('comments'),
-                        'time':fb_item.get('time')
-                    }
-                    
+                feedback = Feedback.objects.create(
+                    question=newQ,
+                    user=fb_user,
+                    rating=fb_item.get('rating'),
+                    averageScore=fb_item.get('averageScore'),
+                    comments=fb_item.get('comments'),
+                    time=fb_item.get('time')
                 )
 
                 for resp in fb_item.get('responses', []):
@@ -1034,15 +811,12 @@ def save_question(request):
                         resp_user = User.objects.get(username=resp.get('username')) if resp.get('username') else None
                     except User.DoesNotExist:
                         resp_user = None
-                    FeedbackResponse.objects.update_or_create(
-                        id=resp.get('id'),
-                        defaults ={
-                            'feedback':feedback,
-                            'user':resp_user,
-                            'text':resp.get('text'),
-                            'date':resp.get('date')
-                        }
-                        
+
+                    FeedbackResponse.objects.create(
+                        feedback=feedback,
+                        user=resp_user,
+                        text=resp.get('text'),
+                        date=resp.get('date')
                     )
 
         return Response({'status': 'success', 'created': created, 'question_id': newQ.id})
@@ -1135,8 +909,7 @@ def get_template_list(field, suite):
                 "bonusSection": t.bonusSection,
                 "bonusQuestions": t.bonusQuestions,
                 "published": t.published,
-                "feedback": [],
-                "author": t.author.username if t.author else None
+                "feedback": []
             }
             master_template_list[identity][str(template_data["id"])] = template_data
     return master_template_list
@@ -1151,7 +924,7 @@ def get_question_list(field, suite):
 
         # Identify the object
         identity = instance.course_id if field == "course" else instance.isbn
-        
+
         question_lists = {
             'tf': {},
             'mc': {},
@@ -1162,7 +935,6 @@ def get_question_list(field, suite):
             'fb': {},
             'dy': {}
         }
-
         master_question_list[identity] = question_lists
 
         try:
@@ -1192,7 +964,7 @@ def get_question_list(field, suite):
                     answer = {f'pair{i+1}': {'text': a.text} for i, a in enumerate(q.question_answers.all())}
                 else:
                     answer = {f'answer{i+1}': {'value': a.text} for i, a in enumerate(q.question_answers.all())}
-                 
+                print(json.dumps(answer) + " " + q.qtype)
                 # === Options ===
                 options = {}
                 if q.qtype == 'tf':
@@ -1250,7 +1022,6 @@ def get_question_list(field, suite):
                         "averageScore": float(f.averageScore) if f.averageScore else None,
                         "comments": f.comments,
                         "time": float(f.time) if f.time else None,
-                        "date": f.created_at.isoformat() if f.created_at else None,
                         "responses": [
                             {
                                 "id": r.id,
@@ -1271,7 +1042,6 @@ def get_question_list(field, suite):
                     'score': float(q.score) if q.score else 0.0,
                     'directions': q.directions,
                     'reference': q.reference,
-                    'reqRefs': q.requiredRefs,
                     'eta': q.eta,
                     'img': img_url,
                     'ansimg': ansimg_url,
@@ -1281,8 +1051,7 @@ def get_question_list(field, suite):
                     'section': q.section,
                     'published': q.published,
                     'author': q.author.username if q.author else None,
-                    'feedback': feedback_list,
-                    'tests': list(q.tests.values_list('id', flat=True))
+                    'feedback': feedback_list
                 }
 
                 if q.qtype in question_lists:
@@ -1348,7 +1117,12 @@ def get_test_list(field, suite):
         
         for test in tests:
             # Get template if exists
-            template = test.template
+            template = None
+            if test.templateID > 0:
+                try:
+                    template = Template.objects.get(id=test.templateID)
+                except Template.DoesNotExist:
+                    pass
             
             # Basic test data structure matching frontend format
             test_data = {
@@ -1356,19 +1130,23 @@ def get_test_list(field, suite):
                 'name': test.name,
                 'templateName': template.name if template else None,
                 'templateID': test.templateID,
-                'refText': test.refText,
                 'date': test.date.isoformat() if test.date else None,
                 'filename': test.filename,
                 'parts': [],
                 'attachments': [],
                 'feedback': [],
-                'published': test.is_final,
-                'author': test.author.username if test.author else None
+                'published': test.is_final
             }
             
             # Process attachments
             for attachment in test.attachments.all():
-                test_data['attachments'].append(attachment.id)
+                attachment_data = {
+                    'id': attachment.id,
+                    'name': attachment.name,
+                    'file': attachment.file.name if attachment.file else None,
+                    'url': attachment.file.url if attachment.file else None
+                }
+                test_data['attachments'].append(attachment_data)
             
             # Process parts, sections, and questions
             for part in test.parts.all().order_by('part_number'):
@@ -1407,20 +1185,17 @@ def get_test_list(field, suite):
             # Process feedback
             for feedback in test.feedbacks.all():
                 feedback_data = {
-                    'id': feedback.id,
                     'username': feedback.user.username if feedback.user else 'Anonymous',
                     'rating': feedback.rating,
                     'averageScore': float(feedback.averageScore) if feedback.averageScore else None,
                     'comments': feedback.comments,
-                    'time': feedback.time if feedback.time else None,
-                    'date': feedback.created_at.isoformat() if feedback.created_at else None,
+                    'time': feedback.created_at.isoformat() if feedback.created_at else None,
                     'responses': []
                 }
                 
                 # Process responses
                 for response in feedback.responses.all():
                     response_data = {
-                        'id': response.id,
                         'username': response.user.username if response.user else 'Anonymous',
                         'text': response.text,
                         'date': response.date.isoformat() if response.date else None
@@ -1461,8 +1236,7 @@ def get_cpage_list(field, suite):
                 "blank": c.blank,
                 "instructions": c.instructions,
                 "published": c.published,
-                "feedback": [],
-                "author": c.author.username if c.author else None
+                "feedback": []
             }
             master_cpage_list[identity][str(cpage_data["id"])]=cpage_data
     return master_cpage_list

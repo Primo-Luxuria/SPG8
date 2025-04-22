@@ -1722,18 +1722,18 @@ def signup_view(request):
 
 @login_required
 def teacher_dashboard(request):
-    context = {'username': request.user.username, 'userRole': 'teacher'}
+    context = {'username': request.user.username}
     return render(request, 'welcome/SBteacher.html', context)
 
 
 @login_required
 def publisher_dashboard(request):
-    context = {'username': request.user.username, 'userRole': 'publisher'}
+    context = {'username': request.user.username}
     return render(request, 'welcome/SBpublisher.html', context)
 
 @login_required
 def webmaster_dashboard(request):
-    context = {'username': request.user.username, 'userRole': 'webmaster'}
+    context = {'username': request.user.username}
     return render(request, 'welcome/webmaster.html', context)
 
 

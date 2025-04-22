@@ -12,7 +12,5 @@ urlpatterns = [
     path('save_template/', views.save_template, name='save_template'),
     path('save_question/', views.save_question, name='save_question'),
     path('save_test/', views.save_test, name='save_test'),
-    path('save_attachment/', views.save_attachment, name='save_attachment'),
-    path('join_course/', views.join_course, name='save_attachment'),
-    path('assign_books/', views.assign_books, name='save_attachment')
+    path('save_attachment/', views.save_attachment, name='save_attachment')
 ]

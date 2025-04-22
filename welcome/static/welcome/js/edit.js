@@ -1,47 +1,50 @@
-
+/**
+ * This function is called when the user clicks the edit button in the context menu.
+ * It determines the type of item being edited and calls the appropriate edit function.
+ * Precondition: context menu is open, edit button is clicked
+ * Postcondition: edit modal is opened with the appropriate item data
+*/
 function editItem() {
     const contextMenu = document.getElementById('contextMenu');
     const itemType = contextMenu.dataset.itemType;
     const itemID = contextMenu.dataset.itemID;
-    const identity = contextMenu.dataset.identity;
+    const courseID = contextMenu.dataset.courseID;
     const questionType = contextMenu.dataset.questionType;
-    if(!confirm("Are you sure you want to edit this item?")){
-        return;
-    }
     switch (itemType) {
         case 'question':
-            editQuestion(identity, questionType, itemID);
+            editQuestion(courseID, questionType, itemID);
             break;
         case 'coverPage':
-            editCoverPage(identity, itemID);
+            editCoverPage(courseID, itemID);
             break;
         case 'template':
-            editTemplate(identity, itemID);
+            editTemplate(courseID, itemID);
             break;
         case 'test':
-            editTest(identity, itemID);
+            editTest(courseID, itemID);
             break;
         case 'attachment':
-            editAttachment(identity, itemID);
+            editAttachment(courseID, itemID);
             break;
         default:
             console.error('Unknown item type:', itemType);
     }
 }
 
-
-function editQuestion(identity, questionType, questionID) {
-    console.log(masterQuestionList[identity][questionType][questionID]);
-    if(masterQuestionList[identity][questionType][questionID].published === 1){
+/**
+ * This function is called when the user clicks the edit button for a question in the context menu.
+ * It will allow the editing of published questions, but only after a confirmation dialog.
+ * Precondition: context menu is open, edit button is clicked
+ * Postcondition: edit modal is opened with the appropriate question data
+*/
+function editQuestion(courseID, questionType, questionID) {
+    console.log(masterQuestionList[courseID][questionType][questionID]);
+    if(masterQuestionList[courseID][questionType][questionID].published === 1){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
            return;
         }
     }
-    if(masterQuestionList[identity][questionType][questionID].author != window.username){
-        alert("You are not the author of this question!");
-        return;
-    }
-    const question = masterQuestionList[identity][questionType][questionID];
+    const question = masterQuestionList[courseID][questionType][questionID];
 
     // Open the edit modal and populate it with the question data
     const modal = document.getElementById('editModal');
@@ -119,8 +122,6 @@ function editQuestion(identity, questionType, questionID) {
         <input type="number" id="editTimeField" min="1" value="${question.eta}"><br><br>
         <label>Reference Text:</label><br/>
         <textarea id="editRefField" rows="4">${question.reference}</textarea><br><br>
-        <label>Required References:</label><br/>
-        <textarea id="reqRefField" rows="3" placeholder="Describe any required references for the grader (either text or attachments)">${question.reqRefs}</textarea><br><br>
         <label>Question Image:</label><br/>
         <select id="qGraphicField">
             <option value="" disabled selected>Select a graphic</option>
@@ -133,7 +134,7 @@ function editQuestion(identity, questionType, questionID) {
         <textarea id="editInstructorCommentField" rows="4">${question.comments}</textarea><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructionField" rows="6">${question.directions}</textarea><br><br>
-        <button class="save-btn" onclick="submitEditQuestion('${identity}', '${questionType}', ${questionID})">Submit Edit</button>
+        <button class="save-btn" onclick="submitEditQuestion('${courseID}', '${questionType}', ${questionID})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -143,10 +144,17 @@ function editQuestion(identity, questionType, questionID) {
     }, 10);
 
     // Populate the graphic selectors
-    updateGraphicSelectors(identity, question);
+    updateGraphicSelectors(courseID, question);
 }
 
 
+
+/**
+ * This function is used to update the possible options for a question in the editor modal during question editing. 
+ * It updates the possible options and answers for a question based on question type, similar to the options during question creation.
+ * Precondition: valid question type, options, and answers  
+ * Postcondition: options and answers are updated in the editor modal
+*/
 function updateEditOptions(type, options = {}, answers = {}) {
     const optionsContainer = document.getElementById('editOptionsContainer');
     optionsContainer.innerHTML = '';
@@ -191,7 +199,13 @@ function updateEditOptions(type, options = {}, answers = {}) {
 }
 
 
-function submitEditQuestion(identity, questionType, questionID) {
+/**
+ * This function is called when the user submits an edited question in the editor modal.
+ * It updates the question in the master question list with the new data.
+ * Precondition: valid courseID, question type, and question index
+ * Postcondition: question is updated in the master question list or a clone is created
+ * 
+*/function submitEditQuestion(courseID, questionType, questionID) {
     const text = document.getElementById('editQuestionField').value.trim();
     const points = document.getElementById('editPointValueField').value.trim();
     const instructions = document.getElementById('editInstructionField').value.trim();
@@ -202,11 +216,9 @@ function submitEditQuestion(identity, questionType, questionID) {
     const instcomm = document.getElementById('editInstructorCommentField').value.trim();
     const chapter = document.getElementById('editChapterField').value.trim();
     const section = document.getElementById('editSectionField').value.trim();
-    const reqRefs = document.getElementById("reqRefField").value.trim();
-    
 
-    if (!text || !questionType || !points || !instructions || !time || !chapter || !section || !reqRefs) {
-        alert("Some fields (Question, Question Type, Default Point Value, Required References, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
+    if (!text || !questionType || !points || !instructions || !time || !chapter || !section) {
+        alert("Some fields (Question, Question Type, Default Point Value, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
         return;
     }
 
@@ -274,7 +286,7 @@ function submitEditQuestion(identity, questionType, questionID) {
         }
     }
 
-    const question = masterQuestionList[identity][questionType][questionID];
+    const question = masterQuestionList[courseID][questionType][questionID];
 
     // Handle published logic
     if (question.published === 1) {
@@ -295,12 +307,11 @@ function submitEditQuestion(identity, questionType, questionID) {
                 tests: [],
                 chapter: chapter,
                 section: section,
-                reqRefs: reqRefs,
                 published: 0
             };
 
-            masterQuestionList[identity][questionType].push(clone);
-            updateQuestionTabs(questionType, identity);
+            masterQuestionList[courseID][questionType].push(clone);
+            updateQuestionTabs(questionType, courseID);
             closeModal();
             return;
         } else if (!confirm("Are you sure you want to edit this published question directly?")) {
@@ -324,19 +335,21 @@ function submitEditQuestion(identity, questionType, questionID) {
     question.chapter = chapter;
     question.section = section;
 
-    updateQuestionTabs(questionType, identity);
-    if(window.userRole =="teacher"){
-        saveData("question", question, identity);
-    }else{
-        saveData("question", question,null, identity);
-    }
-    
+    updateQuestionTabs(questionType, courseID);
+    saveData("question", question, courseID);
     closeModal();
 }
 
 
-function editCoverPage(identity, pageID) {
-    const coverPage = masterCoverPageList[identity][pageID];
+
+
+/**
+ * This function edits the cover page that was previously saved. 
+ * Precondition: valid courseID, pageIndex
+ * Postcondition: cover page is edited and republished in the master list
+*/
+function editCoverPage(courseID, pageID) {
+    const coverPage = masterCoverPageList[courseID][pageID];
 
     // Open the edit modal and populate it with the cover page data
     const modal = document.getElementById('editModal');
@@ -344,10 +357,6 @@ function editCoverPage(identity, pageID) {
     const modalBody = document.getElementById('modalBody');
     if(coverPage.published==1){
         alert("This page is published. You cannot edit it.");
-        return;
-    }
-    if(coverPage.author != window.username){
-        alert("You are not the author of this cover page!");
         return;
     }
     modalTitle.innerText = 'Edit Cover Page';
@@ -371,7 +380,7 @@ function editCoverPage(identity, pageID) {
         </select><br><br>
         <label>Grading Instructions:</label><br/>
         <textarea id="editInstructions" rows="6">${coverPage.instructions}</textarea><br><br>
-        <button class="add-btn" onclick="submitEditCoverPage('${identity}', ${pageID})">Submit Edit</button>
+        <button class="add-btn" onclick="submitEditCoverPage('${courseID}', ${pageID})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -381,7 +390,7 @@ function editCoverPage(identity, pageID) {
     }, 10);
 }
 
-function submitEditCoverPage(identity, pageID) {
+function submitEditCoverPage(courseID, pageID) {
     const pageName = document.getElementById("editCoverPageName").value.trim();
     const testNumber = document.getElementById("editTestNumber").value.trim();
     const testDate = document.getElementById("editTestDate").value.trim();
@@ -395,8 +404,8 @@ function submitEditCoverPage(identity, pageID) {
       return;
     }
   
-    if (!masterCoverPageList[identity]) {
-      masterCoverPageList[identity] = {};
+    if (!masterCoverPageList[courseID]) {
+      masterCoverPageList[courseID] = {};
     }
   
     const coverPage = {
@@ -408,21 +417,24 @@ function submitEditCoverPage(identity, pageID) {
       showFilename: filenameTF,
       blank: nameBlankSelector,
       instructions: gradingInstructions,
-      published: masterCoverPageList[identity][pageID].published  
+      published: masterCoverPageList[courseID][pageID].published  
     };
   
-    if(window.userRole =="teacher"){
-        saveData("coverPage", coverPage, identity, null);
-    }else{
-        saveData("coverPage", coverPage, null, identity);
-    }
+    // Save to database/storage using the existing saveData function
+    saveData("coverPage", coverPage, courseID, null);
+    
     closeModal();
     alert("Cover page updated successfully");
   }
 
 
-function editTemplate(identity, templateID) {
-    const template = masterTemplateList[identity][templateID];
+/**
+ * This function is called from the context menu to edit an existing template from the course UI
+ * Precondition: valid courseID, not published
+ * Postcondition: template is edited and saved in the master list
+*/
+function editTemplate(courseID, templateID) {
+    const template = masterTemplateList[courseID][templateID];
 
     // Open the edit modal and populate it with the template data
     const modal = document.getElementById('editModal');
@@ -433,10 +445,6 @@ function editTemplate(identity, templateID) {
     modalTitle.innerText = 'Edit Template';
     if(template.published === 1){
         alert("This template is published. You cannot edit it.");
-        return;
-    }
-    if(template.author != window.username){
-        alert("You are not the author of this template!");
         return;
     }
 
@@ -516,13 +524,13 @@ function editTemplate(identity, templateID) {
             <div style="background:#d0d0d0;padding:20px" id="partsContainer"></div>
 
             <h1>Bonus Question Section Toggle</h1>
-            <select id="bonusToggle" onchange="toggleBonusQuestionSelection()">
+            <select id="bonusToggle" onchange="toggleBonusQuestionSelection('${courseID}')">
                 <option value="True" ${template.bonusSection ? 'selected' : ''}>Bonus Section</option>
                 <option value="False" ${!template.bonusSection ? 'selected' : ''}>No Bonus Section</option>
             </select><br/><br/>
-            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${identity}')">Select Bonus Questions</button>
+            <button class="add-btn" id="selectBonusQuestionsBtn" style="display:${template.bonusSection ? 'block' : 'none'};" onclick="openBonusQuestionModal('${courseID}')">Select Bonus Questions</button>
             <div id="selectedBonusQuestionsContainer"><p>"No bonus questions selected"</p></div>
-            <button class="save-btn" onclick="submitEditTemplate('${identity}', ${templateID})">Submit Template</button>
+            <button class="save-btn" onclick="submitEditTemplate('${courseID}', ${templateID})">Submit Template</button>
         </div>
     `;
 
@@ -530,15 +538,15 @@ function editTemplate(identity, templateID) {
     const selectedQuestionsDiv = document.createElement('div');
     selectedQuestionsDiv.className = "bonus-questions-container";
     // Populate the cover page selector
-    updatePageSelection(identity);
+    updatePageSelection(courseID);
     pageSelector = document.getElementById('coverPageSelector');
     pageSelector.value = coverPageID;
     for(let i=0;i<template.bonusQuestions.length;i++){
         id = template.bonusQuestions[i];
         const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
         for (const t of types) {
-        if (masterQuestionList[identity][t] && masterQuestionList[identity][t][id]) {
-            question = masterQuestionList[identity][t][id];
+        if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
+            question = masterQuestionList[courseID][t][id];
             foundType = t;
             break;
         }
@@ -591,8 +599,12 @@ function editTemplate(identity, templateID) {
     }, 10);
 }
 
-
-function submitEditTemplate(identity, templateID) {
+/**
+ * This function is used to submit an edited template when the user is finished editing the template from the context menu
+ * Precondition: valid courseID
+ * Postcondition: template is edited and saved in the master list
+*/
+function submitEditTemplate(courseID, templateID) {
     const templateName = document.getElementById('nameField').value.trim();
     const coverPageID = document.getElementById('coverPageSelector').value;
 
@@ -638,21 +650,21 @@ function submitEditTemplate(identity, templateID) {
     }
     
     if(bonusSection){
-        if(masterTemplateList[identity].bonusQuestions && masterTemplateList[identity].bonusQuestions.length>0){
-            masterTemplateList[identity][templateID].bonusQuestions = masterTemplateList[identity].bonusQuestions;   
-        } else if (masterTemplateList[identity][templateID].bonusQuestions.length>0){
-            masterTemplateList[identity][templateID].bonusQuestions = masterTemplateList[identity][templateID].bonusQuestions;
+        if(masterTemplateList[courseID].bonusQuestions && masterTemplateList[courseID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateID].bonusQuestions = masterTemplateList[courseID].bonusQuestions;   
+        } else if (masterTemplateList[courseID][templateID].bonusQuestions.length>0){
+            masterTemplateList[courseID][templateID].bonusQuestions = masterTemplateList[courseID][templateID].bonusQuestions;
         } else {
             alert("No bonus questions selected!");
             return;
         }
-        console.log("Bonus Questions:", masterTemplateList[identity][templateID].bonusQuestions);
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateID].bonusQuestions);
     }else{
         alert("no bonus questions!");
-        masterTemplateList[identity][templateID].bonusQuestions = [];
-        console.log("Bonus Questions:", masterTemplateList[identity][templateID].bonusQuestions);
+        masterTemplateList[courseID][templateID].bonusQuestions = [];
+        console.log("Bonus Questions:", masterTemplateList[courseID][templateID].bonusQuestions);
     }
-    if(bonusSection && (masterTemplateList[identity][templateID].bonusQuestions.length === 0)){
+    if(bonusSection && (masterTemplateList[courseID][templateID].bonusQuestions.length === 0)){
         alert("Bonus questions failed to add to template");
         return;
     }
@@ -674,37 +686,33 @@ function submitEditTemplate(identity, templateID) {
         nameTag: nameTag,
         dateTag: dateTag,
         courseTag: courseTag,
-        coverPage: masterCoverPageList[identity][coverPageID],
+        coverPage: masterCoverPageList[courseID][coverPageID],
         partStructure: partStructure,
         bonusSection: bonusSection,
         published: 0,
-        bonusQuestions: masterTemplateList[identity][templateID].bonusQuestions || [],
+        bonusQuestions: masterTemplateList[courseID][templateID].bonusQuestions || [],
         feedback: []
     };
 
-    masterTemplateList[identity][templateID] = templateData;
-    masterTemplateList[identity].bonusQuestions = [];
+    masterTemplateList[courseID][templateID] = templateData;
+    masterTemplateList[courseID].bonusQuestions = [];
 
     console.log("Edited Template:", templateData);
 
-    if(window.userRole =="teacher"){
-        saveData("template", masterTemplateList[identity][templateID], identity);
-    }else{
-        saveData("template", masterTemplateList[identity][templateID],{}, identity);
-    }
-    
+    updateTemplates(courseID);
+    saveData("template", masterTemplateList[courseID][templateID], courseID)
     closeModal();
 }
 
-
-function editTest(identity, testID) {
-    const test = masterTestList[identity]['drafts'][testID];
-    if(masterTestList[identity]['published'][testID]){
+/**
+ * This function is used to edit a draft test after it has been saved in the master list
+ * Precondition: valid courseID, testIndex, not published
+ * Postcondition: test is edited and saved in the master list
+*/
+function editTest(courseID, testID) {
+    const test = masterTestList[courseID]['drafts'][testID];
+    if(masterTestList[courseID]['published'][testID]){
         alert("You cannot edit published tests.");
-        return;
-    }
-    if(test.author != window.username){
-        alert("You are not the author of this test!");
         return;
     }
     // Open the edit modal and populate it with the test data
@@ -717,69 +725,35 @@ function editTest(identity, testID) {
     const formContent = `
         <div style="background:#e0e0e0;padding:20px;" id="testEditor">
             <label>Test Name:</label><br/>
-            <!-- Test summary section inserted here -->
-            <div id="testSummary">
-            <p><strong>Total Points:</strong> <span id="totalPoints">0</span></p>
-            <p><strong>Estimated Time:</strong> <span id="estimatedTime">0</span> minutes</p>
-            </div>
             <input type="text" id="nameField" value="${test.name}"><br><br>
             <p>Choose a Template!</p><br/>
             <div id="templateSelectorPane">
                 <select id="templateSelector">
                     <option value="" disabled>Please Select a Template</option>
                 </select> 
-                <button id="templateSelection" onclick="updateTestParts('${identity}')">Select This One!</button>
+                <button id="templateSelection" onclick="updateTestParts('${courseID}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>
-            <select id="testGraphicField" multiple size="5">
-            <option value="" disabled selected>Select a graphic</option>
-            </select><br><br>
-            <label>Reference Text for the Test (Optional):</label><br>
-            <textarea id=refText rows="4" placeholder="Put any necessary reference text here (Note: Large reference text above 200 chars should be put in an image attachment)">${test.refText}</textarea><br><br>
-            <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${identity}', '${false}', ${testID})">Save as Draft</button>
-            <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${identity}', '${true}', ${testID})">Publish Test</button>
+            <button class="save-btn" id="testDraftButton" onclick="submitEditedTest('${courseID}', '${false}', ${testID})">Save as Draft</button>
+            <button class="save-btn" id="testPublishButton" onclick="submitEditedTest('${courseID}', '${true}', ${testID})">Publish Test</button>
         </div>
     `;
-    
+
     modalBody.innerHTML = formContent;
-    document.getElementById("testDraftButton").disabled = true;
-    document.getElementById("testPublishButton").disabled = true;
+
     // Populate the template selector
-    updateTemplateSelection(identity);
+    updateTemplateSelection(courseID);
 
     // Set the selected template
     const templateSelector = document.getElementById('templateSelector');
     templateSelector.value = test.templateID;
-    test.template = masterTemplateList[identity][test.templateID];
+    test.template = masterTemplateList[courseID][test.templateID];
     // Populate the test parts
-    updateTestParts(identity);
+    updateTestParts(courseID);
     
     // After test parts are populated, load existing questions
     setTimeout(() => {
-        populateExistingQuestions(identity, test);
-    updateTestAttachments(identity);
-    
-    // Get the select element after it's been populated
-    const testGraphicField = document.getElementById("testGraphicField");
-    // Get current attachments from the test
-    const currentAttachments = test.attachments || [];
-    
-    console.log("Current attachments:", currentAttachments); // For debugging
-    
-    // Preselect the existing attachments
-    if (currentAttachments.length > 0) {
-        Array.from(testGraphicField.options).forEach((option) => {
-            // Handle possible type mismatches between the stored IDs and option values
-            if (currentAttachments.includes(option.value) || 
-                currentAttachments.includes(Number(option.value)) ||
-                currentAttachments.includes(String(option.value))) {
-                option.selected = true;
-                console.log("Selected option:", option.value); // For debugging
-            }
-        });
-    }
-
+        populateExistingQuestions(courseID, test);
     }, 500); // Give time for updateTestParts to complete
     
     modal.style.display = 'flex';
@@ -789,7 +763,7 @@ function editTest(identity, testID) {
 }
 
 // New helper function to populate existing questions -Help from Claude here (AW)
-function populateExistingQuestions(identity, test) {
+function populateExistingQuestions(courseID, test) {
     test.parts.forEach((part, partIndex) => {
         part.sections.forEach((section, sectionIndex) => {
             const sectionContainer = document.getElementById(`part-${partIndex}-section-${sectionIndex}-container`);
@@ -823,7 +797,7 @@ function populateExistingQuestions(identity, test) {
             const questionType = section.questionType.toLowerCase();
             section.questions.forEach((question) => {
                 // Get full question data from master list
-                const questionData = masterQuestionList[identity][questionType][question.id];
+                const questionData = masterQuestionList[courseID][questionType][question.id];
                 if (!questionData) {
                     console.error(`Question data not found for ID: ${question.id}, type: ${questionType}`);
                     return;
@@ -840,9 +814,6 @@ function populateExistingQuestions(identity, test) {
                     <p>${questionData.text || 'Question text not available'}</p>
                     <label>Points: </label>
                     <input type="number" class="question-points" min="1" value="${question.assigned_points || 1}" style="width: 60px;">
-                    <label>Time: </label>
-                    <input type="number" class="question-time" min="1" value="${questionData.eta || 1}" style="width: 60px;" disabled>
-                
                 `;
 
                 selectedQuestionsDiv.appendChild(questionElement);
@@ -864,12 +835,16 @@ function populateExistingQuestions(identity, test) {
             selectedQuestionsDiv.appendChild(randomizer);
         });
     });
-    updateTestSummary();
+    
 }
 
-
-function editAttachment(identity, attachmentIndex) {
-    const attachment = masterAttachmentList[identity][attachmentIndex];
+/**
+ * This renames attachments, not much else to it, it is an editor to facilitate renaming them
+ * Precondition: valid attachmentIndex and courseID
+ * Postcondition: the attachment editer is opened
+*/
+function editAttachment(courseID, attachmentIndex) {
+    const attachment = masterAttachmentList[courseID][attachmentIndex];
 
     // Open the edit modal and populate it with the attachment data
     const modal = document.getElementById('editModal');
@@ -881,7 +856,7 @@ function editAttachment(identity, attachmentIndex) {
     const formContent = `
         <label>Attachment Name:</label><br/>
         <input type="text" id="editAttachmentName" value="${attachment.name}"><br><br>
-        <button class="save-btn" onclick="submitEditAttachment('${identity}', ${attachmentIndex})">Submit Edit</button>
+        <button class="save-btn" onclick="submitEditAttachment('${courseID}', ${attachmentIndex})">Submit Edit</button>
     `;
 
     modalBody.innerHTML = formContent;
@@ -893,8 +868,12 @@ function editAttachment(identity, attachmentIndex) {
 
 
 
-
-function submitEditAttachment(identity, attachmentID) {
+/**
+ * This publishes the changes to the attachment name made in the editAttachment function
+ * Precondition: valid courseID, attachmentIndex
+ * Postcondition: attachment is renamed
+*/
+function submitEditAttachment(courseID, attachmentID) {
     const newName = document.getElementById('editAttachmentName').value.trim();
 
     if (!newName) {
@@ -902,18 +881,20 @@ function submitEditAttachment(identity, attachmentID) {
         return;
     }
 
-    masterAttachmentList[identity][attachmentID].name = newName;
-
-    if(window.userRole =="teacher"){
-        saveData("attachment", masterAttachmentList[identity][attachmentID], identity);
-    }else{
-        saveData("attachment", masterAttachmentList[identity][attachmentID], {}, identity);
-    }
-    
+    masterAttachmentList[courseID][attachmentID].name = newName;
+    updateAttachments(courseID);
+    saveData("attachment", masterAttachmentList[courseID][attachmentID], courseID);
     closeModal();
 }
 
-function submitEditedTest(identity, isPublished, testID) {
+
+
+/**
+ * This function is called to submit an edited test
+ * Precondition: valid courseID, isPublished, testIndex
+ * Postcondition: test is edited and saved in the master list
+*/
+function submitEditedTest(courseID, isPublished, testID) {
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
         alert("Test Name is required.");
@@ -926,7 +907,7 @@ function submitEditedTest(identity, isPublished, testID) {
         return;
     }
 
-    const template = masterTemplateList[identity][templateID];
+    const template = masterTemplateList[courseID][templateID];
     
     let usedQuestions = [];
 
@@ -935,15 +916,11 @@ function submitEditedTest(identity, isPublished, testID) {
         name: testName,
         template: template,
         templateName: template.name,
-        refText: document.getElementById("refText").value.trim() || '',
         templateID: templateID,
         attachments: [],
         parts: [],
         feedback: []
     };
-
-    const selectedAttachments = Array.from(document.getElementById("testGraphicField").selectedOptions).map(opt => opt.value);
-    testData.attachments = selectedAttachments;
 
     // Loop through all parts and sections rendered in the UI
     const testParts = document.getElementById("testParts");
@@ -985,7 +962,7 @@ function submitEditedTest(identity, isPublished, testID) {
                     "id": questionID,
                     "assigned_points": points
                 }
-                usedQuestions.push(masterQuestionList[identity][questionType.toLowerCase()][questionID]);
+                usedQuestions.push(masterQuestionList[courseID][questionType.toLowerCase()][questionID]);
                 // Add to the questions for this section
                 sectionData.questions.push(question);
                 noquestions=false;
@@ -1012,8 +989,8 @@ function submitEditedTest(identity, isPublished, testID) {
                     id = q;
                     const types = ['tf', 'ma', 'mc', 'ms', 'es', 'sa', 'fb'];
                     for (const t of types) {
-                        if (masterQuestionList[identity][t] && masterQuestionList[identity][t][id]) {
-                            question = masterQuestionList[identity][t][id];
+                        if (masterQuestionList[courseID][t] && masterQuestionList[courseID][t][id]) {
+                            question = masterQuestionList[courseID][t][id];
                         }
                     }
                     if (isPublished === 'true') {
@@ -1030,13 +1007,9 @@ function submitEditedTest(identity, isPublished, testID) {
     if (isPublished === 'true') {
         testData.published = 1;
     } 
-    if(window.userRole=="teacher"){
-        saveData("test", testData, identity);
-    }else{
-        saveData("test", testData, {}, identity);
-    }
-    
 
-    updateTestTabs(identity);
+    saveData("test", testData, courseID);
+
+    updateTestTabs(courseID);
     closeModal();
 }
