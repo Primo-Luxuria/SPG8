@@ -1532,302 +1532,232 @@ function updateTestTabs(identity) {
 /**
  * exportTestToHTML
  * Exports a test (without answers or grading instructions) to HTML.
- * Customizations (fonts, header/footer, cover page, etc.) are taken from the test's template.
  */
 function exportTestToHTML(identity, testID) {
-    // Retrieve the published test
-    const publishedTests = masterTestList[identity].published;
-    if (!publishedTests || !publishedTests[testID]) {
-        alert("Test not found!");
-        return;
-    }
+  // grab the published test
+  const published = masterTestList[identity].published;
+  if (!published || !published[testID]) {
+    alert("Test not found!");
+    return;
+  }
+  const test = published[testID];
 
-    const test = publishedTests[testID];
-    const template = masterTextbookList[identity][test.templateID] || null;
-    if(template == null){
-        alert("Test has no valid template!");
-        return;
-    }
-    const coverPage = masterCoverPageList[identity][template.coverPageID] || null;
-    if(coverPage ==null){
-        alert("Template has no valid coverpage!");
-        return;
-    }
+  // grab the template using the existing templateIndex
+  const template = masterTemplateList[identity][test.templateIndex];
+  if (!template) {
+    alert("Test has no valid template!");
+    return;
+  }
 
-    // Begin building HTML with custom CSS from the template
-    let htmlOutput = `
+  // cover page from template
+  const cp = template.coverPage;
+  if (!cp) {
+    alert("Template has no valid cover page!");
+    return;
+  }
+
+  // build html
+  let html = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${test.name} - Exported Test</title>
+  <title>${test.name} – Test</title>
   <style>
     body {
       font-family: ${template.bodyFont}, sans-serif;
       font-size: ${template.bodyFontSize}px;
       margin: 20px;
     }
-    .header-text {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: ${template.headerFontSize || 16}px;
-    }
     .test-title {
       font-family: ${template.titleFont}, sans-serif;
       font-size: ${template.titleFontSize}px;
-      color: #0077C8;
       text-align: center;
       margin-bottom: 10px;
     }
-    .test-subtitle {
-      font-family: ${template.subtitleFont}, sans-serif;
-      font-size: ${template.subtitleFontSize}px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
     .cover-page {
       border: 1px solid #ccc;
-      padding: 10px;
+      padding: 15px;
       margin-bottom: 20px;
     }
-    .part {
-      margin-bottom: 30px;
-    }
-    .part-title {
-      font-size: 20px;
-      margin-top: 20px;
-    }
-    .section-title {
-      font-size: 18px;
-      margin-top: 15px;
-    }
-    .question {
-      margin-bottom: 15px;
-    }
-    .footer-text {
-      text-align: center;
-      margin-top: 30px;
-      font-size: ${template.footerFontSize || 16}px;
-    }
-    .page-break {
-        page-break-before: always;
-        break-before: page;
-    }
+    .part { margin-bottom: 30px; }
+    .part-title { font-size: 20px; margin-top: 20px; }
+    .section-title { font-size: 18px; margin-top: 15px; }
+    .question { margin-bottom: 15px; }
+    .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
+    .page-break { page-break-before: always; }
   </style>
 </head>
 <body>
-  ${template.headerText ? `<div class="header-text">${template.headerText}</div>` : ""}
+  ${template.headerText ? `<div>${template.headerText}</div>` : ""}
   <h1 class="test-title">${test.name}</h1>
-  ${template.subtitleText ? `<h2 class="test-subtitle">${template.subtitleText}</h2>` : ""}
-`;
 
-    // Optionally include cover page details if defined
-    if (coverPage) {
-        const cp = coverPage;
-        htmlOutput += `
+  <!-- COVER PAGE -->
   <div class="cover-page">
     <h2>${cp.name}</h2>
     <p>Test Number: ${cp.testNum}</p>
     <p>Date: ${cp.date}</p>
     <p>Filename: ${cp.file}</p>
     <p>Instructions: ${cp.instructions}</p>
-  </div><div class="page-break"></div>
+  </div>
+  <div class="page-break"></div>
 `;
-    }
 
-    // Loop through each Part, Section, and Question (fixed looping)
-    for (let p = 0; p < test.parts.length; p++) {
-        const part = test.parts[p];
-        htmlOutput += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-        for (let s = 0; s < part.sections.length; s++) {
-            const section = part.sections[s];
-            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1}</h3>`;
-            for (let q = 0; q < section.questions.length; q++) {
-                const questionData = section.questions[q];
-                const question = masterQuestionList[identity][questionData.qtype][questionData.id];
-                htmlOutput += `
-    <div class="question">
-      <p>${question.text}</p>
-    </div>
-                `;
-            }
-            htmlOutput += `</div>`;
+  // loop over parts/sections/questions
+  for (let p = 0; p < test.parts.length; p++) {
+    html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+
+    const part = test.parts[p];
+    for (let s = 0; s < part.sections.length; s++) {
+      html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
+
+      const section = part.sections[s];
+      for (let q = 0; q < section.questions.length; q++) {
+        const Q = section.questions[q];
+        html += `<div class="question"><p>${Q.text}</p>`;
+
+        // render answer options for various qtypes
+        if (Q.qtype === 'mc') {
+          html += '<ul>';
+          Q.options.forEach(opt => html += `<li>${opt}</li>`);
+          html += '</ul>';
+        } else if (Q.qtype === 'ms') {
+          html += '<ul>';
+          Q.options.forEach(opt => html += `<li>[ ] ${opt}</li>`);
+          html += '</ul>';
+        } else if (Q.qtype === 'tf') {
+          html += `<p>True ___ False ___</p>`;
+        } else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
+          html += `<div class="answer-space" style="height:1.5em;"></div>`;
+        } else if (Q.qtype === 'es') {
+          html += `<div class="answer-space" style="height:6em;"></div>`;
         }
-        htmlOutput += `</div>`;
+        // end ADDED
+
+        html += '</div>';  // .question
+      }
+
+      html += `</div>`;  // section
     }
 
-    htmlOutput += `
-  ${template.footerText ? `<div class="footer-text">${template.footerText}</div>` : ""}
+    html += `</div>`;  // part
+  }
+
+  html += `
+  ${template.footerText ? `<div>${template.footerText}</div>` : ""}
 </body>
 </html>
-    `;
+`;
 
-    // Create a Blob and trigger download
-    const blob = new Blob([htmlOutput], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${test.name}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-} // RED TASK: ADD OPTIONS TO EXPORTER
+  //  trigger download w/ blob
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${test.name}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 
 /**
  * exportTestKeyToHTML
- Exports the test key (answer key) as HTML.
- * In the answer key export, grading instructions (in blue) and correct answers (in red) are displayed.
+ * Exports the answer key with grading instructions (in blue) and correct answers (in red).
  */
 function exportTestKeyToHTML(identity, testID) {
-    // Retrieve the published test
-    const publishedTests = masterTestList[identity].published;
-    if (!publishedTests || !publishedTests[testID]) {
-        alert("Test not found!");
-        return;
-    }
-    const test = publishedTests[testID];
-    const template = masterTextbookList[identity][test.templateID] || null;
-    if(template == null){
-        alert("Invalid template");
-        return;
-    }
-    const coverPage = masterCoverPageList[identity][template.coverPageID] || null;
-    if(coverPage ==null){
-        alert("Invalid coverpage!");
-        return;
-    }
-    let htmlOutput = `
+  const published = masterTestList[identity].published;
+  if (!published || !published[testID]) {
+    alert("Test not found!");
+    return;
+  }
+  const test     = published[testID];
+  const template = masterTemplateList[identity][test.templateIndex];
+  if (!template) {
+    alert("Invalid template!");
+    return;
+  }
+  const cp = template.coverPage;
+  if (!cp) {
+    alert("Invalid cover page!");
+    return;
+  }
+
+  let html = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${test.name} - Exported Test Key</title>
+  <title>${test.name} – Answer Key</title>
   <style>
-    body {
-      font-family: ${template.bodyFont}, sans-serif;
-      font-size: ${template.bodyFontSize}px;
-      margin: 20px;
-    }
-    .header-text {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: ${template.headerFontSize || 16}px;
-    }
-    .test-title {
-      font-family: ${template.titleFont}, sans-serif;
-      font-size: ${template.titleFontSize}px;
-      color: #0077C8;
-      text-align: center;
-      margin-bottom: 10px;
-    }
-    .test-subtitle {
-      font-family: ${template.subtitleFont}, sans-serif;
-      font-size: ${template.subtitleFontSize}px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .cover-page {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 20px;
-    }
-    .part {
-      margin-bottom: 30px;
-    }
-    .part-title {
-      font-size: 20px;
-      margin-top: 20px;
-    }
-    .section-title {
-      font-size: 18px;
-      margin-top: 15px;
-    }
-    .question {
-      margin-bottom: 15px;
-    }
-    .grading-instructions {
-      color: blue;
-      font-style: italic;
-    }
-    .correct-answer {
-      color: red;
-      font-weight: bold;
-    }
-    .footer-text {
-      text-align: center;
-      margin-top: 30px;
-      font-size: ${template.footerFontSize || 16}px;
-    }
-    .page-break {
-        page-break-before: always;
-        break-before: page;
-    }
+    body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin:20px; }
+    .test-title { font-family: ${template.titleFont}; font-size: ${template.titleFontSize}px; text-align:center; }
+    .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
+    .part { margin-bottom:30px; }
+    .part-title { font-size:20px; }
+    .section-title { font-size:18px; }
+    .question { margin-bottom:15px; }
+    .correct-answer { color: red; font-weight:bold; }
+    .grading-instructions { color: blue; font-style:italic; }
+    .page-break { page-break-before: always; }
   </style>
 </head>
 <body>
-  ${template.headerText ? `<div class="header-text">${template.headerText}</div>` : ""}
-  <h1 class="test-title">${test.name} - Answer Key</h1>
-  ${template.subtitleText ? `<h2 class="test-subtitle">${template.subtitleText}</h2>` : ""}
-`;
+  ${template.headerText ? `<div>${template.headerText}</div>` : ""}
+  <h1 class="test-title">${test.name} – Answer Key</h1>
 
-    // Optionally include cover page details if defined in the template
-    if (coverPage) {
-        const cp = coverPage;
-        htmlOutput += `
   <div class="cover-page">
     <h2>${cp.name}</h2>
     <p>Test Number: ${cp.testNum}</p>
     <p>Date: ${cp.date}</p>
     <p>Filename: ${cp.file}</p>
     <p class="grading-instructions">Instructions: ${cp.instructions}</p>
-  </div><div class="page-break"></div>
+  </div>
+  <div class="page-break"></div>
 `;
-    }
 
-    // Loop through each part, section, and question. Grading instructions and correct answers are only included here.
-    for (let p = 0; p < test.parts.length; p++) {
-        const part = test.parts[p];
-        htmlOutput += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-        for (let s = 0; s < part.sections.length; s++) {
-            const section = part.sections[s];
-            htmlOutput += `<div class="section"><h3 class="section-title">Section ${s + 1} (${section.questionType.toUpperCase()})</h3>`;
-            for (let q = 0; q < section.questions.length; q++) {
-                const questionData = section.questions[q];
-                const question = masterQuestionList[identity][questionData.qtype][questionData.id];
-                
-                htmlOutput += `
-    <div class="question">
-      <p>${question.text}</p>
-      <p class="correct-answer">Correct Answer: ${question.answer.value}</p>
-      <p class="grading-instructions">Grading Instructions: ${question.directions}</p>
-    </div>
-                `;
-            }
-            htmlOutput += `</div>`;
-        }
-        htmlOutput += `</div>`;
-    }
+  // loop parts for sections/questions
+  for (let p = 0; p < test.parts.length; p++) {
+    html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+    const part = test.parts[p];
 
-    htmlOutput += `
-  ${template.footerText ? `<div class="footer-text">${template.footerText}</div>` : ""}
+    for (let s = 0; s < part.sections.length; s++) {
+      html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
+      const section = part.sections[s];
+
+      for (let q = 0; q < section.questions.length; q++) {
+        const Q = section.questions[q];
+        html += `
+  <div class="question">
+    <p>${Q.text}</p>
+    <p class="correct-answer">Answer: ${Q.answer}</p>
+    <p class="grading-instructions">Grading: ${Q.directions}</p>
+  </div>
+        `;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `
+  ${template.footerText ? `<div>${template.footerText}</div>` : ""}
 </body>
 </html>
-    `;
+`;
 
-    // Create a Blob and trigger download for the key export
-    const blob = new Blob([htmlOutput], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${test.name}-Key.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}  //RED TASK: UPDATE KEY
-
-
+  // download via blob
+  const blob = new Blob([html], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${test.name}-Key.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function updateCoverPages(identity) {
     const coverPageContainer = document.getElementById(`coverpages-${identity}`);
