@@ -96,10 +96,8 @@ class Course(models.Model):
         default='Fall 2021'
     ) 
     # Link to the associated textbook.
-    textbook = models.ForeignKey(
+    textbooks = models.ManyToManyField(
         Textbook,
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         help_text='Textbook associated with this course.'
     )
@@ -111,6 +109,7 @@ class Course(models.Model):
     )
     published = models.BooleanField(default=False)
 
+    
     def __str__(self):
         return f"{self.course_id} - {self.name}"
 
@@ -174,6 +173,7 @@ class Question(models.Model):
     reference = models.CharField(max_length=200, null=True, blank=True, help_text="Reference text (optional).")
     comments = models.TextField(null=True, blank=True)
     published = models.BooleanField(default=False)
+    requiredRefs = models.CharField(max_length=200, null=True, blank=True, help_text="Required Reference text.")
 
     # Categorization fields.
     chapter = models.PositiveIntegerField(default=0, help_text="Chapter number. Must be non-negative for publisher questions.")
@@ -181,7 +181,8 @@ class Question(models.Model):
     # For question types that require a single correct answer (e.g., True/False, Multiple Choice), this field is used.
     # For Fill in the Blank questions, use the associated Answers for multiple correct answers.
     answer = models.TextField(null=True, blank=True, help_text="Correct answer for types requiring a single answer.")
-    
+    tests = models.ManyToManyField('Test', related_name='questions',blank=True)
+
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -436,6 +437,7 @@ class Test(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     templateID = models.PositiveIntegerField(default=0, help_text="Associated Template ID. Default is 0.")
+    refText = models.CharField(max_length=200, null=True, blank=True, help_text="Reference text (optional).")
 
     def __str__(self):
         if self.course:

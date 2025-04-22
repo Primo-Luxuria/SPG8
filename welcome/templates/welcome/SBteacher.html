@@ -33,6 +33,13 @@
         outline: none !important;
     }
 
+    .dual-container {
+        display: flex;
+        gap: 40px;
+        margin-top: 30px;
+        align-items: flex-start;
+    }
+
     /* Dropdown specific */
     select {
         select#courseSemester {
@@ -213,6 +220,7 @@
             <h2>Manage Your Courses</h2>
 
     <div style="background:#e0e0e0;padding:20px;">
+        <h3>Add a New Course</h3>
     <input type="text" id="courseID" placeholder="Enter Course ID" required>
     <input type="text" id="courseName" placeholder="Enter Course Name" required>
     <input type="text" id="courseCRN" placeholder="Enter CRN" required>
@@ -230,9 +238,9 @@
     <input type="text" id="courseTextbookISBN" placeholder="Enter Textbook ISBN" required>
     <input type="text" id="courseTextbookLink" placeholder="Enter Textbook Website Link" required><br/><br/>
     
-    <button onclick="addCourse()">Add Course</button>
+    <button onclick="addContent()">Add Course</button>
     <style>
-        /* Add this to your existing button styles */
+        
         button[onclick="addCourse()"] {
             background-color: #0077C8 !important;
             color: white !important;
@@ -254,6 +262,30 @@
             background-color: #004880 !important;
         }
         </style>
+    </div>
+   
+    <div style="background:#e0e0e0;padding:20px;margin-top: 10px;">
+        <h3>Use Existing Course</h3>
+    
+        <label for="existingCourse">Select Course:</label><br>
+        <select id="existingCourse">
+            <option value="" disabled selected>Choose a Course</option>
+        </select><br>
+        <button class="add-btn" onclick="addExistingCourse()">Add Course</button><br/><br/>
+    </div>
+    <div style="background:#e0e0e0;padding:20px;margin-top: 10px;">
+        <h3>Add Textbook(s) to Course</h3>
+        <label for="existingTextbook">Select Textbooks:</label><br>
+        <select id="existingTextbook" multiple size="6" style="min-width:300px; font-size:14px;">
+            <!-- options will be populated dynamically -->
+        </select><br>
+    
+        <label for="courseTargets">Assign to Course:</label><br>
+        <select id="courseTargets">
+            <option value="" disabled selected>Choose a Course for the Textbooks:</option>
+        </select><br>
+        <small style="color: #444;">Hold Ctrl (Cmd on Mac) to select multiple textbooks.</small><br>
+        <button class="add-btn" onclick="assignTextbooksToCourse()">Assign Selected Textbooks to Course</button>
     </div>
 
     <p style="color:aliceblue" id="errorText"></p>
@@ -287,7 +319,8 @@
         </div>
     </div>
 <script>
-    window.username = "{{username}}"
+    window.username = "{{username}}";
+    window.userRole = "{{userRole}}";
 </script>
 
 <!-- Define settings before JS files -->

@@ -22,6 +22,9 @@ document.addEventListener("DOMContentLoaded", function(){
  * Postcondition: courseSemester selector should have values equal to the current school year
 */
 function updateSemesterOptions() {
+    if(!(window.userRole=="teacher")){
+        return;
+    }
     const select = document.getElementById('courseSemester');
     select.innerHTML = ''; // Clear existing options
     const option = document.createElement('option');
@@ -95,7 +98,7 @@ document.addEventListener('contextmenu', function (event) {
         // Store the relevant data in the context menu for later use
         contextMenu.dataset.itemType = target.dataset.itemType;
         contextMenu.dataset.itemID = target.dataset.itemID;
-        contextMenu.dataset.courseID = target.dataset.courseID;
+        contextMenu.dataset.identity = target.dataset.identity;
         contextMenu.dataset.questionType = target.dataset.questionType;
         contextMenu.dataset.testType = target.dataset.testType;
 
@@ -114,5 +117,5 @@ document.addEventListener('contextmenu', function (event) {
  * Postcondition: Warning message displayed
 */
 window.onbeforeunload = function(event){
-    event.returnValue = "Warning! Data entered may not be saved!";
+    event.returnValue = "Warning! Data entered may not be saved! Are you sure you want to exit?";
 };
