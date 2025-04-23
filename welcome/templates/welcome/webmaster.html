@@ -612,7 +612,28 @@ async function deleteItem(element) {
                 container.innerHTML += `<h3>Questions</h3>`;
                 if (data.questions && data.questions.length > 0) {
                     data.questions.forEach(q => {
-                        container.innerHTML += `<div><input type="checkbox" name="questionExportSelect" value="${q.id}">${q.text}</input></div>`;
+
+                        let questionType = '';
+                        if (q.qtype === 'mc') {
+                            questionType = 'Multiple Choice: ';
+                        }
+                        else if (q.qtype === 'tf') {
+                            questionType = 'True/False: ';
+                        }
+                        else if (q.qtype === 'fb') {
+                            questionType = 'Fill In The Blank: ';
+                        }
+                        else if (q.qtype === 'es') {
+                            questionType = 'Essay: ';
+                        }
+                        else if (q.qtype === 'ma') {
+                            questionType = 'Matching: ';
+                        }
+                        else {
+                            questionType = 'Multiple Selection: ';
+                        }
+
+                        container.innerHTML += `<div><input type="checkbox" name="questionExportSelect" value="${q.id}"> <strong>${questionType}</strong> ${q.text}</input></div>`;
 
                         /*
                         // options and answers SHOULD go here

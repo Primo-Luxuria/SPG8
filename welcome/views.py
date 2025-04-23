@@ -1114,7 +1114,7 @@ def export_preview(request):
 
         tests = list(Test.objects.all().values('id', 'name'))
 
-        questions = list(Question.objects.all().values('id', 'text'))
+        questions = list(Question.objects.all().values('id', 'text', 'qtype'))
         options = list(Options.objects.all().values('id', 'text', 'question_id'))
         answers = list(Answers.objects.all().values('id', 'text', 'question_id'))
 
