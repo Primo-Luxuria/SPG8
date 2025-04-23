@@ -116,7 +116,7 @@ This will need to change once hooked up to AWS
 """
 Local test for database
 """
-"""
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -127,19 +127,8 @@ DATABASES = {
         'PORT': '3306',
     }
 }
-"""
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'MyDbTest',  # Your database name
-        'USER': 'test_user',  # Your MySQL username
-        'PASSWORD': 'yourpassword',  # Your MySQL password
-        'HOST': 'localhost',  # Use 'localhost' for local development
-        'PORT': '3306',  # Default MySQL port
-    }
-}
 
 
 
