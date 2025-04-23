@@ -5,6 +5,7 @@ import zipfile
 from http.client import responses
 
 import openpyxl
+from django.db.models.fields import *
 from openpyxl.utils import get_column_letter
 from django.db import connection, IntegrityError
 import copy
@@ -33,6 +34,9 @@ from .models import Course#, AnswerOption  # Import additional models as needed
 
 def home(request):
     return render(request, 'welcome/home.html')
+
+def faq_view(request):
+    return render(request, 'welcome/faq.html')  # or whatever template you want
 
 def signup_handler(request):
     if request.method == "POST":
@@ -1568,6 +1572,9 @@ def import_csv(request):
                 should_continue = True
                 break
 
+            if isinstance(value, str) and value == 'NULL':
+                value = None
+
             if value is None or pd.isna(value): # NaN is pandas version of NULL or None. one result of pd.isna() is whether value is NaN or not; boolean
                 if not field.null:  # if field does NOT allow a null value
                     rows_skipped.append(int(index)+1)
@@ -1583,13 +1590,44 @@ def import_csv(request):
                     try:
                         related_instance = related_model.objects.get(id=int(value)) # get instance of related Model
                         new_record_data_dict[field.name] = related_instance
+                    except ValueError:
+                        print('Non integer ID provided for ForeignKey')
+                        rows_skipped.append(int(index) + 1)
+                        should_continue = True
+                        break
                     except related_model.DoesNotExist:  # if the desired instance doesn't exist
                         print(
                             f"Record with ID of {value} does not exist in database table for {related_model.__name__} model")
                         rows_skipped.append(int(index)+1)
                         should_continue = True
                         break
+
                 else:
+                    if isinstance(field, IntegerField):
+                        try:
+                            value = int(value)
+                        except ValueError:
+                            rows_skipped.append(int(index) + 1)
+                            should_continue = True
+                            break
+                    elif isinstance(field, FloatField):
+                        try:
+                            value = float(value)
+                        except ValueError:
+                            rows_skipped.append(int(index) + 1)
+                            should_continue = True
+                            break
+                    elif isinstance(field, BooleanField):
+                        # Convert strings like '1', '0', 'true', 'false'
+                        if str(value).strip().lower() in ['1', 'true']:
+                            value = True
+                        elif str(value).strip().lower() in ['0', 'false']:
+                            value = False
+                        else:
+                            rows_skipped.append(int(index) + 1)
+                            should_continue = True
+                            break
+
                     new_record_data_dict[field.name] = value
 
 
@@ -1658,12 +1696,12 @@ def create_csv_template(request):
         row_two = ['2', 'true', '', 'NULL', '/media/feedback_graphic.jpg', '2', 'NULL']
     elif model_for_template == 'Template':
         column_names_list = ['id', 'name', 'bodyFont', 'bodyFontSize', 'headerText', 'footerText', 'course_id', 'coverPageID', 'pageNumbersInFooter', 'pageNumbersInHeader', 'subtitleFont', 'subtitleFontSize', 'titleFont', 'titleFontSize', 'textbook_id', 'partStructure', 'bonusSection', 'published', 'author_id', 'courseTag', 'dateTag', 'nameTag', 'bonusQuestions']
-        row_one = ['1', '"System Default"', '"Times New Roman"', '12', '', '"Please read all questions carefully"', '1', '0', '1', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', 'NULL', '"[{""sections"": [{""questionType"": ""tf"", ""sectionNumber"": 1}], ""partNumber"": 1}]"', '0', '1', '1', '', '', '', '[]']
-        row_two = ['2', '"QTI Default"', '"Times New Roman"', '12', 'NULL', 'NULL', '1', '0', '0', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', '1', '"[{""sections"": [{""questionType"": ""mc"", ""sectionNumber"": 1}, {""questionType"": ""tf"", ""sectionNumber"": 2}, {""questionType"": ""fb"", ""sectionNumber"": 3}, {""questionType"": ""es"", ""sectionNumber"": 4}, {""questionType"": ""ma"", ""sectionNumber"": 5}, {""questionType"": ""ms"", ""sectionNumber"": 6}], ""partNumber"": 1}]"', '0', '1', '1', 'NULL', 'NULL', 'NULL', 'NULL']
+        row_one = ['1', '"System Default"', '"Times New Roman"', '12', '', '"Please read all questions carefully"', '1', '0', '1', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', 'NULL', '"parts and sections"', '0', '1', '1', '', '', '', '[]']
+        row_two = ['2', '"QTI Default"', '"Times New Roman"', '12', 'NULL', 'NULL', '1', '0', '0', '0', '"Times New Roman"', '24', '"Times New Roman"', '36', '1', '"parts and section"', '0', '1', '1', 'NULL', 'NULL', 'NULL', 'NULL']
     elif model_for_template == 'CoverPage':
         column_names_list = ['id', 'name', 'testNum', 'date', 'file', 'showFilename', 'instructions', 'course_id', 'blank', 'published', 'textbook_id', 'author_id']
-        row_one = ['1', 'Coverpage1', '1', '"2025-04-19"', 'defaultpage', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
-        row_two = ['2', '"Coverpage 2"', '2', '"2025-04-19"', '"defaultpage_3"', '1', '"Grade according to the rubric, giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+        row_one = ['1', 'nameOne', '1', '"2025-04-19"', 'defaultpage', '1', '"Grade according to the rubric giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
+        row_two = ['2', '"nameTwo"', '2', '"2025-04-19"', '"defaultpage_3"', '1', '"Grade according to the rubric giving partial credit where indicated"', '1', 'TR', '1', 'NULL', '1']
     elif model_for_template == 'Attachment':
         column_names_list = ['id', 'file', 'course_id', 'name', 'published', 'textbook_id', 'author_id']
         row_one = ['1', '"attachments/example.csv"', '1', '"attachment name 1"', '0', 'NULL', '1']

@@ -809,7 +809,8 @@ async function deleteItem(element) {
                 2 double quotes ("").
                 If a field value is required but the value is invalid or not given, the row will be skipped.
                 If a column is given that doesn't exist in the model, nothing will be imported.
-                IDs do not need to be given. If IDs are given, any rows with duplicate IDs will be skipped.
+                IDs do not need to be given. If IDs are given, any rows with duplicate IDs will be skipped. If relational IDs are given
+                but the object with the given relational ID does not exist, the row will be skipped.
                 All prior records will be deleted. Only supports UTF-8 encoding. Templates can be downloaded to see examples.</p>
             <h4>Example</h4>
             <p>id,text,course_id<br>
