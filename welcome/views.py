@@ -1007,7 +1007,7 @@ def parse_qti_xml(request):
                 "bodyFontSize": 12,
                 "pageNumbersInHeader": False,
                 "pageNumbersInFooter": False,
-                "coverPageID": 0,
+                "coverPageID": 1,
                 "partStructure": [{"sections": [{"questionType": "mc", "sectionNumber": 1},
                                                 {"questionType": "tf", "sectionNumber": 2},
                                                 {"questionType": "fb", "sectionNumber": 3},
@@ -1820,5 +1820,7 @@ def signup_handler(request):
 
 
 """
-The teacher view
+FAQ
 """
+def faq_view(request):
+    return render(request, 'welcome/faq.html')

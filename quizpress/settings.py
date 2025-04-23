@@ -38,8 +38,8 @@ SECRET_KEY = 'django-insecure-s@@-gq^j3(rkb!e(9one-4lw49b12+&633-yy90*4$a1((88$=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['52.71.123.7', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
-
+#ALLOWED_HOSTS = ['52.71.123.7', 'localhost', 'quizpressdb.com', 'www.quizpressdb.com', 'https://quizpressdb.com']  # EC2 instance public IP]
+ALLOWED_HOSTS = []
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -120,10 +120,10 @@ Local test for database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpressdb1',  # Ensure this matches your database name
-        'USER': 'dbadmin',
-        'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
-         'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
+        'NAME': 'quizpress',  # Ensure this matches your database name
+        'USER': 'root',
+        'PASSWORD': '2319isuck', # Same as the one you used in the MySQL client 
+         'HOST': 'localhost',
         'PORT': '3306',
     }
 }
