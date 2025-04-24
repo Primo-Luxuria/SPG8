@@ -1578,7 +1578,12 @@ function exportTestToHTML(identity, testID) {
       .section-title { font-size: 18px; margin-top: 15px; }
       .question { margin-bottom: 15px; }
       .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
-      .page-break { page-break-before: always; }
+      .page-break { page-break-before: always;}
+      ul {
+            list-style-type: none;
+            padding-left: 0px;
+        }
+
     </style>
   </head>
   <body>
