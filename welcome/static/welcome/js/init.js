@@ -88,7 +88,7 @@ function assignTextbooksToCourse() {
  * getUserIdentity to determine identity based on user role
 */
 function getUserIdentity(courseID, isbn) {
-  const ownerRole = document.getElementById('userRole')?.value;
+  const ownerRole = window.userRole;
   if (ownerRole === 'teacher' || ownerRole === 'webmaster') {
     return courseID;
   } else if (ownerRole === 'publisher') {
@@ -694,6 +694,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
         return Promise.reject(new Error("Invalid data"));
     }
 
+   
 
     let api_call = "";
     let requestData = {};
@@ -701,6 +702,7 @@ async function saveData(type, entry, courseID = null, isbn = null) {
         'X-CSRFToken': getCSRFToken()
     };
     const identity = getUserIdentity(courseID, isbn);
+    
     const ownerRole = window.userRole;
     
     try {
@@ -966,14 +968,13 @@ function serializeCoverPage(coverPage, identity) {
  */
 function serializeQuestion(question, identity) {
     const ownerRole = window.userRole;
-    
+    console.log(identity);
     // Build the base request data
     const requestData = {
         ownerRole: ownerRole,
         courseID: Boolean(ownerRole=="teacher") ? identity : null,
         isbn: Boolean(ownerRole=="teacher") ? null : identity,
     };
-    
     
     // Format the question data with proper type checking
     requestData.question = {
@@ -1248,7 +1249,10 @@ function renderUserData(data){
         
         masterCoverPageList = data.cpage_list;
         refreshData();
-        populateExistingSelectors();
+        if(window.userRole == "teacher"){
+            populateExistingSelectors();
+        }
+        
 }
 
 function refreshData(){
@@ -1543,14 +1547,15 @@ function exportTestToHTML(identity, testID) {
   const test = published[testID];
 
   // grab the template using the existing templateIndex
-  const template = masterTemplateList[identity][test.templateIndex];
+  const template = masterTemplateList[identity][test.templateID];
   if (!template) {
     alert("Test has no valid template!");
     return;
   }
 
   // cover page from template
-  const cp = template.coverPage;
+  const cpID = template.coverPageID;
+  const cp = masterCoverPageList[identity][cpID];
   if (!cp) {
     alert("Template has no valid cover page!");
     return;
@@ -1673,12 +1678,13 @@ function exportTestKeyToHTML(identity, testID) {
     return;
   }
   const test     = published[testID];
-  const template = masterTemplateList[identity][test.templateIndex];
+  const template = masterTemplateList[identity][test.templateID];
   if (!template) {
     alert("Invalid template!");
     return;
   }
-  const cp = template.coverPage;
+  const cpID = template.coverPageID;
+  const cp = masterCoverPageList[identity][cpID];
   if (!cp) {
     alert("Invalid cover page!");
     return;
@@ -1802,6 +1808,9 @@ function updateTemplates(identity) {
 
     let templates = masterTemplateList[identity];
     for(const key in templates){
+        if(key == "bonusQuestions"){
+            continue;
+        }
         let template = templates[key];
         const templateDiv = document.createElement('div');
         templateDiv.style.backgroundColor = '#d0d0d0';
@@ -1836,12 +1845,12 @@ function updateGraphicSelectors(identity) {
         let attachment = masterAttachmentList[identity][key];
         const option = document.createElement('option');
         option.value = attachment.id;
-        option.textContent = attachment.url;
+        option.textContent = attachment.name;
         qGraphicField.appendChild(option);
 
         const ansOption = document.createElement('option');
         ansOption.value = attachment.id;
-        ansOption.textContent = attachment.url;
+        ansOption.textContent = attachment.name;
         ansGraphicField.appendChild(ansOption);
     }
 }

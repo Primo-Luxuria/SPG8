@@ -701,6 +701,7 @@ const chapter = document.getElementById("qChapter").value.trim();
 const section = document.getElementById("qSection").value.trim();
 const reqRefs = document.getElementById("reqRefField").value.trim();
 
+
 if (!text || !type || !points || !instructions || !time || !chapter || !section || !reqRefs) {
 alert("Some fields (Question, Question Type, Default Point Value, Required References, and Grading Instructions) are required. For chapter or section, put 0 if not applicable.");
 return;
