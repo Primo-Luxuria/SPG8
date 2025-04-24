@@ -288,7 +288,10 @@
         <button class="add-btn" onclick="assignTextbooksToCourse()">Assign Selected Textbooks to Course</button>
     </div>
 
+    {% if error_message %}
     <p style="color:aliceblue" id="errorText"></p>
+    {% endif %}
+
     <div id="courseList"></div>
 
     <!-- Context Menu for Questions -->
