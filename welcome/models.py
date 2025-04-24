@@ -167,6 +167,8 @@ class Question(models.Model):
     # Common fields for visual elements and grading.
     img = models.ImageField(upload_to='graphics/', max_length=200, null=True, blank=True)  # Embedded graphic.
     ansimg = models.ImageField(upload_to='answer_graphics/', null=True, blank=True)  # Answer graphic.
+    imgID = models.IntegerField(blank=True, null=True)
+    ansimgID = models.IntegerField(blank=True,null=True)
     score = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
     eta = models.IntegerField(default=1, help_text='Estimated time (in minutes) to answer the question.')
     directions = models.TextField(null=True, blank=True)

@@ -890,6 +890,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 @transaction.atomic
 def save_question(request):
     data = request.data
+    print(data)
     question_data = data.get('question', {})
     answer_data = data.get('answer', {})
     options_data = data.get('options', {})
@@ -941,10 +942,15 @@ def save_question(request):
 
         # Safe image field handling
         img = question_data.get('img')
-        newQ.img = img if isinstance(img, (InMemoryUploadedFile, type(None))) else None
-
         ansimg = question_data.get('ansimg')
-        newQ.ansimg = ansimg if isinstance(ansimg, (InMemoryUploadedFile, type(None))) else None
+        newQ.imgID = img
+        newQ.ansimgID = ansimg
+
+        #newQ.img = img if isinstance(img, (InMemoryUploadedFile, type(None))) else None
+        #newQ.ansimg = ansimg if isinstance(ansimg, (InMemoryUploadedFile, type(None))) else None
+
+        
+
 
         if created:
             newQ.author = request.user
@@ -1273,8 +1279,10 @@ def get_question_list(field, suite):
                     'reference': q.reference,
                     'reqRefs': q.requiredRefs,
                     'eta': q.eta,
-                    'img': img_url,
-                    'ansimg': ansimg_url,
+                    'img': q.imgID,
+                    'ansimg': q.ansimgID,
+                    'parsedImg': img_url,
+                    'parsedAnsImg': ansimg_url,
                     'comments': q.comments,
                     'options': options,
                     'chapter': q.chapter,
