@@ -900,9 +900,6 @@ def save_question(request):
     course = None
     textbook = None
 
-    if question_data.get("published") == True:
-        return Response({'error': 'Already published!'}, status=400)
-
     if owner_role == 'teacher':
         try:
             owner_id = data.get('courseID')
@@ -968,6 +965,7 @@ def save_question(request):
                     Answers.objects.create(question=newQ, text=val.get('value'))
             elif qtype == 'ma':
                 for val in answer_data.values():
+                    print("MA Answer Data:", answer_data)
                     Answers.objects.create(question=newQ, text=val.get('text'))
 
         # Save Options

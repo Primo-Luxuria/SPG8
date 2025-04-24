@@ -12,4 +12,5 @@ urlpatterns = [
     path('webmaster-dashboard/', views.webmaster_dashboard, name='webmaster_dashboard'),
     path('login-handler/', views.login_handler, name='login_handler'),
     path('signup-handler/', views.signup_handler, name='signup_handler'),
+     path('faq/', views.faq_view, name='faq'),
 ]+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

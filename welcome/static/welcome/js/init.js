@@ -328,7 +328,6 @@ function renderFilteredQuestions(questionType, identity) {
 async function addContent() {
     
     let courseID, courseName, courseCRN, courseSemester;
-    let textbookTitle, textbookAuthor, textbookVersion, textbookISBN, textbookLink;
     let title, author, version, isbn, link;
 
     if (window.userRole === "teacher") {
@@ -440,11 +439,6 @@ async function addContent() {
         document.getElementById('courseName').value = "";
         document.getElementById('courseCRN').value = "";
         document.getElementById('courseSemester').value = "";
-        document.getElementById('courseTextbookTitle').value = "";
-        document.getElementById('courseTextbookAuthor').value = "";
-        document.getElementById('courseTextbookVersion').value = "";
-        document.getElementById('courseTextbookISBN').value = "";
-        document.getElementById('courseTextbookLink').value = "";
     }else{  
         document.getElementById('title').value = "";
         document.getElementById('author').value = "";
@@ -1141,7 +1135,7 @@ function serializeQuestion(question, identity) {
                     })) : []
             }));
     }
-    
+    console.log("Serialized requestData:", requestData);
     return requestData;
 }
 
@@ -1369,11 +1363,6 @@ function loadContent(identity) {
         document.getElementById('courseName').value = "";
         document.getElementById('courseCRN').value = "";
         document.getElementById('courseSemester').value = "";
-        document.getElementById('courseTextbookTitle').value = "";
-        document.getElementById('courseTextbookAuthor').value = "";
-        document.getElementById('courseTextbookVersion').value = "";
-        document.getElementById('courseTextbookISBN').value = "";
-        document.getElementById('courseTextbookLink').value = "";
     }else{  
         document.getElementById('title').value = "";
         document.getElementById('author').value = "";
@@ -1421,7 +1410,7 @@ function questionTypeLabel(type) {
 }
 
 
-function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersion, isbn, link) {
+function openImporter(id, name, crn, semester) {
     let fileInput = document.getElementById("fileInput");
     let file = fileInput.files[0];
 
@@ -1436,11 +1425,9 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
     formData.append("courseName", name);
     formData.append("courseCRN", crn);
     formData.append("courseSemester", semester);
-    formData.append("courseTextbookTitle", textTitle);
-    formData.append("courseTextbookAuthor", textAuthor);
-    formData.append("courseTextbookVersion", textVersion);
-    formData.append("courseTextbookISBN", isbn);
-    formData.append("courseTextbookLink", link);
+
+    //let templateId = "1";
+    //formData.append("templateId", templateId);
 
     fetch(window.quizpressSettings.parseQTIUrl, {
         method: "POST",
@@ -1449,14 +1436,19 @@ function openImporter(id, name, crn, semester, textTitle, textAuthor, textVersio
             "X-CSRFToken": window.quizpressSettings.csrfToken
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Imported questions:", data);
-        // You could loop through data.questions and inject them into the DOM here
-    })
-    .catch(error => console.error("Error:", error));
-} //RED TASK: IGNORE THIS AND REMOVE IT FROM PUBLISHER
+        .then(response => response.json())
+        .then(data => {
+            console.log("Imported questions:", data);
+            if (data.success) {
+                alert(data.success);
+                reloadData();
+            } else {
+                alert("Error: " + data.error);
+            }
 
+        })
+        .catch(error => console.error("Error:", error));
+}
 
 
 function updateTestTabs(identity) {
@@ -1533,237 +1525,279 @@ function updateTestTabs(identity) {
 }
 
 
-/**
- * exportTestToHTML
- * Exports a test (without answers or grading instructions) to HTML.
- */
 function exportTestToHTML(identity, testID) {
-  // grab the published test
-  const published = masterTestList[identity].published;
-  if (!published || !published[testID]) {
-    alert("Test not found!");
-    return;
-  }
-  const test = published[testID];
-
-  // grab the template using the existing templateIndex
-  const template = masterTemplateList[identity][test.templateID];
-  if (!template) {
-    alert("Test has no valid template!");
-    return;
-  }
-
-  // cover page from template
-  const cpID = template.coverPageID;
-  const cp = masterCoverPageList[identity][cpID];
-  if (!cp) {
-    alert("Template has no valid cover page!");
-    return;
-  }
-
-  // build html
-  let html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${test.name} – Test</title>
-  <style>
-    body {
-      font-family: ${template.bodyFont}, sans-serif;
-      font-size: ${template.bodyFontSize}px;
-      margin: 20px;
+    // grab the published test
+    const published = masterTestList[identity].published;
+    if (!published || !published[testID]) {
+      alert("Test not found!");
+      return;
     }
-    .test-title {
-      font-family: ${template.titleFont}, sans-serif;
-      font-size: ${template.titleFontSize}px;
-      text-align: center;
-      margin-bottom: 10px;
+    const test = published[testID];
+  
+    // grab the template using the existing templateIndex
+    const template = masterTemplateList[identity][test.templateID];
+    if (!template) {
+      alert("Test has no valid template!");
+      return;
     }
-    .cover-page {
-      border: 1px solid #ccc;
-      padding: 15px;
-      margin-bottom: 20px;
+  
+    // cover page from template
+    const cpID = template.coverPageID;
+    const cp = masterCoverPageList[identity][cpID];
+    if (!cp) {
+      alert("Template has no valid cover page!");
+      return;
     }
-    .part { margin-bottom: 30px; }
-    .part-title { font-size: 20px; margin-top: 20px; }
-    .section-title { font-size: 18px; margin-top: 15px; }
-    .question { margin-bottom: 15px; }
-    .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
-    .page-break { page-break-before: always; }
-  </style>
-</head>
-<body>
-  ${template.headerText ? `<div>${template.headerText}</div>` : ""}
-  <h1 class="test-title">${test.name}</h1>
-
-  <!-- COVER PAGE -->
-  <div class="cover-page">
-    <h2>${cp.name}</h2>
-    <p>Test Number: ${cp.testNum}</p>
-    <p>Date: ${cp.date}</p>
-    <p>Filename: ${cp.file}</p>
-    <p>Instructions: ${cp.instructions}</p>
-  </div>
-  <div class="page-break"></div>
-`;
-
-  // loop over parts/sections/questions
-  for (let p = 0; p < test.parts.length; p++) {
-    html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-
-    const part = test.parts[p];
-    for (let s = 0; s < part.sections.length; s++) {
-      html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
-
-      const section = part.sections[s];
-      for (let q = 0; q < section.questions.length; q++) {
-        const Q = section.questions[q];
-        html += `<div class="question"><p>${Q.text}</p>`;
-
-        // render answer options for various qtypes
-        if (Q.qtype === 'mc') {
-          html += '<ul>';
-          Q.options.forEach(opt => html += `<li>${opt}</li>`);
-          html += '</ul>';
-        } else if (Q.qtype === 'ms') {
-          html += '<ul>';
-          Q.options.forEach(opt => html += `<li>[ ] ${opt}</li>`);
-          html += '</ul>';
-        } else if (Q.qtype === 'tf') {
-          html += `<p>True ___ False ___</p>`;
-        } else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
-          html += `<div class="answer-space" style="height:1.5em;"></div>`;
-        } else if (Q.qtype === 'es') {
-          html += `<div class="answer-space" style="height:6em;"></div>`;
-        }
-        // end ADDED
-
-        html += '</div>';  // .question
+  
+    // build html
+    let html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>${test.name} – Test</title>
+    <style>
+      body {
+        font-family: ${template.bodyFont}, sans-serif;
+        font-size: ${template.bodyFontSize}px;
+        margin: 20px;
       }
-
-      html += `</div>`;  // section
+      .test-title {
+        font-family: ${template.titleFont}, sans-serif;
+        font-size: ${template.titleFontSize}px;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .cover-page {
+        border: 1px solid #ccc;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      .part { margin-bottom: 30px; }
+      .part-title { font-size: 20px; margin-top: 20px; }
+      .section-title { font-size: 18px; margin-top: 15px; }
+      .question { margin-bottom: 15px; }
+      .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
+      .page-break { page-break-before: always; }
+    </style>
+  </head>
+  <body>
+    ${template.headerText ? `<div>${template.headerText}</div>` : ""}
+    <h1 class="test-title">${test.name}</h1>
+  
+    <!-- COVER PAGE -->
+    <div class="cover-page">
+      <h2>${cp.name}</h2>
+      <p>Test Number: ${cp.testNum}</p>
+      <p>Date: ${cp.date}</p>
+      <p>Filename: ${cp.file}</p>
+      <p>Instructions: ${cp.instructions}</p>
+    </div>
+    <div class="page-break"></div>
+  `;
+  
+    // loop over parts/sections/questions
+    for (let p = 0; p < test.parts.length; p++) {
+      html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+  
+      const part = test.parts[p];
+      for (let s = 0; s < part.sections.length; s++) {
+        html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
+  
+        const section = part.sections[s];
+        for (let q = 0; q < section.questions.length; q++) {
+          const Qid = section.questions[q].id;
+          const Qtype = section.questions[q].qtype;
+          const Q = masterQuestionList[identity][Qtype][Qid];
+          console.log(Q.options);
+          html += `<div class="question"><p>${Q.text}</p>`;
+  
+          // render answer options for various qtypes
+          if (Q.qtype === 'mc') {
+            html += '<ul>';
+            Object.keys(Q.options).forEach(key => {
+                let opt = Q.options[key];
+                html += `<li>${key}: ${opt.text}</li>`;
+            });
+            html += '</ul>';
+          } else if (Q.qtype === 'ms') {
+            html += '<ul>';
+            Object.keys(Q.options).forEach(key => {
+                let opt = Q.options[key];
+                html += `<li>- ${opt.text}</li>`;
+            });
+            html += '</ul>';
+          } else if (Q.qtype === 'ma') {
+            html += '<ul>';
+            const optionsArray = [];
+            Object.keys(Q.options).forEach(key => {
+                let opt = Q.options[key];
+                if(opt.pairNum){
+                    optionsArray.push(opt.left);
+                    optionsArray.push(opt.right);
+                }else{
+                    optionsArray.push(opt.text);
+                }
+            });
+            optionsArray.forEach(opt => html += `<li>- ${opt}</li>`);
+            html += '</ul>';
+          }else if (Q.qtype === 'tf') {
+            html += `<p>True ___ False ___</p>`;
+          } else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
+            html += `<div class="answer-space" style="height:1.5em;"></div>`;
+          } else if (Q.qtype === 'es') {
+            html += `<div class="answer-space" style="height:6em;"></div>`;
+          }
+  
+          html += '</div>';  // .question
+        }
+  
+        html += `</div>`;  // section
+      }
+  
+      html += `</div>`;  // part
     }
-
-    html += `</div>`;  // part
+  
+    html += `
+    ${template.footerText ? `<div>${template.footerText}</div>` : ""}
+  </body>
+  </html>
+  `;
+  
+    //  trigger download w/ blob
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${test.name}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
-  html += `
-  ${template.footerText ? `<div>${template.footerText}</div>` : ""}
-</body>
-</html>
-`;
-
-  //  trigger download w/ blob
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `${test.name}.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 
 
-/**
+  /**
  * exportTestKeyToHTML
  * Exports the answer key with grading instructions (in blue) and correct answers (in red).
  */
 function exportTestKeyToHTML(identity, testID) {
-  const published = masterTestList[identity].published;
-  if (!published || !published[testID]) {
-    alert("Test not found!");
-    return;
-  }
-  const test     = published[testID];
-  const template = masterTemplateList[identity][test.templateID];
-  if (!template) {
-    alert("Invalid template!");
-    return;
-  }
-  const cpID = template.coverPageID;
-  const cp = masterCoverPageList[identity][cpID];
-  if (!cp) {
-    alert("Invalid cover page!");
-    return;
-  }
-
-  let html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${test.name} – Answer Key</title>
-  <style>
-    body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin:20px; }
-    .test-title { font-family: ${template.titleFont}; font-size: ${template.titleFontSize}px; text-align:center; }
-    .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
-    .part { margin-bottom:30px; }
-    .part-title { font-size:20px; }
-    .section-title { font-size:18px; }
-    .question { margin-bottom:15px; }
-    .correct-answer { color: red; font-weight:bold; }
-    .grading-instructions { color: blue; font-style:italic; }
-    .page-break { page-break-before: always; }
-  </style>
-</head>
-<body>
-  ${template.headerText ? `<div>${template.headerText}</div>` : ""}
-  <h1 class="test-title">${test.name} – Answer Key</h1>
-
-  <div class="cover-page">
-    <h2>${cp.name}</h2>
-    <p>Test Number: ${cp.testNum}</p>
-    <p>Date: ${cp.date}</p>
-    <p>Filename: ${cp.file}</p>
-    <p class="grading-instructions">Instructions: ${cp.instructions}</p>
-  </div>
-  <div class="page-break"></div>
-`;
-
-  // loop parts for sections/questions
-  for (let p = 0; p < test.parts.length; p++) {
-    html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-    const part = test.parts[p];
-
-    for (let s = 0; s < part.sections.length; s++) {
-      html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
-      const section = part.sections[s];
-
-      for (let q = 0; q < section.questions.length; q++) {
-        const Q = section.questions[q];
-        html += `
-  <div class="question">
-    <p>${Q.text}</p>
-    <p class="correct-answer">Answer: ${Q.answer}</p>
-    <p class="grading-instructions">Grading: ${Q.directions}</p>
-  </div>
-        `;
+    const published = masterTestList[identity].published;
+    if (!published || !published[testID]) {
+      alert("Test not found!");
+      return;
+    }
+    const test     = published[testID];
+    const template = masterTemplateList[identity][test.templateID];
+    if (!template) {
+      alert("Invalid template!");
+      return;
+    }
+    const cpID = template.coverPageID;
+    const cp =masterCoverPageList[identity][cpID];
+    if (!cp) {
+      alert("Invalid cover page!");
+      return;
+    }
+  
+    let html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>${test.name} – Answer Key</title>
+    <style>
+      body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin:20px; }
+      .test-title { font-family: ${template.titleFont}; font-size: ${template.titleFontSize}px; text-align:center; }
+      .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
+      .part { margin-bottom:30px; }
+      .part-title { font-size:20px; }
+      .section-title { font-size:18px; }
+      .question { margin-bottom:15px; }
+      .correct-answer { color: red; font-weight:bold; }
+      .grading-instructions { color: blue; font-style:italic; }
+      .page-break { page-break-before: always; }
+    </style>
+  </head>
+  <body>
+    ${template.headerText ? `<div>${template.headerText}</div>` : ""}
+    <h1 class="test-title">${test.name} – Answer Key</h1>
+  
+    <div class="cover-page">
+      <h2>${cp.name}</h2>
+      <p>Test Number: ${cp.testNum}</p>
+      <p>Date: ${cp.date}</p>
+      <p>Filename: ${cp.file}</p>
+      <p class="grading-instructions">Instructions: ${cp.instructions}</p>
+    </div>
+    <div class="page-break"></div>
+  `;
+  
+    // loop parts for sections/questions
+    for (let p = 0; p < test.parts.length; p++) {
+      html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+      const part = test.parts[p];
+  
+      for (let s = 0; s < part.sections.length; s++) {
+        html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
+        const section = part.sections[s];
+  
+        for (let q = 0; q < section.questions.length; q++) {
+          const Qid = section.questions[q].id;
+          const qtype = section.questions[q].qtype;
+          console.log(Qid);
+          console.log(identity);
+          const Q = masterQuestionList[identity][qtype][Qid];
+          console.log(Q);
+          html += `
+    <div class="question">
+      <p>${Q.text}</p>
+      <p class="correct-answer">Answer:`; 
+      if(Q.qtype in {"es": "es", "mc":"mc", "sa":"sa","tf":"tf"}){
+        answer = Q.answer.value;
+        html += `${answer}`;
+      }else if (Q.qtype !=="ma"){
+        answerKeys = Object.keys(Q.answer);
+        answer = "";
+        answerKeys.forEach(key =>{
+            answer = Q.answer[key];
+            html += `${answer.value}<br>`;
+        });
+      }else if(Q.qtype=="ma"){
+        answerKeys = Object.keys(Q.answer);
+        answerKeys.forEach(key =>{
+            answer = Q.answer[key];
+            html += `${answer.text}<br>`;
+        });
+      }
+      html += `</p>
+      <p class="grading-instructions">Grading: ${Q.directions}</p>
+    </div>
+          `;
+        }
+        html += `</div>`;
       }
       html += `</div>`;
     }
-    html += `</div>`;
+  
+    html += `
+    ${template.footerText ? `<div>${template.footerText}</div>` : ""}
+  </body>
+  </html>
+  `;
+  
+    // download via blob
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${test.name}-Key.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
-
-  html += `
-  ${template.footerText ? `<div>${template.footerText}</div>` : ""}
-</body>
-</html>
-`;
-
-  // download via blob
-  const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `${test.name}-Key.html`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 
 function updateCoverPages(identity) {
     const coverPageContainer = document.getElementById(`coverpages-${identity}`);
