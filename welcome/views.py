@@ -3,7 +3,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from http.client import responses
-
+from datetime import date
 import openpyxl
 from django.db.models.fields import *
 from openpyxl.utils import get_column_letter
@@ -989,7 +989,6 @@ def parse_qti_xml(request):
                 "bodyFontSize": 12,
                 "pageNumbersInHeader": False,
                 "pageNumbersInFooter": False,
-                "coverPageID": 1,
                 "partStructure": [{"sections": [{"questionType": "mc", "sectionNumber": 1},
                                                 {"questionType": "tf", "sectionNumber": 2},
                                                 {"questionType": "fb", "sectionNumber": 3},
@@ -1000,6 +999,22 @@ def parse_qti_xml(request):
                 "published": True
             }
         )
+        default_parsed_cpage, created = CoverPage.objects.get_or_create(
+            course=course_instance,
+            name="QTI Default",
+            author=request.user,
+            defaults={
+            "testNum": 1,
+            "date": date.today().isoformat(),
+            "file": 'qti test',
+            "showFilename": False,
+            "blank": 'TR',
+            "instructions": "Read all question instructions carefully!",
+            "published": True
+            }
+        )
+        default_parsed_template.coverPageID = default_parsed_cpage.id
+        default_parsed_template.save()
     else:
         print("User is not authenticated")
         return JsonResponse({"error": "User is not authenticated."}, status=401)

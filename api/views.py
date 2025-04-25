@@ -7,7 +7,7 @@ import json, os
 from decimal import Decimal
 from django.db.models.fields.files import FieldFile
 from django.apps import apps
-from datetime import datetime
+from datetime import date
 from django.views.decorators.http import require_POST
 
 
@@ -496,6 +496,40 @@ def save_textbook(request):
     if created:
         newtextbook.publisher = request.user
         newtextbook.save()
+        coverPage = CoverPage.objects.create(
+                name= "Default 1st Test",
+                testNum= 1,
+                date= date.today().isoformat(),
+                file= "defaultpage",
+                showFilename= True,
+                blank= "TR",
+                instructions= "Grade according to the rubric, giving partial credit where indicated",
+                published= 1,
+                textbook=newtextbook
+            )
+        newtemplate = Template.objects.create(
+            
+                name= 'System Default',
+                titleFont= 'Arial',
+                titleFontSize= 48,
+                subtitleFont= 'Arial',
+                subtitleFontSize= 24,
+                bodyFont= 'Arial',
+                bodyFontSize= 12,
+                pageNumbersInHeader= False,
+                pageNumbersInFooter= False,
+                headerText= '',
+                footerText= '',
+                coverPageID= coverPage.id,
+                nameTag= '',
+                dateTag= '',
+                courseTag= '',
+                partStructure= {},
+                bonusSection= False,
+                bonusQuestions= [],
+                published= 1,
+                textbook= newtextbook
+            )
     return Response({
             'status': 'success',
             'created': created,
@@ -717,6 +751,40 @@ def save_course(request):
                 user=request.user
             )
             created = True
+            coverPage = CoverPage.objects.create(
+                name= "Default 1st Test",
+                testNum= 1,
+                date= date.today().isoformat(),
+                file= "defaultpage",
+                showFilename= True,
+                blank= "TR",
+                instructions= "Grade according to the rubric, giving partial credit where indicated",
+                published= 1,
+                course=course
+            )
+            newtemplate = Template.objects.create(
+            
+                name= 'System Default',
+                titleFont= 'Arial',
+                titleFontSize= 48,
+                subtitleFont= 'Arial',
+                subtitleFontSize= 24,
+                bodyFont= 'Arial',
+                bodyFontSize= 12,
+                pageNumbersInHeader= False,
+                pageNumbersInFooter= False,
+                headerText= '',
+                footerText= '',
+                coverPageID= coverPage.id,
+                nameTag= '',
+                dateTag= '',
+                courseTag= '',
+                partStructure= {},
+                bonusSection= False,
+                bonusQuestions= [],
+                published= 1,
+                course= course
+            )
         
         # Associate teacher with course through the teachers M2M field
         # Check if user is not already in teachers list
@@ -783,7 +851,7 @@ def save_cpage(request):
             cover_page = CoverPage.objects.create(
                 name=cover_page_data.get('name', 'Untitled Cover Page'),
                 testNum=cover_page_data.get('testNum', ''),
-                date=cover_page_data.get('date'),
+                date=cover_page_data.get('date', ''),
                 file=cover_page_data.get('file', ''),
                 showFilename=cover_page_data.get('showFilename', False),
                 blank=cover_page_data.get('blank', 'TL'),
@@ -921,6 +989,8 @@ def save_question(request):
         else:
             newQ = Question()
             created = True
+            newQ.course = course
+            newQ.textbook = textbook
 
         # Assign fields
         newQ.text = question_data.get('text', '')
@@ -933,8 +1003,6 @@ def save_question(request):
         newQ.chapter = question_data.get('chapter', 0)
         newQ.section = question_data.get('section', 0)
         newQ.published = question_data.get('published', False)
-        newQ.course = course
-        newQ.textbook = textbook
         newQ.requiredRefs = question_data.get('requiredRefs', '')
 
         # Safe image field handling

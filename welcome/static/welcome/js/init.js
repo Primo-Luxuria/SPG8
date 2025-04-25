@@ -409,7 +409,7 @@ async function addContent() {
                 <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
                 if(window.userRole=="teacher"){
                     formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}')">Import Test</button>
-                    <input type="file" id="fileInput">`;
+                    <input type="file" id="fileInput-${identity}">`;
                 }
                 formdata += `
                 <div class="tab-container">
@@ -463,39 +463,6 @@ async function addContent() {
     masterTemplateList[identity] = {};
     masterTemplateList[identity].bonusQuestions = [];
 
-    const coverPageDefault = {
-        name: "Default 1st Test",
-        testNum: 1,
-        date: `${year}-${month}-${date}`,
-        file: "defaultpage",
-        showFilename: true,
-        blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated",
-        published: 1
-    };
-
-    const coverPageDefault2 = {
-        name: "Default 2nd Test",
-        testNum: 2,
-        date: `${year}-${month}-${date}`,
-        file: "defaultpage_2",
-        showFilename: true,
-        blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated",
-        published: 1
-    };
-
-    const coverPageDefault3 = {
-        name: "Default 3rd Test",
-        testNum: 3,
-        date: `${year}-${month}-${date}`,
-        file: "defaultpage_3",
-        showFilename: true,
-        blank: "TR",
-        instructions: "Grade according to the rubric, giving partial credit where indicated",
-        published: 1
-    };
-
     const templateDefault = {
         name: "System Default",
         titleFont: "Times New Roman",
@@ -508,7 +475,7 @@ async function addContent() {
         pageNumbersInHeader: false,
         headerText: "",
         footerText: "Please read all questions carefully",
-        coverPageID: 0,
+        coverPageID:8,
         coverPage: masterCoverPageList[identity][0],
         bonusSection: false,
         bonusQuestions: [],
@@ -556,20 +523,9 @@ async function addContent() {
     try {
         if(window.userRole =="teacher"){
             await saveData("course", thisCourse, identity);
-            await saveData("coverPage", coverPageDefault, identity);
-            await saveData("coverPage", coverPageDefault2, identity);
-            await saveData("coverPage", coverPageDefault3, identity);
-            await saveData("template", templateDefault, identity);
         }else{
             await saveData("textbook", textbook,{}, identity);
-            await saveData("coverPage", coverPageDefault,{}, identity);
-            await saveData("coverPage", coverPageDefault2,{}, identity);
-            await saveData("coverPage", coverPageDefault3,{}, identity);
-            await saveData("template", templateDefault,{}, identity);
         }
-        
-        updateCoverPages(identity);
-        updateTemplates(identity); 
     } catch (error) {
         console.error("Error saving course data:", error);
         alert("There was an error saving your content. Please try again.");
@@ -1155,6 +1111,7 @@ function serializeQuestion(question, identity) {
     
     let template = masterTemplateList[identity][test.templateID];
     let coverPage = masterCoverPageList[identity][template.coverPageID];
+    console.log(JSON.stringify(coverPage));
     requestData.test = {
         id: test.id || null,
         name: test.name || 'Untitled Test',
@@ -1333,7 +1290,7 @@ function loadContent(identity) {
                 <button class="add-btn" onclick="openEditor('Test', '${identity}')">Add Test</button>`;
                 if(window.userRole=="teacher"){
                     formdata += `<button class="add-btn" onclick="openImporter('${identity}', '${courseName}', '${courseCRN}', '${courseSemester}')">Import Test</button>
-                    <input type="file" id="fileInput">`;
+                    <input type="file" id="fileInput-${identity}">`;
                 }
                 formdata += `
                 <div class="tab-container">
@@ -1411,7 +1368,7 @@ function questionTypeLabel(type) {
 
 
 function openImporter(id, name, crn, semester) {
-    let fileInput = document.getElementById("fileInput");
+    let fileInput = document.getElementById(`fileInput-${id}`);
     let file = fileInput.files[0];
 
     if (!file) {
