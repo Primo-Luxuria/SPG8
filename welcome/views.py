@@ -1537,8 +1537,11 @@ def import_csv(request):
         for column_name, value in row.items():
 
             if column_name.endswith('_id'):
-                real_name = column_name[:-3]
-                field = model_fields.get(real_name)
+                if model_name == 'Course' and column_name == 'course_id':
+                    field = model_fields.get(column_name)
+                else:
+                    real_name = column_name[:-3]
+                    field = model_fields.get(real_name)
             else:
                 field = model_fields.get(column_name)
 
@@ -1647,23 +1650,23 @@ def create_csv_template(request):
 
     if model_for_template == 'Textbook':
         column_names_list = ['id', 'title', 'author', 'version', 'isbn', 'link', 'published', 'publisher_id']
-        row_one = ['1', 'Linear Algebra', '"Math Teacher"', '5', '123456789', 'amazon.com/book1', '1', '5']
-        row_two = ['2', 'C++ for Everyone', '"Some other author"', '3', '678216378', 'pearson.com/book2', '1', '3']
+        row_one = ['1', '"Linear Algebra"', '"Math Teacher"', '5', '123456789', 'amazon.com/book1', '1', '5']
+        row_two = ['2', '"C++ for Everyone"', '"Some other author"', '3', '678216378', 'pearson.com/book2', '1', '3']
     elif model_for_template == 'UserProfile':
         column_names_list = ['id', 'role', 'user_id']
         row_one = ['1', 'teacher', '1']
         row_two = ['2', 'publisher', '2']
     elif model_for_template == 'Course':
-        column_names_list = ['id', 'course_id', 'name', 'crn', 'sem', 'user_id', 'published', 'textbook_id']
-        row_one = ['1', 'CS499' ,'"Senior Project Design"', '3213', '"Fall 2024"', '1', '1', '3']
-        row_two = ['2', 'MA385' ,'"Intro to Probability and Statistics"', '2131', 'Spring 2025', '2', '0', '1']
+        column_names_list = ['id', 'course_id', 'name', 'crn', 'sem', 'user_id', 'published']
+        row_one = ['1', 'CS499' ,'"Senior Project Design"', '3213', '"Fall 2024"', '1', '1']
+        row_two = ['2', 'MA385' ,'"Intro to Probability and Statistics"', '2131', '"Spring 2025"', '1', '1']
     elif model_for_template == 'Question':
         column_names_list = ['id', 'text', 'ansimg', 'score', 'eta', 'reference', 'directions', 'comments', 'created_at', 'updated_at', 'course_id', 'author_id', 'chapter', 'answer', 'section', 'img', 'qtype', 'textbook_id', 'published']
         row_one = ['1', '"Who is the greatest Fortnite player in the world?"', '"/media/ansimg1.jpg"', '2', '5', 'reference1', 'directions1', '"sample comment"', '"2025-04-16 10:32:03.405280"', '"2025-04-16 10:32:03.390905"', '1', '1', '0', 'NULL', '1', 'media/img1.jpg', 'mc', '4', '1']
         row_two = ['2', '"How much wood would a ..."', '"/media/ansimg1.jpg"', '4', '2', 'reference2', 'directions2', '"another sample comment"', '"2025-04-17 10:32:03.385875"', '"2025-04-27 10:32:03.405297"', '2', '1', '1', 'NULL', '2', 'media.img2.jpg', 'fb', '2', '0']
     elif model_for_template == 'Options':
         column_names_list = ['id', 'text', 'question_id', 'image', 'order', 'pair']
-        row_one = ['1', '"yes, because it is needed"', '3', 'NULL', '1', 'NULL']
+        row_one = ['1', '"yes because it is needed"', '3', 'NULL', '1', 'NULL']
         row_two = ['2', '"Certain activities are prohibited."', '2', '/media/image.jpg', '2', 'NULL']
     elif model_for_template == 'Answers':
         column_names_list = ['id', 'text', 'answer_graphic', 'response_feedback_text', 'response_feedback_graphic', 'question_id', 'pair']
@@ -1684,7 +1687,7 @@ def create_csv_template(request):
     elif model_for_template == 'Test':
         column_names_list = ['id', 'name', 'date', 'filename', 'is_final', 'created_at', 'updated_at', 'course_id', 'template_id', 'textbook_id', 'templateID', 'author_id']
         row_one = ['1', '"Final Exam"', 'NULL', 'NULL', '1', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '7', '6', '7', '2']
-        row_two = ['1', '"Test of Honor"', 'NULL', 'NULL', '0', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '11', '2', '11', '1']
+        row_two = ['2', '"Test of Honor"', 'NULL', 'NULL', '0', '"2025-04-17 10:32:03.385875"', '"2025-04-17 10:32:03.385875"', '3', '11', '2', '11', '1']
     elif model_for_template == 'TestPart':
         column_names_list = ['id', 'part_number', 'test_id']
         row_one = ['1', '1', '1']

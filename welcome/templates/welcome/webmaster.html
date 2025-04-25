@@ -1021,6 +1021,7 @@ function downloadCsvTemplate()
         <p>Please use commas as delimiters. If a field has a space, comma, line break, or carriage return, enclose the field in double quotes (").
             If an enclosed field has double quotes inside the field, replace each single double quotes (") with
             2 double quotes ("").
+            To assign a null or None value, use "NULL" (case-sensitive).
             If a field value is required but the value is invalid or not given, the row will be skipped.
             If a column is given that doesn't exist in the model, nothing will be imported.
             IDs do not need to be given. If IDs are given, any rows with duplicate IDs will be skipped. If relational IDs are given
