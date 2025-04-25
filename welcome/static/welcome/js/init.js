@@ -1723,10 +1723,14 @@ function exportTestKeyToHTML(identity, testID) {
       .correct-answer { color: red; font-weight:bold; }
       .grading-instructions { color: blue; font-style:italic; }
       .page-break { page-break-before: always; }
+      .answer-header { color: red; text-align: center; font-size: 24px; font-weight: bold; 
+                      margin-bottom: 20px;}
+      
     </style>
   </head>
   <body>
     ${template.headerText ? `<div>${template.headerText}</div>` : ""}
+    <h2 class="answer-header">Answer Key</h2>
     <h1 class="test-title">${test.name} – Answer Key</h1>
   
     <div class="cover-page">
