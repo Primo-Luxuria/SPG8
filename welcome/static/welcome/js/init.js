@@ -860,7 +860,7 @@ function serializeCourse(course) {
         ownerRole: ownerRole,
         course: {
             id: course.dbid || null,
-            course_id: course.courseID || '',
+            course_id: course.course_id || '',
             name: course.name || 'Untitled Course',
             crn: course.crn || '',
             sem: course.sem || '',
