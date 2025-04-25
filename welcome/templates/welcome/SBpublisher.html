@@ -239,8 +239,9 @@
         </style>
     </div>
 
-    
+    {% if error_message %}
     <p style="color:aliceblue" id="errorText"></p>
+    {% endif %}
     <div id="textbookList"></div>
 
     <!-- Context Menu for Questions -->
@@ -290,5 +291,23 @@
     <script src="{% static 'welcome/js/edit.js' %}"></script>
     <script src="{% static 'welcome/js/contextmenu.js' %}"></script>
     <script src="{% static 'welcome/js/dom.js' %}"></script>
+
+
+    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+        <form action="{% url 'home' %}" method="get">
+            <button type="submit" style="
+                background-color: red;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            ">
+                Logout
+            </button>
+        </form>
+
 </body>
 </html>

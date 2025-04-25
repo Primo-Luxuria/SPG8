@@ -1,10 +1,198 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Manage Courses</title>
+<title>Manage Website</title>
+<style>
+/* Full style block copied from SBteacher.html */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, sans-serif;
+    color: #333;
+    background-color: #2e3a42;
+}
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+    margin-bottom: 8px;
+    height: 40px !important;
+    padding: 10px 12px !important;
+    font-size: 16px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease;
+    min-width: 200px !important;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    border-color: #0077C8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 119, 200, 0.1) !important;
+    outline: none !important;
+}
+select#courseSemester {
+    background-color: #ffffff !important;
+    border-color: #cccccc !important;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
+}
+textarea {
+    height: auto !important;
+    min-height: 120px !important;
+    line-height: 1.5 !important;
+}
+#errorText {
+    color: #dc3545 !important;
+    font-size: 14px !important;
+    margin-top: 8px !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    background-color: #f8d7da !important;
+    border: 1px solid #f5c6cb !important;
+}
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: #999 !important;
+}
+.header {
+    background-color: #0077C8;
+    color: white;
+    padding: 25px 0;
+    text-align: center;
+}
+.header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+.welcome-bar {
+            background-color: #005fa3;
+            padding: 15px 0;
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            letter-spacing: 0.5px;
+        }
+    
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 20px;
+}
+.course-form {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+}
+.course-container {
+    background: #ffffff !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    margin: 20px 0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease;
+}
+.course-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.course-container details {
+    background: #f8f9fa !important;
+    border-radius: 8px !important;
+    margin: 12px 0 !important;
+    border: 1px solid #dee2e6 !important;
+}
+.course-container details summary {
+    padding: 14px !important;
+    font-weight: 600 !important;
+    color: #2e3a42 !important;
+    cursor: pointer !important;
+}
+.course-container .remove-btn {
+    margin-top: 20px !important;
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 16px !important;
+    background: red;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+    padding: 20px;
+    width: 300px;
+}
+.form-group {
+    display: flex;
+    align-items: left;
+    margin-bottom: 10px;
+    width: 100%;
+}
+.form-group label {
+    width: 120px;
+    text-align: right;
+    margin-right: 10px;
+}
+.form-group input {
+    flex: 1;
+}
+button.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    border-radius: 8px !important;
+}
+
+button {
+    background-color: #0077C8 !important; /* Blue */
+    color: white !important; 
+    border-radius: 8px !important;
+    padding: 10px 20px !important;
+    font-size: 16px !important;
+    cursor: pointer !important;
+    border: none !important;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button.logout-btn {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+button.logout-btn:hover {
+    background-color: #b02a37 !important;
+}
+</style>
+</head>
+
+<body>
+<div class="header">
+    <h1>QuizPress</h1>
+    <p>Manage Users</p>
+</div>
+<div class="welcome-bar">
+    Manage User
+</div>
+
+<main class="container">
+    <div class="course-form">
 <style>
         body { font-family: Arial, sans-serif; }
         .error-message{color:red;}   
@@ -33,7 +221,7 @@
 <div id="searchContent"></div>
 </div>
 
-<div>
+<div style="margin-bottom: 10px;">
     <button onclick="openPreviewMenu()">Export Database</button>
 </div>
 <div>
@@ -868,6 +1056,14 @@ function downloadCsvTemplate()
 
     </div>
 </div>
+
+<!-- Logout Button -->
+<div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+    <form action="{% url 'home' %}" method="get">
+        <button type="submit" class="logout-btn">Logout</button>
+    </form>
+</div>
+
 
 </body>
 </html>
