@@ -1,0 +1,8 @@
+django
+lxml
+mysqlclient
+beautifulsoup4
+openpyxl
+pymysql
+djangorestframework
+requests

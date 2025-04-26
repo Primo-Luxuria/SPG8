@@ -1,35 +1,168 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en-US">
-
 <head>
-{% load static %}
-<title>QuizPress</title>
-<link rel="icon" type="image/x-icon" href="{% static 'welcome/quizpress.ico' %}">
-<link rel="stylesheet" type="text/css" href="{% static 'welcome/home.css' %}">
-<meta charset="UTF-8">
-<meta name="keywords" content="HTML, CSS, JavaScript, test, quiz, transfer, teachers, canvas, qti, import, export">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body{
-font-family: Garamond, serif;
-}
-</style>
+    <meta charset="UTF-8">
+    <title>QuizPress Home</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'quizpress.ico' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2e3a42;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .header {
+            background-color: #0077C8;
+            color: whitesmoke;
+            padding: 20px;
+            text-align: center;
+        }
+            .header h1 {
+                margin: 0;
+                font-size: 36px;
+            }
+            .header p {
+                margin: 5px 0 0;
+                font-size: 18px;
+            }
+        .navbar {
+            background-color: #005fa3;
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+            .navbar a {
+                margin: 0 15px;
+                color: white;
+                font-size: 18px;
+                transition: color 0.3s ease;
+            }
+                .navbar a:hover {
+                    color: #ffcc00;
+                }
+        .content {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+        }
+        .carousel {
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 300px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .carousel-images {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .carousel-images img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            animation: fade 9s infinite;
+        }
+        .carousel-images img:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .carousel-images img:nth-child(2) {
+            animation-delay: 3s;
+        }
+        .carousel-images img:nth-child(3) {
+            animation-delay: 6s;
+        }
+        @keyframes fade {
+            0%   { opacity: 0; }
+            10%  { opacity: 1; }
+            33.33% { opacity: 1; }
+            43.33% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+        .news-section {
+            margin: 20px 0;
+        }
+            .news-section h2 {
+                font-size: 28px;
+                margin-bottom: 10px;
+                border-bottom: 2px solid #0077C8;
+                padding-bottom: 5px;
+            }
+        .news-item {
+            border-bottom: 1px solid #ccc;
+            padding: 10px 0;
+        }
+            .news-item:last-child {
+                border-bottom: none;
+            }
+            .news-item h3 {
+                font-size: 22px;
+                margin: 0 0 5px;
+                color: #0077C8;
+            }
+            .news-item p {
+                font-size: 16px;
+                margin: 0;
+                color: #555;
+            }
+        .footer {
+            background-color: #0077C8;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
 </head>
+<body>
+    <div class="header">
+        <h1>QuizPress</h1>
+        <p>Manage Your Quizzes with Ease</p>
+    </div>
+    <div class="navbar">
+        <a href="{% url 'signup' %}">Sign Up</a>
+        <a href="{% url 'login' %}">Login</a>
+        <a href="{% url 'faq' %}">FAQ</a>
+    </div>
+    <div class="content">
+        <div class="carousel">
+            <div class="carousel-images">
+                <img src="{% static 'welcome/home_images/image1.png' %}" alt="Slide 1">
+                <img src="{% static 'welcome/home_images/image2.png' %}" alt="Slide 2">
+                <img src="{% static 'welcome/home_images/image3.png' %}" alt="Slide 3">
 
-<body style="text-align:center;">
-
-<div>
-	<h1 >Welcome to QuizPress!</h1>
-	<p>QuizPress is a website designed to make test management easy! Transfer your tests from canvas to the classroom with our easy-export technology. Upload your own tests or use test questions uploaded by publishers you trust, either way we make editing and transferring files easy with our template system!</p>
-	<p>If you are an existing user, welcome back! If you are a new user, then sign up below for free!</p>
-	<div>
-		<label for="login">Log In Here!</label><br/>
-		<button id="login" onclick="location.href='{% url 'login' %}'">Log In</button><br/>		
-		
-		<label for="signup">Sign Up Here!</label><br/>
-		<button id="signup" onclick="location.href='{% url 'signup' %}'">Sign Up</button>
-		
-	</div>
-	</div>
+            </div>
+        </div>
+        <div class="news-section">
+            <h2>Latest News</h2>
+            {% for news in news_items %}
+            <div class="news-item">
+                <h3>{{ news.title }}</h3>
+                <p>{{ news.summary }}</p>
+            </div>
+            {% empty %}
+            <p>No news available at this time.</p>
+            {% endfor %}
+        </div>
+        <div class="welcome-message">
+            <p>Welcome to QuizPress! Manage your courses and tests easily and stay updated with the latest news.</p>
+        </div>
+    </div>
+    
 </body>
 </html>

@@ -1,0 +1,244 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <title>QuizPress FAQ</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'quizpress.ico' %}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2e3a42;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .header {
+            background-color: #0077C8;
+            color: whitesmoke;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 36px;
+        }
+
+        .header p {
+            margin: 5px 0 0;
+            font-size: 18px;
+        }
+
+        .navbar {
+            background-color: #005fa3;
+            display: flex;
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .navbar a {
+            margin: 0 15px;
+            color: white;
+            font-size: 18px;
+            transition: color 0.3s ease;
+        }
+
+        .navbar a:hover {
+            color: #ffcc00;
+        }
+
+        .content {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+        }
+
+        .faq-section {
+            margin-bottom: 50px;
+        }
+
+        .faq-section h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0077C8;
+            padding-bottom: 5px;
+            color: #0077C8;
+        }
+
+        .faq-item {
+            margin-bottom: 15px;
+        }
+
+        .faq-item details {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .faq-item details summary {
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .faq-item details[open] {
+            background: #ffffff;
+        }
+
+        .faq-item details p {
+            margin: 10px 0 0;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .contact-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ccc;
+        }
+
+        .contact-section h2 {
+            font-size: 24px;
+            color: #0077C8;
+        }
+
+        .contact-section a {
+            color: #0077C8;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>QuizPress</h1>
+        <p>Manage Your Quizzes with Ease</p>
+    </div>
+
+    <div class="navbar">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'signup' %}">Sign Up</a>
+        <a href="{% url 'login' %}">Login</a>
+    </div>
+
+    <div class="content">
+
+        <!-- Teacher FAQ -->
+        <div class="faq-section">
+            <h2>Teacher FAQ</h2>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I add a new course?</summary>
+                    <p>Go to your dashboard and fill in the course details (ID, Name, CRN, Semester) along with the textbook. Click "Add Course".</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I use an existing course?</summary>
+                    <p>Select a course from the dropdown under "Use Existing Course" and click "Add Course".</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I assign textbooks to a course?</summary>
+                    <p>Select the textbooks and the course from their dropdowns, then click "Assign Selected Textbooks to Course".</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I manage or edit questions?</summary>
+                    <p>Right-click on a question to edit, delete, or manage feedback using the context menu.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I import or parse QTI files?</summary>
+                    <p>To import QTI v1.2 files, go to your course dashboard and click "Import QTI". Upload your QTI ZIP file. QuizPress will automatically parse the file and extract all supported questions into your course or textbook.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I create a new quiz?</summary>
+                    <p>To create a new quiz, navigate to your dashboard, select "Add Quiz", and fill in the required details including title, questions, and settings. Save your quiz to publish it or keep it as a draft for later editing.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>Can I reuse questions across different courses?</summary>
+                    <p>Yes, you can publish questions to your textbook library and then add them to any course that uses that textbook. Go to the Publisher section to manage shared question pools.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I import questions from a QTI file?</summary>
+                    <p>Click on "Import QTI" in your course dashboard, upload your QTI 1.2 ZIP file, and QuizPress will parse and add the questions automatically.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>Is there a way to provide feedback to quiz takers?</summary>
+                    <p>Yes, you can enable feedback per question by editing a quiz and toggling the feedback option. Students will see correct answers and comments after submission.</p>
+                </details>
+            </div>
+        </div>
+
+        <!-- Publisher FAQ -->
+        <div class="faq-section">
+            <h2>Publisher FAQ</h2>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I add a textbook?</summary>
+                    <p>Use the textbook form to enter the Title, Author, Version, ISBN, and Link, then click "Add Textbook".</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>Where do I see my added textbooks?</summary>
+                    <p>They will show up in the textbook list below the form. If not, try refreshing the page.</p>
+                </details>
+            </div>
+
+            <div class="faq-item">
+                <details>
+                    <summary>How do I manage questions or feedback?</summary>
+                    <p>Right-click on a question to bring up the context menu for editing or managing feedback.</p>
+                </details>
+            </div>
+
+            
+        </div>
+
+        <!-- Contact Webmaster -->
+        <div class="contact-section">
+            <h2>Need Help?</h2>
+            <p>If you have questions that aren't covered here, feel free to contact our webmaster directly:</p>
+            <p>
+                <strong>Email:</strong>
+                <a href="mailto:webmaster@quizpress.com">webmaster@quizpress.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

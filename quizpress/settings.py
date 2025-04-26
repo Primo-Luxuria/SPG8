@@ -16,6 +16,22 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://quizpress.ngrok.app"
+]
+
+# Static URL for referencing in templates
+STATIC_URL = '/static/'
+
+# This is where collectstatic will copy files 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# This is where Django will look for static files in development
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'welcome/static'),
+]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -25,7 +41,12 @@ SECRET_KEY = 'django-insecure-s@@-gq^j3(rkb!e(9one-4lw49b12+&633-yy90*4$a1((88$=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['quizpress.ngrok.app', 'localhost']  # EC2 instance public IP]
+
+
+
+CORS_ALLOW_CREDENTIALS = True
+
 
 # Application definition
 
@@ -37,7 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'welcome',
-    'django_extensions',
+   # 'django_extensions',
     'rest_framework',
 ]
 
@@ -89,8 +110,8 @@ This will need to change once hooked up to AWS
 #         'ENGINE': 'django.db.backends.mysql',
 #         'NAME': 'quizpressdb1',  # Ensure this matches your database name
 #         'USER': 'dbadmin',
-#         'PASSWORD': 'Group8iscool!',  # Same as the one you used in the MySQL client
-#         'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
+#         'PASSWORD': # Same as the one you used in the MySQL client 
+#          'HOST': 'quizpressdb1.cjcoky24quml.us-east-2.rds.amazonaws.com',
 #         'PORT': '3306',
 #     }
 # }
@@ -99,19 +120,46 @@ This will need to change once hooked up to AWS
 """
 Local test for database
 """
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'quizpressdb',  # Your database name
+#         'USER': 'root',  # Your MySQL username
+#         'PASSWORD': 'Conductorofmanydreams1!',  # Your MySQL password
+#         'HOST': 'localhost',  # Use 'localhost' for local development
+#         'PORT': '3306',  # Default MySQL port
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpressdb',    # This will need to be changed based on your local machine
-        'USER': 'root',
-        'PASSWORD': '2319',
-        'HOST': 'localhost',  # Keep as 'localhost' for now
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-        },
+        'NAME': 'quizpress',  # Your database name
+        'USER': 'root',  # Your MySQL username
+        'PASSWORD': '2319isuck',  # Your MySQL password
+        'HOST': 'localhost',  # Use 'localhost' for local development
+        'PORT': '3306',  # Default MySQL port
     }
 }
+
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'quizpressdb1',  # Ensure this matches your database name
+#         'USER': 'dbadmin',
+#         'PASSWORD': 'Group8iscool!', # Same as the one you used in the MySQL client 
+#          'HOST': 'quizpressdb1.cureswu4qmwz.us-east-1.rds.amazonaws.com',
+#         'PORT': '3306',
+#     }
+# }
+
+
+
+
+
 
 
 
@@ -154,10 +202,14 @@ STATICFILES_DIRS = [
 
 ]
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+#MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
