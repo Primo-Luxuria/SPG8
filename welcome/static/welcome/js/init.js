@@ -1886,7 +1886,6 @@ async function deleteItem() {
     const testType = contextMenu.dataset.testType;
     const username = window.username;
     let type =itemType;
-    
 
     let itemToDelete;
     switch(itemType) {
@@ -1928,7 +1927,12 @@ async function deleteItem() {
             return;
         }
     }
-
+    if(itemToDelete.author){
+        if(itemToDelete.author!= window.username){
+            alert("You cannot delete items you did not create! Contact the administrators if you must!");
+            return;
+        }
+    }
 
     // Confirm deletion
     if (!confirm(`Are you sure you want to delete this ${type}?`)) {

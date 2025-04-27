@@ -32,7 +32,7 @@ function editItem() {
 
 function editQuestion(identity, questionType, questionID) {
     console.log(masterQuestionList[identity][questionType][questionID]);
-    if(masterQuestionList[identity][questionType][questionID].published === 1){
+    if(masterQuestionList[identity][questionType][questionID].published === true){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
            return;
         }

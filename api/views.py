@@ -589,7 +589,7 @@ def save_test(request):
                 'name': test_data.get('name', 'Untitled Test'),
                 'date': test_data.get('date'),
                 'filename': test_data.get('filename'),
-                'is_final': bool(test_data.get('is_final')),
+                'is_final': test_data.get('is_final'),
                 'refText': test_data.get('refText'),
                 'templateID': template_id,
                 'course': course,
