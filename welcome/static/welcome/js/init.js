@@ -1685,7 +1685,6 @@ function exportTestToHTML(identity, testID) {
   
   
 
-
 /**
  * exportTestKeyToHTML
  * Exports the answer key with grading instructions (in blue) and correct answers (in red),
