@@ -161,6 +161,33 @@ function updateQuestionTabs(questionType, identity) {
         option.textContent = `Chapter ${chapter}`;
         chapterFilterSelect.appendChild(option);
     });
+
+        // ——— Author filter ————————————————
+        const authorFilterLabel = document.createElement('label');
+        authorFilterLabel.textContent = 'Author: ';
+        authorFilterLabel.style.marginLeft = '15px';
+        authorFilterLabel.style.marginRight = '5px';
+    
+        const authorFilterSelect = document.createElement('select');
+        authorFilterSelect.id = `${questionType}-${identity}-author-filter`;
+        authorFilterSelect.innerHTML = '<option value="" selected>All Authors</option>';
+    
+        // collect unique authors from this questionType
+        const authors = [...new Set(Object.values(questions).map(q => q.author))];
+        authors.sort().forEach(authorName => {
+          const opt = document.createElement('option');
+          opt.value = authorName;
+          opt.textContent = authorName;
+          authorFilterSelect.appendChild(opt);
+        });
+    
+        filterContainer.appendChild(authorFilterLabel);
+        filterContainer.appendChild(authorFilterSelect);
+    
+        // re-run filtering whenever the author changes
+        authorFilterSelect.addEventListener('change', () => renderFilteredQuestions(questionType, identity));
+        // ——————————————————————————————————————————
+    
     
     // Section filter (initially hidden)
     const sectionFilterContainer = document.createElement('div');
@@ -255,6 +282,9 @@ function renderFilteredQuestions(questionType, identity) {
     const sectionFilterSelect = document.getElementById(`${questionType}-${identity}-section-filter`);
     const sectionFilterValue = sectionFilterSelect && sectionFilterSelect.style.display !== 'none' ? 
                                sectionFilterSelect.value : "all";
+    const authorFilterElem    = document.getElementById(`${questionType}-${identity}-author-filter`);
+    const authorFilterValue   = authorFilterElem ? authorFilterElem.value : "";
+                           
     
     // Filter questions
     const filteredQuestions = {};
@@ -289,6 +319,10 @@ function renderFilteredQuestions(questionType, identity) {
             includeQuestion = false;
         }
         
+        if (authorFilterValue && question.author !== authorFilterValue) {
+            includeQuestion = false;
+          }
+
         if (includeQuestion) {
             filteredQuestions[key] = question;
         }
@@ -1481,239 +1515,12 @@ function updateTestTabs(identity) {
     }
 }
 
-// async function exportTestToHTML(identity, testID) {
-//     // 1) grab the published test
-//     const published = masterTestList[identity].published;
-//     if (!published || !published[testID]) {
-//       alert("Test not found!");
-//       return;
-//     }
-//     const test = published[testID];
-  
-//     // 2) grab the template and cover page
-//     const template = masterTemplateList[identity][test.templateID];
-//     if (!template) { alert("Test has no valid template!"); return; }
-//     const cp = masterCoverPageList[identity][template.coverPageID];
-//     if (!cp) { alert("Template has no valid cover page!"); return; }
-  
-//     // 3) COLLECT every image URL we’ll need
-//     const urls = [];
-//     test.parts.forEach(part =>
-//       part.sections.forEach(section =>
-//         section.questions.forEach(qRef => {
-//           const Q = masterQuestionList[identity][qRef.qtype][qRef.id];
-//           if (Q.img)    urls.push(masterAttachmentList[identity][Q.img].url);
-//           if (Q.ansimg) urls.push(masterAttachmentList[identity][Q.ansimg].url);
-//         })
-//       )
-//     );
-//     if (Array.isArray(test.attachments)) {
-//       test.attachments.forEach(attID => {
-//         const att = masterAttachmentList[identity][attID];
-//         if (att && att.url) urls.push(att.url);
-//       });
-//     }
-  
-//     // dedupe & fetch to Data URIs
-//     const uniqueUrls = Array.from(new Set(urls));
-//     const urlToDataURI = {};
-//     await Promise.all(uniqueUrls.map(url =>
-//       fetch(url)
-//         .then(r => r.blob())
-//         .then(blob => new Promise(resolve => {
-//           const reader = new FileReader();
-//           reader.onloadend = () => resolve(reader.result);
-//           reader.readAsDataURL(blob);
-//         }))
-//         .then(dataUri => { urlToDataURI[url] = dataUri; })
-//         .catch(() => {/* ignore failures */})
-//     ));
-  
-//     // 4) BUILD the HTML
-//     let html = `
-//   <!DOCTYPE html>
-//   <html>
-//   <head>
-//     <meta charset="UTF-8">
-//     <title>${test.name} – Test</title>
-//     <style>
-//       body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin: 20px; }
-//       .question > div:not(.answer-space) { display: contents; }
-//       .q-num { font-weight: bold; margin-right: 0.5em; }
-//       .test-title { font-family: "${template.titleFont}", sans-serif; font-size: ${template.titleFontSize}px; text-align: center; margin-bottom: 10px; }
-//       .cover-page { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; }
-//       .part { margin-bottom: 30px; }
-//       .part-title { font-size: 20px; margin-top: 20px; }
-//       .section-title { font-size: 18px; margin-top: 15px; }
-//       .question { margin-bottom: 15px; }
-//       .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
-//       .answer-space.short-answer { height: 5em; }
-//       .answer-space.essay { height: 12em; }
-//       .page-break { page-break-before: always; }
-//       ul { list-style-type: none; padding-left: 0; }
-  
-//       /* question‐level reference styling */
-//       .question-ref-text { font-style: italic; margin-bottom: 0.5em; }
-//       .question-req-refs { font-weight: bold; margin-bottom: 0.5em; }
-//       .question-img img,
-//       .answer-img img,
-//       .attachment-image img {
-//         border: 1px solid #ccc; padding: 4px; max-width: 100%; margin-top: 0.5em;
-//       }
-//       .test-reference-materials { margin-top: 2em; }
-//       .test-reference-materials h2 { font-size: 1.5em; margin-bottom: 0.5em; }
-//       .ref-text, .attachment-text { margin-bottom: 1em; }
-//     </style>
-//   </head>
-//   <body>
-//     ${template.headerText ? `<div>${template.headerText}</div>` : ""}
-//     <h1 class="test-title">${test.name}</h1>
-  
-//     <!-- COVER PAGE -->
-//     <div class="cover-page">
-//       <h2>${cp.name}</h2>
-//       <p>Test Number: ${cp.testNum}</p>
-//       <p>Date: ${cp.date}</p>
-//       <p>Filename: ${cp.file}</p>
-//       <p>Instructions: ${cp.instructions}</p>
-//     </div>
-//     <div class="page-break"></div>
-//   `;
-  
-//     let questionNumber = 1;
-//     function shuffleArray(arr) {
-//       for (let i = arr.length - 1; i > 0; i--) {
-//         const j = Math.floor(Math.random() * (i + 1));
-//         [arr[i], arr[j]] = [arr[j], arr[i]];
-//       }
-//     }
-  
-//     // 5) Render parts / sections / questions
-//     for (let p = 0; p < test.parts.length; p++) {
-//       html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-//       const part = test.parts[p];
-  
-//       for (let s = 0; s < part.sections.length; s++) {
-//         html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
-//         const section = part.sections[s];
-  
-//         for (let q = 0; q < section.questions.length; q++) {
-//           const Qid = section.questions[q].id;
-//           const Qtype = section.questions[q].qtype;
-//           const Q = masterQuestionList[identity][Qtype][Qid];
-  
-//           html += `<div class="question">`;
-  
-//           // question‐level reference materials
-//           if (Q.reference) {
-//             html += `<div class="question-ref-text">${Q.reference}</div>`;
-//           }
-//           if (Q.requiredRefs) {
-//             html += `<div class="question-req-refs">${Q.requiredRefs}</div>`;
-//           }
-//           if (Q.img) {
-//             const src = masterAttachmentList[identity][Q.img].url;
-//             const dataUri = urlToDataURI[src];
-//             if (dataUri) {
-//               html += `<div class="question-img"><img src="${dataUri}" alt="" /></div>`;
-//             }
-//           }
-  
-//           html += `<span class="q-num">${questionNumber++}.</span>${Q.text}`;
-  
-//           // answer rendering...
-//           if (Q.qtype === 'mc') {
-//             const entries = Object.entries(Q.options);
-//             shuffleArray(entries);
-//             html += '<ul>';
-//             entries.forEach(([_, opt], idx) => {
-//               const label = String.fromCharCode(65 + idx);
-//               html += `<li>${label}: ${opt.text}</li>`;
-//             });
-//             html += '</ul>';
-//           } else if (Q.qtype === 'ms') {
-//             const opts = Object.values(Q.options);
-//             shuffleArray(opts);
-//             html += '<ul>';
-//             opts.forEach(opt => html += `<li>- ${opt.text}</li>`);
-//             html += '</ul>';
-//           } else if (Q.qtype === 'ma') {
-//             const arr = [];
-//             Object.values(Q.options).forEach(opt => {
-//               if (opt.pairNum) { arr.push(opt.left, opt.right); }
-//               else { arr.push(opt.text); }
-//             });
-//             shuffleArray(arr);
-//             html += '<ul>';
-//             arr.forEach(item => html += `<li>- ${item}</li>`);
-//             html += '</ul>';
-//           } else if (Q.qtype === 'tf') {
-//             html += `<p>True ___ False ___</p>`;
-//           } else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
-//             html += `<div class="answer-space short-answer"></div>`;
-//           } else if (Q.qtype === 'es') {
-//             html += `<div class="answer-space essay"></div>`;
-//           }
-  
-//           html += `</div>`;  // close .question
-  
-//           // inline answer image if any
-//           if (Q.ansimg) {
-//             const src = masterAttachmentList[identity][Q.ansimg].url;
-//             const dataUri = urlToDataURI[src];
-//             if (dataUri) {
-//               html += `<div class="answer-img"><img src="${dataUri}" alt="" /></div>`;
-//             }
-//           }
-//         }
-  
-//         html += `</div>`;  // close section
-//       }
-  
-//       html += `</div>`;  // close part
-//     }
-  
-//     // 6) test‐level reference at end
-//     html += `
-//     <div class="page-break"></div>
-//     <div class="test-reference-materials">
-//       <h2>Reference Materials</h2>`;
-//     if (test.refText) {
-//       html += `<div class="ref-text">${test.refText}</div>`;
-//     }
-//     if (Array.isArray(test.attachments)) {
-//       test.attachments.forEach(attID => {
-//         const att = masterAttachmentList[identity][attID];
-//         if (!att) return;
-//         const src = att.url;
-//         const dataUri = urlToDataURI[src];
-//         if (dataUri) {
-//           html += `<div class="attachment-image"><img src="${dataUri}" alt="${att.name||''}" /></div>`;
-//         } else if (att.text) {
-//           html += `<div class="attachment-text">${att.text}</div>`;
-//         }
-//       });
-//     }
-//     html += `</div>`;
-  
-//     // 7) footer & download
-//     html += `
-//     ${template.footerText ? `<div>${template.footerText}</div>` : ""}
-//   </body>
-//   </html>`;
-  
-//     const blob = new Blob([html], { type: 'text/html' });
-//     const url  = URL.createObjectURL(blob);
-//     const a    = document.createElement('a');
-//     a.href     = url;
-//     a.download = `${test.name}.html`;
-//     document.body.appendChild(a);
-//     a.click();
-//     document.body.removeChild(a);
-//     URL.revokeObjectURL(url);
-//   }
-
-
+/**
+ * exportTestToHTML
+ * Exports the test with inline images (questions, answers, and reference materials),
+ * inlines all images as Data URIs, and prints question‐level references and test‐wide
+ * reference materials exactly as exportTestKeyToHTML does.
+ */
 async function exportTestToHTML(identity, testID) {
     // 1) grab the published test
     const published = masterTestList[identity].published;
@@ -1725,11 +1532,17 @@ async function exportTestToHTML(identity, testID) {
   
     // 2) grab the template and cover page
     const template = masterTemplateList[identity][test.templateID];
-    if (!template) { alert("Test has no valid template!"); return; }
+    if (!template) {
+      alert("Invalid template!");
+      return;
+    }
     const cp = masterCoverPageList[identity][template.coverPageID];
-    if (!cp) { alert("Template has no valid cover page!"); return; }
+    if (!cp) {
+      alert("Invalid cover page!");
+      return;
+    }
   
-    // 3) collect all image URLs
+    // 3) collect all image URLs (question images, answer images, test attachments)
     const urls = [];
     test.parts.forEach(part =>
       part.sections.forEach(section =>
@@ -1747,7 +1560,7 @@ async function exportTestToHTML(identity, testID) {
       });
     }
   
-    // dedupe & fetch to Data URIs
+    // 4) dedupe and fetch into Data URIs
     const uniqueUrls = Array.from(new Set(urls));
     const urlToDataURI = {};
     await Promise.all(uniqueUrls.map(url =>
@@ -1759,10 +1572,10 @@ async function exportTestToHTML(identity, testID) {
           reader.readAsDataURL(blob);
         }))
         .then(dataUri => { urlToDataURI[url] = dataUri; })
-        .catch(() => {/* ignore */})
+        .catch(() => {/* ignore missing */})
     ));
   
-    // 4) build HTML
+    // 5) start building HTML
     let html = `
   <!DOCTYPE html>
   <html>
@@ -1770,41 +1583,43 @@ async function exportTestToHTML(identity, testID) {
     <meta charset="UTF-8">
     <title>${test.name} – Test</title>
     <style>
-      body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin: 20px; }
-      /* only flatten DIVs that are not answer-space, question-img, or answer-img */
-      .question > div:not(.answer-space):not(.question-img):not(.answer-img) {
-        display: contents;
-        margin: 0;
-        padding: 0;
-      }
-      .q-num { font-weight: bold; margin-right: 0.5em; }
-      .test-title { font-family: "${template.titleFont}", sans-serif; font-size: ${template.titleFontSize}px; text-align: center; margin-bottom: 10px; }
-      .cover-page { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; }
-      .part { margin-bottom: 30px; }
-      .part-title { font-size: 20px; margin-top: 20px; }
-      .section-title { font-size: 18px; margin-top: 15px; }
-      .question { margin-bottom: 15px; }
-      .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
-      .answer-space.short-answer { height: 5em; }
-      .answer-space.essay { height: 12em; }
+      body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin:20px; }
+      .test-title { font-family: ${template.titleFont}, sans-serif; font-size: ${template.titleFontSize}px; text-align:center; margin-bottom:20px; }
+      .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
       .page-break { page-break-before: always; }
-      ul { list-style-type: none; padding-left: 0; }
   
+      /* flatten imported wrapper DIVs */
+      .question > div:not(.question-img):not(.answer-space):not(.answer-img) { display: contents; margin:0; padding:0; }
+      .question > div p { display:inline; margin:0; padding:0; }
+  
+      .q-num { font-weight:bold; margin-right:0.5em; }
+  
+      /* image styling */
       .question-img img,
       .answer-img img,
       .attachment-image img {
-        display: block;
-        border: 1px solid #ccc;
-        padding: 4px;
-        max-width: 100%;
-        margin: 1em 0;
+        display:block;
+        border:1px solid #ccc;
+        padding:4px;
+        max-width:100%;
+        margin:1em 0;
       }
   
-      .question-ref-text { font-style: italic; margin-bottom: 0.5em; }
-      .question-req-refs { font-weight: bold; margin-bottom: 0.5em; }
-      .test-reference-materials { margin-top: 2em; }
-      .test-reference-materials h2 { font-size: 1.5em; margin-bottom: 0.5em; }
-      .ref-text, .attachment-text { margin-bottom: 1em; }
+      /* reference text styling */
+      .question-ref-text { font-style:italic; margin-bottom:0.5em; }
+      .question-req-refs { font-weight:bold; margin-bottom:0.5em; }
+  
+      /* test-wide references */
+      .test-reference-materials { margin-top:2em; }
+      .test-reference-materials h2 { font-size:1.5em; margin-bottom:0.5em; }
+      .ref-text, .attachment-text { margin-bottom:1em; }
+  
+      .part { margin-bottom:30px; }
+      .part-title { font-size:20px; margin-top:20px; }
+      .section-title { font-size:18px; margin-top:15px; }
+      .question { margin-bottom:15px; }
+      .answer-space { border-bottom:1px solid #000; margin-top:5px; }
+      ul { list-style-type:none; padding-left:0; }
     </style>
   </head>
   <body>
@@ -1815,90 +1630,103 @@ async function exportTestToHTML(identity, testID) {
     <div class="cover-page">
       <h2>${cp.name}</h2>
       <p>Test Number: ${cp.testNum}</p>
-      <p>Date: ${cp.date}</p>
-      <p>Filename: ${cp.file}</p>
-      <p>Instructions: ${cp.instructions}</p>
+      <p>Date:        ${cp.date}</p>
+      <p>Filename:    ${cp.file}</p>
+      <p>Instructions:${cp.instructions}</p>
     </div>
     <div class="page-break"></div>
   `;
   
+    // 6) render questions with references/images
     let questionNumber = 1;
-    const shuffleArray = arr => {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-    };
-  
-    // render parts/sections/questions
     for (let p = 0; p < test.parts.length; p++) {
-      html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
+      html += `<div class="part"><h2 class="part-title">Part ${p+1}</h2>`;
       const part = test.parts[p];
+  
       for (let s = 0; s < part.sections.length; s++) {
-        html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
+        html += `<div><h3 class="section-title">Section ${s+1}</h3>`;
         const section = part.sections[s];
+  
         for (let q = 0; q < section.questions.length; q++) {
-          const { id: Qid, qtype: Qtype } = section.questions[q];
-          const Q = masterQuestionList[identity][Qtype][Qid];
+          const { id: Qid, qtype } = section.questions[q];
+          const Q = masterQuestionList[identity][qtype][Qid];
+  
           html += `<div class="question">`;
   
+          // question-level reference text
           if (Q.reference)   html += `<div class="question-ref-text">${Q.reference}</div>`;
           if (Q.requiredRefs) html += `<div class="question-req-refs">${Q.requiredRefs}</div>`;
+  
+          // question-level image
           if (Q.img) {
             const src = masterAttachmentList[identity][Q.img].url;
-            const du = urlToDataURI[src];
+            const du  = urlToDataURI[src];
             if (du) html += `<div class="question-img"><img src="${du}" alt="" /></div>`;
           }
   
+          // number + text
           html += `<span class="q-num">${questionNumber++}.</span>${Q.text}`;
   
-          // answer rendering
+          // answer-space or options
           if (Q.qtype === 'mc') {
-            const opts = Object.entries(Q.options);
-            shuffleArray(opts);
             html += '<ul>';
-            opts.forEach(([_, opt], i) =>
-              html += `<li>${String.fromCharCode(65+i)}: ${opt.text}</li>`);
-            html += '</ul>';
-          } else if (Q.qtype === 'ms') {
-            const opts = Object.values(Q.options);
-            shuffleArray(opts);
-            html += '<ul>'; opts.forEach(o => html += `<li>- ${o.text}</li>`); html += '</ul>';
-          } else if (Q.qtype === 'ma') {
-            const arr = [];
-            Object.values(Q.options).forEach(o => {
-              if (o.pairNum) { arr.push(o.left, o.right); }
-              else { arr.push(o.text); }
+            Object.entries(Q.options).forEach(([key,opt]) => {
+              html += `<li>${key}: ${opt.text}</li>`;
             });
-            shuffleArray(arr);
-            html += '<ul>'; arr.forEach(i => html += `<li>- ${i}</li>`); html += '</ul>';
-          } else if (Q.qtype === 'tf') {
+            html += '</ul>';
+          }
+          else if (Q.qtype === 'ms') {
+            html += '<ul>';
+            Object.values(Q.options).forEach(opt => {
+              html += `<li>- ${opt.text}</li>`;
+            });
+            html += '</ul>';
+          }
+          else if (Q.qtype === 'ma') {
+            html += '<ul>';
+            const arr = [];
+            Object.values(Q.options).forEach(opt => {
+              if (opt.pairNum) { arr.push(opt.left, opt.right); }
+              else              { arr.push(opt.text); }
+            });
+            arr.forEach(item => html += `<li>- ${item}</li>`);
+            html += '</ul>';
+          }
+          else if (Q.qtype === 'tf') {
             html += `<p>True ___ False ___</p>`;
-          } else if (['sa','fb'].includes(Q.qtype)) {
-            html += `<div class="answer-space short-answer"></div>`;
-          } else if (Q.qtype === 'es') {
-            html += `<div class="answer-space essay"></div>`;
+          }
+          else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
+            html += `<div class="answer-space" style="height:1.5em;"></div>`;
+          }
+          else if (Q.qtype === 'es') {
+            html += `<div class="answer-space" style="height:6em;"></div>`;
+          }
+  
+          // answer-level image? (if you ever use in test)
+          if (Q.ansimg) {
+            const src = masterAttachmentList[identity][Q.ansimg].url;
+            const du  = urlToDataURI[src];
+            if (du) html += `<div class="answer-img"><img src="${du}" alt="" /></div>`;
           }
   
           html += `</div>`; // close question
-  
-          if (Q.ansimg) {
-            const src = masterAttachmentList[identity][Q.ansimg].url;
-            const du = urlToDataURI[src];
-            if (du) html += `<div class="answer-img"><img src="${du}" alt="" /></div>`;
-          }
         }
-        html += `</div>`;
+  
+        html += `</div>`; // close section
       }
-      html += `</div>`;
+  
+      html += `</div>`; // close part
     }
   
-    // test‐level refs at end
+    // 7) test-wide Reference Materials at bottom
     html += `
     <div class="page-break"></div>
     <div class="test-reference-materials">
-      <h2>Reference Materials</h2>`;
-    if (test.refText) html += `<div class="ref-text">${test.refText}</div>`;
+      <h2>Reference Materials</h2>
+  `;
+    if (test.refText) {
+      html += `  <div class="ref-text">${test.refText}</div>`;
+    }
     if (Array.isArray(test.attachments)) {
       test.attachments.forEach(attID => {
         const att = masterAttachmentList[identity][attID];
@@ -1913,11 +1741,12 @@ async function exportTestToHTML(identity, testID) {
     }
     html += `</div>`;
   
-    // footer & download
+    // 8) footer + download
     html += `
     ${template.footerText ? `<div>${template.footerText}</div>` : ""}
   </body>
-  </html>`;
+  </html>
+  `;
   
     const blob = new Blob([html], { type: 'text/html' });
     const url  = URL.createObjectURL(blob);
@@ -2208,8 +2037,6 @@ function updateTemplates(identity) {
     }
 }
 
-
-    
 
 function updateGraphicSelectors(identity) {
     const qGraphicField = document.getElementById('qGraphicField');
