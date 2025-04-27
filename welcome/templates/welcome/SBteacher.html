@@ -182,8 +182,10 @@
         .tabs { display: flex; cursor: pointer; overflow-x: auto;border-bottom: 2px solid #cccccc; }
         .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
         .tab.active { background: #ffffff; font-weight: bold; }
-        .tab-content { display: none; padding: 10px; height: 120px; overflow-y: auto; border: 1px solid #ccc; }
-        .tab-content.active { display: block;}
+        .tab-content {display: none; padding: 10px; min-height: 120px; height: auto; overflow-y: auto; border: 1px solid #ccc; resize: vertical;  max-height: 600px; /* Optional: limit how large it can expand */}
+        .tab-content.active {
+            display: block;
+        }
         .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
