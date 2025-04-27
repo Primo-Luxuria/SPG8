@@ -1481,7 +1481,6 @@ function updateTestTabs(identity) {
     }
 }
 
-
 function exportTestToHTML(identity, testID) {
     // grab the published test
     const published = masterTestList[identity].published;
@@ -1519,6 +1518,26 @@ function exportTestToHTML(identity, testID) {
         font-size: ${template.bodyFontSize}px;
         margin: 20px;
       }
+  
+      /* flatten any imported wrapper DIVs */
+      .question > div {
+        display: contents;
+        margin: 0;
+        padding: 0;
+      }
+      /* inline any P inside those wrappers */
+      .question > div p {
+        display: inline;
+        margin: 0;
+        padding: 0;
+      }
+  
+      /* style your question-number span */
+      .q-num {
+        font-weight: bold;
+        margin-right: 0.5em;
+      }
+  
       .test-title {
         font-family: ${template.titleFont}, sans-serif;
         font-size: ${template.titleFontSize}px;
@@ -1535,12 +1554,11 @@ function exportTestToHTML(identity, testID) {
       .section-title { font-size: 18px; margin-top: 15px; }
       .question { margin-bottom: 15px; }
       .answer-space { border-bottom: 1px solid #000; margin-top: 5px; }
-      .page-break { page-break-before: always;}
+      .page-break { page-break-before: always; }
       ul {
-            list-style-type: none;
-            padding-left: 0px;
-        }
-
+        list-style-type: none;
+        padding-left: 0;
+      }
     </style>
   </head>
   <body>
@@ -1558,66 +1576,76 @@ function exportTestToHTML(identity, testID) {
     <div class="page-break"></div>
   `;
   
+    let questionNumber = 1;
+  
     // loop over parts/sections/questions
     for (let p = 0; p < test.parts.length; p++) {
       html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
-  
       const part = test.parts[p];
+  
       for (let s = 0; s < part.sections.length; s++) {
         html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
-  
         const section = part.sections[s];
-        for (let q = 0; q < section.questions.length; q++) {
-          const Qid = section.questions[q].id;
-          const Qtype = section.questions[q].qtype;
-          const Q = masterQuestionList[identity][Qtype][Qid];
-          console.log(Q.options);
-          html += `<div class="question"><p>${Q.text}</p>`;
   
-          // render answer options for various qtypes
+        for (let q = 0; q < section.questions.length; q++) {
+          const Qid   = section.questions[q].id;
+          const Qtype = section.questions[q].qtype;
+          const Q     = masterQuestionList[identity][Qtype][Qid];
+  
+          // NUMBER + raw Canvas HTML, no <p> wrapping
+          html += `<div class="question">`
+               +  `<span class="q-num">${questionNumber}.</span>`
+               +  Q.text;                // Q.text already includes its own <div>…<p>…</p> wrapper
+          questionNumber++;
+  
+          // now your existing answer‐rendering…
           if (Q.qtype === 'mc') {
             html += '<ul>';
             Object.keys(Q.options).forEach(key => {
-                let opt = Q.options[key];
-                html += `<li>${key}: ${opt.text}</li>`;
+              let opt = Q.options[key];
+              html += `<li>${key}: ${opt.text}</li>`;
             });
             html += '</ul>';
-          } else if (Q.qtype === 'ms') {
+          }
+          else if (Q.qtype === 'ms') {
             html += '<ul>';
             Object.keys(Q.options).forEach(key => {
-                let opt = Q.options[key];
-                html += `<li>- ${opt.text}</li>`;
+              let opt = Q.options[key];
+              html += `<li>- ${opt.text}</li>`;
             });
             html += '</ul>';
-          } else if (Q.qtype === 'ma') {
+          }
+          else if (Q.qtype === 'ma') {
             html += '<ul>';
             const optionsArray = [];
             Object.keys(Q.options).forEach(key => {
-                let opt = Q.options[key];
-                if(opt.pairNum){
-                    optionsArray.push(opt.left);
-                    optionsArray.push(opt.right);
-                }else{
-                    optionsArray.push(opt.text);
-                }
+              let opt = Q.options[key];
+              if (opt.pairNum) {
+                optionsArray.push(opt.left, opt.right);
+              } else {
+                optionsArray.push(opt.text);
+              }
             });
             optionsArray.forEach(opt => html += `<li>- ${opt}</li>`);
             html += '</ul>';
-          }else if (Q.qtype === 'tf') {
+          }
+          else if (Q.qtype === 'tf') {
             html += `<p>True ___ False ___</p>`;
-          } else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
+          }
+          else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
             html += `<div class="answer-space" style="height:1.5em;"></div>`;
-          } else if (Q.qtype === 'es') {
+          }
+          else if (Q.qtype === 'es') {
             html += `<div class="answer-space" style="height:6em;"></div>`;
           }
   
-          html += '</div>';  // .question
+          html += '</div>';  // close .question
         }
   
-        html += `</div>`;  // section
+        html += `</div>`;  // close section
       }
   
-      html += `</div>`;  // part
+      html += `</div>`;  // close part
     }
   
     html += `
@@ -1626,7 +1654,7 @@ function exportTestToHTML(identity, testID) {
   </html>
   `;
   
-    //  trigger download w/ blob
+    // trigger download w/ blob
     const blob = new Blob([html], { type: 'text/html' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -1637,12 +1665,13 @@ function exportTestToHTML(identity, testID) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  
 
 
-
-  /**
+/**
  * exportTestKeyToHTML
- * Exports the answer key with grading instructions (in blue) and correct answers (in red).
+ * Exports the answer key with grading instructions (in blue) and correct answers (in red),
+ * and prefixes each question with its number.
  */
 function exportTestKeyToHTML(identity, testID) {
     const published = masterTestList[identity].published;
@@ -1657,7 +1686,7 @@ function exportTestKeyToHTML(identity, testID) {
       return;
     }
     const cpID = template.coverPageID;
-    const cp =masterCoverPageList[identity][cpID];
+    const cp   = masterCoverPageList[identity][cpID];
     if (!cp) {
       alert("Invalid cover page!");
       return;
@@ -1670,6 +1699,24 @@ function exportTestKeyToHTML(identity, testID) {
     <meta charset="UTF-8">
     <title>${test.name} – Answer Key</title>
     <style>
+        /* flatten any imported wrapper DIVs */
+        .question > div {
+        display: contents;
+        margin: 0;
+        padding: 0;
+        }
+        /* inline any P inside those wrappers */
+        .question > div p {
+        display: inline;
+        margin: 0;
+        padding: 0;
+        }
+
+        /* style your question-number span */
+        .q-num {
+        font-weight: bold;
+        margin-right: 0.5em;
+        }
       body { font-family: ${template.bodyFont}, sans-serif; font-size: ${template.bodyFontSize}px; margin:20px; }
       .test-title { font-family: ${template.titleFont}; font-size: ${template.titleFontSize}px; text-align:center; }
       .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
@@ -1682,7 +1729,6 @@ function exportTestKeyToHTML(identity, testID) {
       .page-break { page-break-before: always; }
       .answer-header { color: red; text-align: center; font-size: 24px; font-weight: bold; 
                       margin-bottom: 20px;}
-      
     </style>
   </head>
   <body>
@@ -1700,6 +1746,9 @@ function exportTestKeyToHTML(identity, testID) {
     <div class="page-break"></div>
   `;
   
+    // initialize question counter
+    let questionNumber = 1;
+  
     // loop parts for sections/questions
     for (let p = 0; p < test.parts.length; p++) {
       html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
@@ -1710,41 +1759,40 @@ function exportTestKeyToHTML(identity, testID) {
         const section = part.sections[s];
   
         for (let q = 0; q < section.questions.length; q++) {
-          const Qid = section.questions[q].id;
+          const Qid   = section.questions[q].id;
           const qtype = section.questions[q].qtype;
-          console.log(Qid);
-          console.log(identity);
-          const Q = masterQuestionList[identity][qtype][Qid];
-          console.log(Q);
-          html += `
-    <div class="question">
-      <p>${Q.text}</p>
-      <p class="correct-answer">Answer:`; 
-      if(Q.qtype in {"es": "es", "mc":"mc", "sa":"sa","tf":"tf"}){
-        answer = Q.answer.value;
-        html += `${answer}`;
-      }else if (Q.qtype !=="ma"){
-        answerKeys = Object.keys(Q.answer);
-        answer = "";
-        answerKeys.forEach(key =>{
-            answer = Q.answer[key];
-            html += `${answer.value}<br>`;
-        });
-      }else if(Q.qtype=="ma"){
-        answerKeys = Object.keys(Q.answer);
-        answerKeys.forEach(key =>{
-            answer = Q.answer[key];
-            html += `${answer.text}<br>`;
-        });
-      }
-      html += `</p>
-      <p class="grading-instructions">Grading: ${Q.directions}</p>
-    </div>
-          `;
+          const Q     = masterQuestionList[identity][qtype][Qid];
+  
+          // prepend question number to the text
+            html += `
+                <div class="question">
+                <span class="q-num">${questionNumber}.</span>
+                ${Q.text}
+            `;
+          questionNumber++;
+  
+          html += `      <p class="correct-answer">Answer:`;
+          if (["es", "mc", "sa", "tf"].includes(Q.qtype)) {
+            html += ` ${Q.answer.value}`;
+          } else if (Q.qtype !== "ma") {
+            Object.keys(Q.answer).forEach(key => {
+              html += ` ${Q.answer[key].value}<br>`;
+            });
+          } else {
+            Object.keys(Q.answer).forEach(key => {
+              html += ` ${Q.answer[key].text}<br>`;
+            });
+          }
+          html += `</p>
+        <p class="grading-instructions">Grading: ${Q.directions}</p>
+      </div>
+  `;
         }
-        html += `</div>`;
+  
+        html += `</div>`;  // section
       }
-      html += `</div>`;
+  
+      html += `</div>`;    // part
     }
   
     html += `
@@ -1764,6 +1812,7 @@ function exportTestKeyToHTML(identity, testID) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  
 
 function updateCoverPages(identity) {
     const coverPageContainer = document.getElementById(`coverpages-${identity}`);
