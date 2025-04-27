@@ -1636,7 +1636,15 @@ async function exportTestToHTML(identity, testID) {
     </div>
     <div class="page-break"></div>
   `;
-  
+  const typeMap = {
+    tf: "True/False",
+    mc: "Multiple Choice",
+    ms: "Multiple Selection",
+    ma: "Matching",
+    es: "Essay",
+    sa: "Short Answer",
+    fb: "Fill in the Blank"
+};
     // 6) render questions with references/images
     let questionNumber = 1;
     for (let p = 0; p < test.parts.length; p++) {
@@ -1644,8 +1652,10 @@ async function exportTestToHTML(identity, testID) {
       const part = test.parts[p];
   
       for (let s = 0; s < part.sections.length; s++) {
-        html += `<div><h3 class="section-title">Section ${s+1}</h3>`;
         const section = part.sections[s];
+        let typeCode = section.questionType.toLowerCase();
+        let type = typeMap[typeCode] || "Unknown Type";
+        html += `<div><h3 class="section-title">${type}</h3>`;
   
         for (let q = 0; q < section.questions.length; q++) {
           const { id: Qid, qtype } = section.questions[q];
@@ -1775,7 +1785,15 @@ async function exportTestKeyToHTML(identity, testID) {
       return;
     }
     const test = published[testID];
-  
+    const typeMap = {
+        tf: "True/False",
+        mc: "Multiple Choice",
+        ms: "Multiple Selection",
+        ma: "Matching",
+        es: "Essay",
+        sa: "Short Answer",
+        fb: "Fill in the Blank"
+    };
     // 2) grab the template and cover page
     const template = masterTemplateList[identity][test.templateID];
     if (!template) { alert("Invalid template!"); return; }
@@ -1882,8 +1900,10 @@ async function exportTestKeyToHTML(identity, testID) {
       html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
       const part = test.parts[p];
       for (let s = 0; s < part.sections.length; s++) {
-        html += `<div><h3 class="section-title">Section ${s + 1}</h3>`;
         const section = part.sections[s];
+        let typeCode = section.questionType.toLowerCase();
+        let type = typeMap[typeCode] || "Unknown Type";
+        html += `<div><h3 class="section-title">${type}</h3>`;
         for (let q = 0; q < section.questions.length; q++) {
           const { id: Qid, qtype } = section.questions[q];
           const Q = masterQuestionList[identity][qtype][Qid];
@@ -1901,13 +1921,24 @@ async function exportTestKeyToHTML(identity, testID) {
   
           // question number + text
           html += `<span class="q-num">${questionNumber++}.</span>${Q.text}`;
-  
+          
           // correct answer(s)
           html += `<p class="correct-answer">Answer:`;
           if (["es","sa","tf"].includes(Q.qtype)) {
             html += ` ${Q.answer.value}`;
-          } else if(Q.qtype="mc"){
-            html+= ` ${Q.options[Q.answer.value].text}`;       
+          } else if(Q.qtype=="mc"){
+            let answerLetter = Q.answer.value;
+            console.log(answerLetter);
+            console.log(JSON.stringify(Q.options));
+            let answer = "";
+            if(!Q.answer.value){
+                answer = "No answer provided!";
+            }else if(!Q.options[Q.answer.value]){
+                answer = "Answer provided does not match any options!"
+            }else{
+                answer = Q.options[Q.answer.value].text;
+            }
+            html+= `${answer}`;       
           }else {
             Object.values(Q.answer).forEach(ans => {
               const val = ans.value || ans.text;
