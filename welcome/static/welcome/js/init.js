@@ -1578,6 +1578,14 @@ function exportTestToHTML(identity, testID) {
   
     let questionNumber = 1;
   
+    // helper to shuffle arrays in-place
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+  
     // loop over parts/sections/questions
     for (let p = 0; p < test.parts.length; p++) {
       html += `<div class="part"><h2 class="part-title">Part ${p + 1}</h2>`;
@@ -1595,38 +1603,47 @@ function exportTestToHTML(identity, testID) {
           // NUMBER + raw Canvas HTML, no <p> wrapping
           html += `<div class="question">`
                +  `<span class="q-num">${questionNumber}.</span>`
-               +  Q.text;                // Q.text already includes its own <div>…<p>…</p> wrapper
+               +  Q.text;
           questionNumber++;
   
-          // now your existing answer‐rendering…
+          // randomized answer rendering for applicable types
           if (Q.qtype === 'mc') {
+            // multiple choice: shuffle entries and relabel A, B, C...
+            const entries = Object.entries(Q.options); // [ [key, opt], ... ]
+            shuffleArray(entries);
             html += '<ul>';
-            Object.keys(Q.options).forEach(key => {
-              let opt = Q.options[key];
-              html += `<li>${key}: ${opt.text}</li>`;
+            entries.forEach(([_, opt], idx) => {
+              const label = String.fromCharCode(65 + idx); // A, B, C...
+              html += `<li>${label}: ${opt.text}</li>`;
             });
             html += '</ul>';
           }
           else if (Q.qtype === 'ms') {
+            // multiple select: shuffle option objects
+            const opts = Object.values(Q.options);
+            shuffleArray(opts);
             html += '<ul>';
-            Object.keys(Q.options).forEach(key => {
-              let opt = Q.options[key];
+            opts.forEach(opt => {
               html += `<li>- ${opt.text}</li>`;
             });
             html += '</ul>';
           }
           else if (Q.qtype === 'ma') {
-            html += '<ul>';
+            // matching: flatten left/right then shuffle
             const optionsArray = [];
-            Object.keys(Q.options).forEach(key => {
-              let opt = Q.options[key];
+            Object.values(Q.options).forEach(opt => {
               if (opt.pairNum) {
-                optionsArray.push(opt.left, opt.right);
+                optionsArray.push(opt.left);
+                optionsArray.push(opt.right);
               } else {
                 optionsArray.push(opt.text);
               }
             });
-            optionsArray.forEach(opt => html += `<li>- ${opt}</li>`);
+            shuffleArray(optionsArray);
+            html += '<ul>';
+            optionsArray.forEach(item => {
+              html += `<li>- ${item}</li>`;
+            });
             html += '</ul>';
           }
           else if (Q.qtype === 'tf') {
@@ -1665,6 +1682,7 @@ function exportTestToHTML(identity, testID) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  
   
 
 
