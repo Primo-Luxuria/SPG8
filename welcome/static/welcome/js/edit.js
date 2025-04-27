@@ -32,7 +32,7 @@ function editItem() {
 
 function editQuestion(identity, questionType, questionID) {
     console.log(masterQuestionList[identity][questionType][questionID]);
-    if(masterQuestionList[identity][questionType][questionID].published === 1){
+    if(masterQuestionList[identity][questionType][questionID].published === true){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
            return;
         }
@@ -277,7 +277,7 @@ function submitEditQuestion(identity, questionType, questionID) {
     const question = masterQuestionList[identity][questionType][questionID];
 
     // Handle published logic
-    if (question.published === 1) {
+    if (question.published === true) {
         if (confirm("This question is published. Would you like to clone it instead of editing? Click OK to clone.")) {
             const clone = {
                 text: text,
@@ -342,7 +342,7 @@ function editCoverPage(identity, pageID) {
     const modal = document.getElementById('editModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
-    if(coverPage.published==1){
+    if(coverPage.published==true){
         alert("This page is published. You cannot edit it.");
         return;
     }
@@ -431,7 +431,7 @@ function editTemplate(identity, templateID) {
 
     alert(JSON.stringify(template));
     modalTitle.innerText = 'Edit Template';
-    if(template.published === 1){
+    if(template.published === true){
         alert("This template is published. You cannot edit it.");
         return;
     }

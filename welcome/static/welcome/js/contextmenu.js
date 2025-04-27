@@ -31,6 +31,7 @@ function addFeedback() {
         formContent += `<button class="save-btn" onclick="submitTestFeedback('${identity}', ${itemID})">Submit Feedback</button>`;
     } else {
         alert("Feedback can only be added to questions and tests.");
+        return;
     }
     modalBody.innerHTML = formContent;
     modal.style.display = 'flex';
@@ -261,9 +262,9 @@ function submitResponse(identity, questionType, questionIndex, feedbackIndex) {
     const question = masterQuestionList[identity][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
     if(window.userRole=="teacher"){
-        saveData("test",test,identity);
+        saveData("question",test,identity);
     }else{
-        saveData("test",test,{}, identity);
+        saveData("question",test,{}, identity);
     }
     viewQuestionFeedback(identity, questionType, questionIndex);
 }
