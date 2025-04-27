@@ -1904,9 +1904,11 @@ async function exportTestKeyToHTML(identity, testID) {
   
           // correct answer(s)
           html += `<p class="correct-answer">Answer:`;
-          if (["es","mc","sa","tf"].includes(Q.qtype)) {
+          if (["es","sa","tf"].includes(Q.qtype)) {
             html += ` ${Q.answer.value}`;
-          } else {
+          } else if(Q.qtype="mc"){
+            html+= ` ${Q.options[Q.answer.value].text}`;       
+          }else {
             Object.values(Q.answer).forEach(ans => {
               const val = ans.value || ans.text;
               html += ` ${val}<br>`;
