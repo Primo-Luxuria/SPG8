@@ -262,9 +262,9 @@ function submitResponse(identity, questionType, questionIndex, feedbackIndex) {
     const question = masterQuestionList[identity][questionType][questionIndex];
     question.feedback[feedbackIndex].responses.push(response);
     if(window.userRole=="teacher"){
-        saveData("question",test,identity);
+        saveData("question",question,identity);
     }else{
-        saveData("question",test,{}, identity);
+        saveData("question",question,{}, identity);
     }
     viewQuestionFeedback(identity, questionType, questionIndex);
 }

@@ -731,7 +731,7 @@ function editTest(identity, testID) {
                 <button id="templateSelection" onclick="updateTestParts('${identity}')">Select This One!</button>
                 <div id="testParts"></div>
             </div>
-            <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>
+            <label>Embedded Graphic for the Test (Optional, up to 5):</label><br/>Test
             <select id="testGraphicField" multiple size="5">
             <option value="" disabled selected>Select a graphic</option>
             </select><br><br>
@@ -743,8 +743,6 @@ function editTest(identity, testID) {
     `;
     
     modalBody.innerHTML = formContent;
-    document.getElementById("testDraftButton").disabled = true;
-    document.getElementById("testPublishButton").disabled = true;
     // Populate the template selector
     updateTemplateSelection(identity);
 
@@ -914,6 +912,7 @@ function submitEditAttachment(identity, attachmentID) {
 }
 
 function submitEditedTest(identity, isPublished, testID) {
+    console.log("got here!");
     const testName = document.getElementById("nameField").value.trim();
     if (!testName) {
         alert("Test Name is required.");
@@ -1028,11 +1027,13 @@ function submitEditedTest(identity, isPublished, testID) {
 
 
     if (isPublished === 'true') {
+        console.log("got here!");
         testData.published = 1;
     } 
     if(window.userRole=="teacher"){
         saveData("test", testData, identity);
     }else{
+        console.log("got here!");
         saveData("test", testData, {}, identity);
     }
     
