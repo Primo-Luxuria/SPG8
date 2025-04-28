@@ -9,16 +9,17 @@
     <link rel="shortcut icon" href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
     <link rel="icon"        href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
     <style>
+        /* Input fields */
         input[type="text"],
         input[type="number"],
         input[type="date"],
         select,
         textarea {
-            margin-bottom: 8px;
-            height: 40px !important; /* Increased height */
+        margin-bottom: 8px;
+            height: 40px !important;
             padding: 10px 12px !important;
             font-size: 16px !important;
-            border: 1px solid #ccc !important; /* Softer border color */
+            border: 1px solid #ccc !important;
             border-radius: 8px !important;
             transition: all 0.3s ease;
             min-width: 200px !important;
@@ -35,11 +36,24 @@
             outline: none !important;
         }
     
+        .dual-container {
+            display: flex;
+            gap: 40px;
+            margin-top: 30px;
+            align-items: flex-start;
+        }
+    
         /* Dropdown specific */
-        select#courseSemester {
-            background-color: #ffffff !important;
-            border-color: #cccccc !important;
-            background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
+        select {
+            select#courseSemester {
+                background-color: #ffffff !important;
+                border-color: #cccccc !important;
+            }
+            
+            /* Custom dropdown arrow - ensure visibility */
+            select#courseSemester {
+                background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
+            }
         }
     
         /* Textareas */
@@ -67,125 +81,233 @@
             border-color: #999 !important;
         }
     
-        /* Base styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+            /* Base styles */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+    
+            body {
+                font-family: Arial, sans-serif;
+                color: #333;
+                background: #f5f7fa;
+            }
+    
+            /* Header Styles */
+            .header {
+                background-color: #0077C8;
+                color: white;
+                padding: 25px 0;
+                text-align: center;
+            }
+    
+            .header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
+            }
+    
+            .welcome-bar {
+                background-color: #005fa3;
+                padding: 15px 0;
+                text-align: center;
+                color: white;
+                font-size: 1.2rem;
+                letter-spacing: 0.5px;
+            }
+    
+            /* Main Content Container */
+            .container {
+                max-width: 1200px;
+                margin: 2rem auto;
+                padding: 0 20px;
+            }
+    
+            /* Course Form Section */
+            .textbook-form {
+                background: white;
+                border-radius: 10px;
+                padding: 2rem;
+                box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            }
+    
+            .textbook-form h2 {
+                text-align: center;
+                font-size: 2.2rem;
+                margin-bottom: 1.5rem;
+                color: #2e3a42;
+                font-weight: 700;
+                border-bottom: 2px solid #0077C8;
+                padding-bottom: 10px;
+            }
+    
+            .textbook-container {
+                background: #ffffff;
+                border: 1px solid #d9d9d9;
+                border-radius: 12px;
+                padding: 5px 30px;
+                margin: 30px auto;
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+                width: 100%;
+                max-width: 1000px;
+                transition: all 0.3s ease;
+            }
+    
+            .textbook-container:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+            }
+            
+            /* Consistent details styling */
+            .textbook-container details {
+                background: #f8f9fa !important;
+                border-radius: 8px !important;
+                margin: 12px 0 !important;
+                border: 1px solid #dee2e6 !important;
+                transition: all 0.3s ease; /* Add transition */
+            }
+    
+            .textbook-container details:hover {
+                transform: translateY(-3px); /* Slight lift */
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+            }
+            
+            /* Summary element styling */
+            .textbook-container details summary {
+                padding: 14px !important;
+                font-weight: 600 !important;
+                color: #2e3a42 !important;
+                cursor: pointer !important;
+            }
+            
+            /* Nested elements consistency */
+            .textbook-container details details {
+                background: #ffffff !important;
+                margin: 8px 0 !important;
+            }
+            
+            /* Remove button styling */
+            .textbook-container .remove-btn {
+                margin-top: 20px !important;
+                width: 100% !important;
+                padding: 12px !important;
+                font-size: 16px !important;
+            }
+    
+            body { font-family: Arial, sans-serif; }
+            textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
+            details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
+            .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .tab-container { margin-top: 10px; overflow: hidden;}
+            .tabs { display: flex; cursor: pointer; overflow-x: auto;border-bottom: 2px solid #cccccc; }
+            .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
+            .tab.active { background: #ffffff; font-weight: bold; }
+            .tab-content {display: none; padding: 10px; min-height: 120px; height: auto; overflow-y: auto; border: 1px solid #ccc; resize: vertical; max-height: 600px; /* Optional: limit how large it can expand */
+            }
+            .tab-content.active {
+                display: block;
+            }
+            .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0; 
+                left: 0;
+                width: 100%; 
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                overflow: hidden;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000; /* ⬅️ Add this! */
+            }
+    
+            .modal-content {
+                background: white;
+                padding: 20px;
+                width: 50%;
+                max-height: 80vh;
+                overflow-y: auto;
+                margin: 5% auto;
+                border-radius: 10px;
+                z-index: 1001; /* ⬅️ Optional: slightly higher than modal background */
+            }
+            .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
+            .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
+            .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
+            .form-group label {width: 120px;text-align: right;margin-right: 10px;}
+            .form-group input {flex: 1;}
+            .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
+            .context-menu ul {list-style: none;margin: 0;padding: 0;}
+            .context-menu ul li {padding: 8px 12px;cursor: pointer;}
+            .context-menu ul li:hover {background: #f0f0f0;}
+            button.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    
+        button {
+            transition: all 0.1s ease-in-out;
+            transform: scale(1);
         }
     
-        body {
-            font-family: Arial, sans-serif;
-            color: #333;
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2) inset;
         }
     
-        /* Header Styles */
-        .header {
-            background-color: #0077C8;
-            color: white;
-            padding: 25px 0;
-            text-align: center;
-        }
-    
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-    
-        .welcome-bar {
-            background-color: #005fa3;
-            padding: 15px 0;
-            text-align: center;
-            color: white;
-            font-size: 1.2rem;
-            letter-spacing: 0.5px;
-        }
-    
-        /* Main Content Container */
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 20px;
-        }
-    
-        /* Textbook Form Section */
-        .textbook-form {
-            background: white;
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
-        }
-    
-        .textbook-container {
-            background: #ffffff !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 12px !important;
-            padding: 20px !important;
-            margin: 20px 0 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+        .section-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin: 12px 0;
+            padding: 10px;
             transition: all 0.3s ease;
+            cursor: pointer;
         }
     
-        /* Course container hover effect */
-        .textbook-containerr:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        .section-item:hover {
+            background: #e2f0ff;
+            transform: scale(1.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         }
     
-        /* Consistent details styling */
-        .textbook-container details {
-            background: #f8f9fa !important;
-            border-radius: 8px !important;
-            margin: 12px 0 !important;
-            border: 1px solid #dee2e6 !important;
+    
+            /* Main Course Card summary */
+        .textbook-container > details > summary {
+            position: sticky;
+            top: 0;
+            background: #ffffff;
+            z-index: 10;
+            padding: 18px;
+            font-size: 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #0077C8;
+            cursor: pointer;
         }
     
-        /* Summary element styling */
-        .textbook-container details summary {
-            padding: 14px !important;
-            font-weight: 600 !important;
-            color: #2e3a42 !important;
-            cursor: pointer !important;
+        /* Subcard (Questions, Cover Pages, Templates) summaries */
+        .textbook-container details > details > summary {
+            position: sticky;
+            top: 40px;
+            background: #f8f9fa;
+            z-index: 8;
+            padding: 14px;
+            font-weight: 600;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
         }
     
-        /* Nested elements consistency */
-        .textbook-container details details {
-            background: #ffffff !important;
-            margin: 8px 0 !important;
-        }
     
-        /* Remove button styling */
-        .textbook-container .remove-btn {
-            margin-top: 20px !important;
-            width: 100% !important;
-            padding: 12px !important;
-            font-size: 16px !important;
-        }
         
-        body { font-family: Arial, sans-serif; }
-	    textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
-        .textbook-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
-        details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
-        .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
-        .tab-container { margin-top: 10px; }
-        .tabs { display: flex; cursor: pointer; border-bottom: 2px solid #cccccc; }
-        .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
-        .tab.active { background: #ffffff; font-weight: bold; }
-        .tab-content { display: none; padding: 10px; height: 120px; overflow-y: auto; border: 1px solid #ccc; }
-        .tab-content.active { display: block;}
-        .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
-        .modal-content { background: white; padding: 20px; width: 50%; max-height:80vh; overflow-y:auto; margin: 5% auto; border-radius: 10px;}
-        .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
-        .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
-        .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
-        .form-group label {width: 120px;text-align: right;margin-right: 10px;}
-        .form-group input {flex: 1;}  
-        .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
-        .context-menu ul {list-style: none;margin: 0;padding: 0;}
-        .context-menu ul li {padding: 8px 12px;cursor: pointer;}
-        .context-menu ul li:hover {background: #f0f0f0;}
-    </style>
+        .textbook-container details:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            background: #f8f9fa;
+        }
+</style>
 </head>
 <body style="background-color: #2e3a42;">
     <div class="header">
@@ -207,7 +329,8 @@
 
     <!-- Textbook Input Form -->
 
-    <div style="background:#e0e0e0;padding:20px;">
+    <div class="textbook-container">
+        <h3>Add a New Textbook</h3>
     <input type="text" id="title" placeholder="Enter Textbook Title" required>
     <input type="text" id="author" placeholder="Enter Textbook Author" required>
     <input type="text" id="version" placeholder="Enter Textbook Version" required>
@@ -215,7 +338,7 @@
     <input type="text" id="link" placeholder="Enter Textbook Link" required>
     
     
-    <button onclick="addContent()">Add Textbook</button>
+    <button class="add-btn cool-press" onclick="addContent()">Add Textbook</button>
     <style>
         /* Add this to your existing button styles */
         button[onclick="addTextbook()"] {
@@ -312,4 +435,4 @@
         </form>
 
 </body>
-</html>
+</html
