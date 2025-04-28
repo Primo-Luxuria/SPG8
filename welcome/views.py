@@ -119,7 +119,7 @@ def parse_qti_xml(request):
     This supports QTI version 1.2 only.
     """
     start_time = time.perf_counter()
-
+    
     class ImageDataPair:
         def __init__(self, raw_image_data, actual_image_name):
             self.raw_image_data = raw_image_data
