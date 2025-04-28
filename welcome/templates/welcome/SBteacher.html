@@ -150,6 +150,13 @@
                 transform: translateY(-5px);
                 box-shadow: 0 12px 24px rgba(0,0,0,0.12);
             }
+
+            .course-container details[open] {
+                width: 100% !important;
+                max-width: none !important;
+                padding: 20px !important;
+                box-sizing: border-box;
+            }
             
             /* Consistent details styling */
             .course-container details {
@@ -177,6 +184,12 @@
             .course-container details details {
                 background: #ffffff !important;
                 margin: 8px 0 !important;
+            }
+
+
+            .course-container details details[open] {
+                width: 100% !important;
+                padding: 16px !important;
             }
             
             /* Remove button styling */
