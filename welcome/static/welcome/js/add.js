@@ -1383,11 +1383,11 @@ closeQuestionModal();
 
 
 function ShuffleArray(questionElements){
-for (let i = questionElements.length - 2; i > 0; i--) {
-const j = Math.floor(Math.random() * (i + 1));
-[questionElements[i], questionElements[j]] = [questionElements[j], questionElements[i]];
-}
-}
+    for (let i = questionElements.length - 2; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questionElements[i], questionElements[j]] = [questionElements[j], questionElements[i]];
+    }
+    }
 
 
 

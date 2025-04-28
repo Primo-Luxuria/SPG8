@@ -1129,6 +1129,7 @@ function serializeQuestion(question, identity) {
     return requestData;
 }
 
+
 /**
  * Serialize a test object for the API
  * Fixed to handle null values and improve data transformation
@@ -1515,6 +1516,16 @@ function updateTestTabs(identity) {
     }
 }
 
+
+function ShuffleOptions(optionList) {
+    for (let i = optionList.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));  // Generate a random index from 0 to i
+        [optionList[i].text, optionList[j].text] = [optionList[j].text, optionList[i].text];  // Swap elements
+    }
+}
+
+    
+
 /**
  * exportTestToHTML
  * Exports the test with inline images (questions, answers, and reference materials),
@@ -1662,7 +1673,8 @@ async function exportTestToHTML(identity, testID) {
           const Q = masterQuestionList[identity][qtype][Qid];
   
           html += `<div class="question">`;
-  
+            
+          
           // question-level reference text
           if (Q.reference)   html += `<div class="question-ref-text">${Q.reference}</div>`;
           if (Q.requiredRefs) html += `<div class="question-req-refs">${Q.requiredRefs}</div>`;
@@ -1676,18 +1688,25 @@ async function exportTestToHTML(identity, testID) {
   
           // number + text
           html += `<span class="q-num">${questionNumber++}.</span>${Q.text}`;
-  
+          if(!Object.entries(Q.options)){
+                html += "No options provided.";
+                continue;
+          }
           // answer-space or options
           if (Q.qtype === 'mc') {
             html += '<ul>';
-            Object.entries(Q.options).forEach(([key,opt]) => {
+            let optionArray = Object.entries(Q.options);
+            ShuffleOptions(optionArray);
+            optionArray.forEach(([key,opt]) => {
               html += `<li>${key}: ${opt.text}</li>`;
             });
             html += '</ul>';
           }
           else if (Q.qtype === 'ms') {
             html += '<ul>';
-            Object.values(Q.options).forEach(opt => {
+            let optionArray = Object.values(Q.options);
+            ShuffleOptions(optionArray);
+            optionArray.forEach(opt => {
               html += `<li>- ${opt.text}</li>`;
             });
             html += '</ul>';
@@ -1699,6 +1718,7 @@ async function exportTestToHTML(identity, testID) {
               if (opt.pairNum) { arr.push(opt.left, opt.right); }
               else              { arr.push(opt.text); }
             });
+            ShuffleOptions(arr);
             arr.forEach(item => html += `<li>- ${item}</li>`);
             html += '</ul>';
           }
