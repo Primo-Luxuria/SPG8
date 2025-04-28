@@ -815,6 +815,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
         if tf_item_list:
@@ -835,7 +836,9 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
+                
 
         if fb_item_list:
             number_of_sections += 1
@@ -854,6 +857,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
         if ms_item_list:
@@ -874,6 +878,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
         if es_item_list:
@@ -893,6 +898,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
         if ma_item_list:
@@ -913,6 +919,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
                 #

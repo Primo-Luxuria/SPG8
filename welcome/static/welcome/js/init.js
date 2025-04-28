@@ -170,7 +170,7 @@ function updateQuestionTabs(questionType, identity) {
     
         const authorFilterSelect = document.createElement('select');
         authorFilterSelect.id = `${questionType}-${identity}-author-filter`;
-        authorFilterSelect.innerHTML = '<option value="" selected>All Authors</option>';
+        authorFilterSelect.innerHTML = '<option value="all" selected>All Authors</option>';
     
         // collect unique authors from this questionType
         const authors = [...new Set(Object.values(questions).map(q => q.author))];
@@ -319,7 +319,7 @@ function renderFilteredQuestions(questionType, identity) {
             includeQuestion = false;
         }
         
-        if (authorFilterValue && question.author !== authorFilterValue) {
+        if (authorFilterValue && authorFilterValue != "all" && question.author !== authorFilterValue) {
             includeQuestion = false;
           }
 
