@@ -1129,6 +1129,14 @@ function serializeQuestion(question, identity) {
     return requestData;
 }
 
+
+function ShuffleArray(questionElements){
+    for (let i = questionElements.length - 2; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [questionElements[i], questionElements[j]] = [questionElements[j], questionElements[i]];
+    }
+}
+
 /**
  * Serialize a test object for the API
  * Fixed to handle null values and improve data transformation
@@ -1680,14 +1688,15 @@ async function exportTestToHTML(identity, testID) {
           // answer-space or options
           if (Q.qtype === 'mc') {
             html += '<ul>';
-            Object.entries(Q.options).forEach(([key,opt]) => {
+
+            ShuffleArray(Object.entries(Q.options)).forEach(([key,opt]) => {
               html += `<li>${key}: ${opt.text}</li>`;
             });
             html += '</ul>';
           }
           else if (Q.qtype === 'ms') {
             html += '<ul>';
-            Object.values(Q.options).forEach(opt => {
+            ShuffleArray(Object.values(Q.options)).forEach(opt => {
               html += `<li>- ${opt.text}</li>`;
             });
             html += '</ul>';
@@ -1699,6 +1708,7 @@ async function exportTestToHTML(identity, testID) {
               if (opt.pairNum) { arr.push(opt.left, opt.right); }
               else              { arr.push(opt.text); }
             });
+            arr = ShuffleArray(arr);
             arr.forEach(item => html += `<li>- ${item}</li>`);
             html += '</ul>';
           }
