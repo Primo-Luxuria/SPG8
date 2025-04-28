@@ -5,8 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Courses</title>
-    <link rel="shortcut icon" href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
-    <link rel="icon"        href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
     <style>
     /* Input fields */
     input[type="text"],
@@ -129,20 +127,31 @@
             box-shadow: 0 3px 15px rgba(0,0,0,0.1);
         }
 
+        .course-form h2 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+            color: #2e3a42;
+            font-weight: 700;
+            border-bottom: 2px solid #0077C8;
+            padding-bottom: 10px;
+        }
+
         .course-container {
-            background: #ffffff !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 12px !important;
-            padding: 20px !important;
-            margin: 20px 0 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+            background: #ffffff;
+            border: 1px solid #d9d9d9;
+            border-radius: 12px;
+            padding: 5px 30px;
+            margin: 30px auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 1000px;
             transition: all 0.3s ease;
         }
-        
-        /* Course container hover effect */
+
         .course-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
         }
         
         /* Consistent details styling */
@@ -177,25 +186,17 @@
 
         body { font-family: Arial, sans-serif; }
 	    textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
-        .course-container { background: #f4f4f4; padding: 15px; margin: 15px 0; border-radius: 8px; width: 80%; }
         details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
         .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .tab-container { margin-top: 10px; overflow: hidden;}
         .tabs { display: flex; cursor: pointer; overflow-x: auto;border-bottom: 2px solid #cccccc; }
         .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
         .tab.active { background: #ffffff; font-weight: bold; }
-        .tab-content {
-            display: none;
-            padding: 10px;
-            min-height: 200px;
-            height: 600px;        /* initial box height */
-            overflow-y: auto;     /* overflow doesnt expand box */
-            border: 1px solid #ccc;
-            resize: vertical;     /* vertical resize */
-            }
-            .tab-content.active {
+        .tab-content {display: none; padding: 10px; min-height: 120px; height: auto; overflow-y: auto; border: 1px solid #ccc; resize: vertical; max-height: 600px; /* Optional: limit how large it can expand */
+        }
+        .tab-content.active {
             display: block;
-            }
+        }
         .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
@@ -213,6 +214,71 @@
     opacity: 0.6;
     pointer-events: none;
 }
+
+
+    button {
+        transition: all 0.1s ease-in-out;
+        transform: scale(1);
+    }
+
+    button:active {
+        transform: scale(0.95);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) inset;
+    }
+
+    .section-item {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin: 12px 0;
+        padding: 10px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .section-item:hover {
+        background: #e2f0ff; /* Light blue hover */
+        transform: scale(1.02);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+
+        /* Main Course Card summary */
+    .course-container > details > summary {
+        position: sticky;
+        top: 0;
+        background: #ffffff;
+        z-index: 10;
+        padding: 18px;
+        font-size: 15px;
+        font-weight: bold;
+        border-bottom: 2px solid #0077C8;
+        cursor: pointer;
+    }
+
+    /* Subcard (Questions, Cover Pages, Templates) summaries */
+    .course-container details > details > summary {
+        position: sticky;
+        top: 40px; /* ⚡ slightly lower so it sticks under the course title */
+        background: #f8f9fa;
+        z-index: 8;
+        padding: 14px;
+        font-weight: 600;
+        border-bottom: 1px solid #ccc;
+        cursor: pointer;
+    }
+
+
+    
+    .course-container details:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        background: #f8f9fa; /* Same background color so it stays clean */
+    }
+
+    
+
+
     </style>
 </head>
 <body style="background-color: #2e3a42;">
@@ -231,7 +297,7 @@
         <div class="course-form">
             <h2>Manage Your Courses</h2>
 
-    <div style="background:#e0e0e0;padding:20px;">
+    <div class="course-container">
         <h3>Add a New Course</h3>
     <input type="text" id="courseID" placeholder="Enter Course ID" required>
     <input type="text" id="courseName" placeholder="Enter Course Name" required>
@@ -245,7 +311,7 @@
     </select><br/><br/>
 
     
-    <button class="add-btn" onclick="addContent()">Add Course</button><br/><br/>
+    <button class="add-btn cool-press" onclick="addContent()">Add Course</button>
     <style>
         
         button[onclick="addCourse()"] {
@@ -271,16 +337,16 @@
         </style>
     </div>
    
-    <div style="background:#e0e0e0;padding:20px;margin-top: 10px;">
+    <div class="course-container">
         <h3>Use Existing Course</h3>
     
         <label for="existingCourse">Select Course:</label><br>
         <select id="existingCourse">
             <option value="" disabled selected>Choose a Course</option>
         </select><br>
-        <button class="add-btn" onclick="addExistingCourse()">Add Course</button><br/><br/>
+        <button class="add-btn cool-press" onclick="assignTextbooksToCourse()">Assign Selected Textbooks to Course</button>
     </div>
-    <div style="background:#e0e0e0;padding:20px;margin-top: 10px;">
+    <div class="course-container">
         <h3>Add Textbook(s) to Course</h3>
         <label for="existingTextbook">Select Textbooks:</label><br>
         <select id="existingTextbook" multiple size="6" style="min-width:300px; font-size:14px;">
@@ -292,7 +358,7 @@
             <option value="" disabled selected>Choose a Course for the Textbooks:</option>
         </select><br>
         <small style="color: #444;">Hold Ctrl (Cmd on Mac) to select multiple textbooks.</small><br>
-        <button class="add-btn" onclick="assignTextbooksToCourse()">Assign Selected Textbooks to Course</button>
+        <button class="add-btn cool-press" onclick="assignTextbooksToCourse()">Assign Selected Textbooks to Course</button>
     </div>
 
     {% if error_message %}
@@ -355,16 +421,7 @@
 <!-- Logout Button -->
 <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
     <form action="{% url 'home' %}" method="get">
-        <button type="submit" style="
-            background-color: #dc3545;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        ">
+        <button type="submit" class="remove-btn">
             Logout
         </button>
     </form>
