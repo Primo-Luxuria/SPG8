@@ -1816,7 +1816,8 @@ def signup_handler(request):
         # For a GET request, simply render the signup form
         return render(request, 'signup.html')
 
-
+def home(request):  
+    return render(request, 'welcome/home.html')
 
 
 """
