@@ -108,7 +108,7 @@ This will need to change once hooked up to AWS
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'quizpressdb1',  # Ensure this matches your database name
+#         'NAME': 'quizpressdb',  # Ensure this matches your database name
 #         'USER': 'dbadmin',
 #         'PASSWORD': # Same as the one you used in the MySQL client 
 #          'HOST': 'localhost',
@@ -125,9 +125,9 @@ Local test for database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'quizpress',  # Your database name
+        'NAME': 'quizpressdb',  # Your database name
         'USER': 'root',  # Your MySQL username
-        'PASSWORD': '2319isuck',  # Your MySQL password
+        'PASSWORD': 'Conductorofmanydreams1!',  # Your MySQL password
         'HOST': 'localhost',  # Use 'localhost' for local development
         'PORT': '3306',  # Default MySQL port
     }
