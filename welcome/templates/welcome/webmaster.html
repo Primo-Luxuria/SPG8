@@ -7,181 +7,357 @@
 <title>Manage Website</title>
 <link rel="shortcut icon" href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
 <link rel="icon"        href="{% static '\welcome\quizpress.ico' %}" type="image/x-icon">
-<style>
-/* Full style block copied from SBteacher.html */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-body {
-    font-family: Arial, sans-serif;
-    color: #333;
-    background-color: #2e3a42;
-}
-input[type="text"],
-input[type="number"],
-input[type="date"],
-select,
-textarea {
-    margin-bottom: 8px;
-    height: 40px !important;
-    padding: 10px 12px !important;
-    font-size: 16px !important;
-    border: 1px solid #ccc !important;
-    border-radius: 8px !important;
-    transition: all 0.3s ease;
-    min-width: 200px !important;
-}
-input[type="text"]:focus,
-input[type="number"]:focus,
-input[type="date"]:focus,
-select:focus,
-textarea:focus {
-    border-color: #0077C8 !important;
-    box-shadow: 0 0 0 2px rgba(0, 119, 200, 0.1) !important;
-    outline: none !important;
-}
-select#courseSemester {
-    background-color: #ffffff !important;
-    border-color: #cccccc !important;
-    background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
-}
-textarea {
-    height: auto !important;
-    min-height: 120px !important;
-    line-height: 1.5 !important;
-}
-#errorText {
-    color: #dc3545 !important;
-    font-size: 14px !important;
-    margin-top: 8px !important;
-    padding: 8px 12px !important;
-    border-radius: 6px !important;
-    background-color: #f8d7da !important;
-    border: 1px solid #f5c6cb !important;
-}
-input:hover,
-select:hover,
-textarea:hover {
-    border-color: #999 !important;
-}
-.header {
-    background-color: #0077C8;
-    color: white;
-    padding: 25px 0;
-    text-align: center;
-}
-.header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-}
-.welcome-bar {
-            background-color: #005fa3;
-            padding: 15px 0;
-            text-align: center;
-            color: white;
-            font-size: 1.2rem;
-            letter-spacing: 0.5px;
+    <style>
+        /* Input fields */
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select,
+        textarea {
+        margin-bottom: 8px;
+            height: 40px !important;
+            padding: 10px 12px !important;
+            font-size: 16px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease;
+            min-width: 200px !important;
         }
     
-.container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 20px;
-}
-.course-form {
-    background: white;
-    border-radius: 10px;
-    padding: 2rem;
-    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
-}
-.course-container {
-    background: #ffffff !important;
-    border: 1px solid #e0e0e0 !important;
-    border-radius: 12px !important;
-    padding: 20px !important;
-    margin: 20px 0 !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-    transition: all 0.3s ease;
-}
-.course-container:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-.course-container details {
-    background: #f8f9fa !important;
-    border-radius: 8px !important;
-    margin: 12px 0 !important;
-    border: 1px solid #dee2e6 !important;
-}
-.course-container details summary {
-    padding: 14px !important;
-    font-weight: 600 !important;
-    color: #2e3a42 !important;
-    cursor: pointer !important;
-}
-.course-container .remove-btn {
-    margin-top: 20px !important;
-    width: 100% !important;
-    padding: 12px !important;
-    font-size: 16px !important;
-    background: red;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-.form-container {
-    display: flex;
-    flex-direction: column;
-    align-items: left;
-    padding: 20px;
-    width: 300px;
-}
-.form-group {
-    display: flex;
-    align-items: left;
-    margin-bottom: 10px;
-    width: 100%;
-}
-.form-group label {
-    width: 120px;
-    text-align: right;
-    margin-right: 10px;
-}
-.form-group input {
-    flex: 1;
-}
-button.loading {
-    opacity: 0.6;
-    pointer-events: none;
-    border-radius: 8px !important;
+        /* Focus states */
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #0077C8 !important;
+            box-shadow: 0 0 0 2px rgba(0, 119, 200, 0.1) !important;
+            outline: none !important;
+        }
+    
+        .dual-container {
+            display: flex;
+            gap: 40px;
+            margin-top: 30px;
+            align-items: flex-start;
+        }
+    
+        /* Dropdown specific */
+        select {
+            select#courseSemester {
+                background-color: #ffffff !important;
+                border-color: #cccccc !important;
+            }
+            
+            /* Custom dropdown arrow - ensure visibility */
+            select#courseSemester {
+                background-image: url("data:image/svg+xml;utf8,<svg fill='%23666' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") !important;
+            }
+        }
+    
+        /* Textareas */
+        textarea {
+            height: auto !important;
+            min-height: 120px !important;
+            line-height: 1.5 !important;
+        }
+    
+        /* Error message */
+        #errorText {
+            color: #dc3545 !important;
+            font-size: 14px !important;
+            margin-top: 8px !important;
+            padding: 8px 12px !important;
+            border-radius: 6px !important;
+            background-color: #f8d7da !important;
+            border: 1px solid #f5c6cb !important;
+        }
+    
+        /* Hover states */
+        input:hover,
+        select:hover,
+        textarea:hover {
+            border-color: #999 !important;
+        }
+    
+            /* Base styles */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+    
+            body {
+                font-family: Arial, sans-serif;
+                color: #333;
+                background: #f5f7fa;
+            }
+    
+            /* Header Styles */
+            .header {
+                background-color: #0077C8;
+                color: white;
+                padding: 25px 0;
+                text-align: center;
+            }
+    
+            .header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
+            }
+    
+            .welcome-bar {
+                background-color: #005fa3;
+                padding: 15px 0;
+                text-align: center;
+                color: white;
+                font-size: 1.2rem;
+                letter-spacing: 0.5px;
+            }
+    
+            /* Main Content Container */
+            .container {
+                max-width: 1200px;
+                margin: 2rem auto;
+                padding: 0 20px;
+            }
+    
+            /* Course Form Section */
+            .course-form {
+                background: white;
+                border-radius: 10px;
+                padding: 2rem;
+                box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            }
+    
+            .course-form h2 {
+                text-align: center;
+                font-size: 2.2rem;
+                margin-bottom: 1.5rem;
+                color: #2e3a42;
+                font-weight: 700;
+                border-bottom: 2px solid #0077C8;
+                padding-bottom: 10px;
+            }
+    
+            .course-container {
+                background: #ffffff;
+                border: 1px solid #d9d9d9;
+                border-radius: 12px;
+                padding: 5px 30px;
+                margin: 30px auto;
+                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+                width: 100%;
+                max-width: 1000px;
+                transition: all 0.3s ease;
+            }
+    
+            .course-container:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+            }
+
+            .course-container details[open] {
+                width: 100% !important;
+                max-width: none !important;
+                padding: 20px !important;
+                box-sizing: border-box;
+            }
+            
+            /* Consistent details styling */
+            .course-container details {
+                background: #f8f9fa !important;
+                border-radius: 8px !important;
+                margin: 12px 0 !important;
+                border: 1px solid #dee2e6 !important;
+                transition: all 0.3s ease; /* Add transition */
+            }
+    
+            .course-container details:hover {
+                transform: translateY(-3px); /* Slight lift */
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+            }
+            
+            /* Summary element styling */
+            .course-container details summary {
+                padding: 14px !important;
+                font-weight: 600 !important;
+                color: #2e3a42 !important;
+                cursor: pointer !important;
+            }
+            
+            /* Nested elements consistency */
+            .course-container details details {
+                background: #ffffff !important;
+                margin: 8px 0 !important;
+            }
+
+
+            .course-container details details[open] {
+                width: 100% !important;
+                padding: 16px !important;
+            }
+            
+            /* Remove button styling */
+            .course-container .remove-btn {
+                margin-top: 20px !important;
+                width: 100% !important;
+                padding: 12px !important;
+                font-size: 16px !important;
+            }
+    
+            body { font-family: Arial, sans-serif; }
+            textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
+            details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
+            .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .tab-container { margin-top: 10px; overflow: hidden;}
+            .tabs { display: flex; cursor: pointer; overflow-x: auto;border-bottom: 2px solid #cccccc; }
+            .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
+            .tab.active { background: #ffffff; font-weight: bold; }
+            .tab-content {display: none; padding: 10px; min-height: 120px; height: auto; overflow-y: auto; border: 1px solid #ccc; resize: vertical; max-height: 600px; /* Optional: limit how large it can expand */
+            }
+            .tab-content.active {
+                display: block;
+            }
+            .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0; 
+                left: 0;
+                width: 100%; 
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                overflow: hidden;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000; /* ⬅️ Add this! */
+            }
+    
+            .modal-content {
+                background: white;
+                padding: 20px;
+                width: 50%;
+                max-height: 80vh;
+                overflow-y: auto;
+                margin: 5% auto;
+                border-radius: 10px;
+                z-index: 1001; /* ⬅️ Optional: slightly higher than modal background */
+            }
+            .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
+            .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
+            .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
+            .form-group label {width: 120px;text-align: right;margin-right: 10px;}
+            .form-group input {flex: 1;}
+            .context-menu {display: none;position: fixed;background: white;border: 1px solid #ccc;box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);z-index: 1000;}
+            .context-menu ul {list-style: none;margin: 0;padding: 0;}
+            .context-menu ul li {padding: 8px 12px;cursor: pointer;}
+            .context-menu ul li:hover {background: #f0f0f0;}
+            button.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    
+        button {
+            transition: all 0.1s ease-in-out;
+            transform: scale(1);
+        }
+    
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2) inset;
+        }
+    
+        .section-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin: 12px 0;
+            padding: 10px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+    
+        .section-item:hover {
+            background: #e2f0ff;
+            transform: scale(1.02);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+    
+    
+            /* Main Course Card summary */
+        .course-container > details > summary {
+            position: sticky;
+            top: 0;
+            background: #ffffff;
+            z-index: 10;
+            padding: 18px;
+            font-size: 15px;
+            font-weight: bold;
+            border-bottom: 2px solid #0077C8;
+            cursor: pointer;
+        }
+    
+        /* Subcard (Questions, Cover Pages, Templates) summaries */
+        .course-container details > details > summary {
+            position: sticky;
+            top: 40px;
+            background: #f8f9fa;
+            z-index: 8;
+            padding: 14px;
+            font-weight: 600;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+        }
+    
+    
+        
+        .course-container details:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            background: #f8f9fa;
+        }
+
+        input[type="file"] {
+    display: inline-block;
+    width: auto;
+    font-size: 16px;
+    margin-top: 10px;
 }
 
-button {
-    background-color: #0077C8 !important; /* Blue */
-    color: white !important; 
-    border-radius: 8px !important;
-    padding: 10px 20px !important;
-    font-size: 16px !important;
-    cursor: pointer !important;
-    border: none !important;
+input[type="file"] {
+    display: inline-block;
+    width: auto;
+    font-size: 16px;
+    margin-top: 10px;
+    overflow: hidden; /* hides "no file chosen" text */
+}
+
+input[type="file"]::file-selector-button {
+    background-color: #0077C8;
+    color: white;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: Arial, sans-serif; /* match your other button fonts */
+    font-weight: normal; /* match font weight */
+    cursor: pointer;
+    width: 100px; /* fixed width to match others */
+    text-align: center;
     transition: background-color 0.3s ease;
 }
 
-button:hover {
-    opacity: 0.9;
+input[type="file"]::file-selector-button:hover {
+    background-color: #005fa3;
 }
 
-button.logout-btn {
-    background-color: #dc3545 !important;
-    color: white !important;
-}
 
-button.logout-btn:hover {
-    background-color: #b02a37 !important;
-}
+
+
+
 </style>
 </head>
 
@@ -211,8 +387,10 @@ button.logout-btn:hover {
     </style>
 </head>
 <body style="background-color: #2e3a42;">
-<div id="userLookup" style="background:#e0e0e0;padding:20px;">
+<div class="textbook-form">
 <h3>Choose your Search Query</h3>
+
+<divclass="textbook-container">
 <select id="searchSelector" onchange="updateSearchInput()">
 <option value="UN">Search by Username</option>
 <option value="ID">Search for User ID</option>
@@ -220,17 +398,17 @@ button.logout-btn:hover {
 <div id="searchInput">
 <input id="searchField" placeholder="Enter Username" type="text"/>
 </div>
-<button onclick="filterSearch()">Filter</button>
+<button class="add-btn cool-press" onclick="filterSearch()">Filter</button>
 <div id="searchContent"></div>
 </div>
 
 <div style="margin-bottom: 10px;">
-    <button onclick="openPreviewMenu()">Export Database</button>
+    <button class="add-btn cool-press" onclick="openPreviewMenu()">Export Database</button>
 </div>
 <div>
-    <button onclick="openImportMenu()">Import</button>
+    <button class="add-btn cool-press" onclick="openImportMenu()">Import</button>
 </div>
-
+</div>
 <script>
 
 function flattenQuestionList(questionList) {
@@ -336,39 +514,46 @@ function flattenByCourse(dataObj) {
 
 
         const container = document.getElementById('searchContent');
-        container.innerHTML = `
-            <details open>
-                <summary>User Information</summary>
-                <p>Enter New Username for ${username}</p>
+container.innerHTML = `
+    <div class=""course-form" style="background:white; width:100%; max-width:1000px; margin-top:30px; padding:30px; border-radius:10px; box-shadow:0 8px 16px rgba(0,0,0,0.2);">
+        <div class="course-container">
+        <details open>
+            <summary>User Information</summary>
+            <div class="form-container">
+                <label>Enter New Username for ${username}</label>
                 <input id="unchange" type="text" value="${data.username}">
                 <input type="checkbox" id="checkUN">
-                <p>Enter New Password:</p>
+                <label>Enter New Password:</label>
                 <input id="pwchange" type="text">
-                <input type="checkbox" id="checkPW"><br>
-                <p>"Check the box of either (or both) field(s) you wish to update"</p>
-                <button onclick="updateUserData()">Update User Data</button><br>
-            </details>
-            <details>
-                <summary>Questions</summary>
-                <div id="question-container">No questions yet. . . </div>
-            </details>
-            <details>
-                <summary>Tests</summary>
-                <div id="test-container">No tests yet. . . </div>
-            </details>
-            <details>
-                <summary>Coverpages</summary>
-                <div id="coverpage-container">No cover pages yet. . . </div>
-            </details>
-            <details>
-                <summary>Templates</summary>
-                <div id="template-container">No templates yet. . . </div>
-            </details>
-            <details>
-                <summary>Attachments</summary>
-                <div id="attachment-container">No attachments yet. . . </div>
-            </details>
-        `;
+                <input type="checkbox" id="checkPW">
+                <p style="margin-top:10px;">Check the box of either (or both) field(s) you wish to update</p>
+                <button class=class="add-btn cool-press" onclick="updateUserData()">Update User Data</button>
+            </div>
+        </details>
+        <details>
+            <summary>Questions</summary>
+            <div id="question-container">No questions yet. . .</div>
+        </details>
+        <details>
+            <summary>Tests</summary>
+            <div id="test-container">No tests yet. . .</div>
+        </details>
+        <details>
+            <summary>Coverpages</summary>
+            <div id="coverpage-container">No cover pages yet. . .</div>
+        </details>
+        <details>
+            <summary>Templates</summary>
+            <div id="template-container">No templates yet. . .</div>
+        </details>
+        <details>
+            <summary>Attachments</summary>
+            <div id="attachment-container">No attachments yet. . .</div>
+        </details>
+    </div>
+    </div>
+`;
+
         questionContainer = document.getElementById("question-container");
         if (userQuestions.length === 0) {
             questionContainer.innerHTML = "No questions yet...";
@@ -782,7 +967,7 @@ function loadActualPreview(whatToLoad) {
                     data.courses.forEach(course => {
                         container.innerHTML += `<div><input type="checkbox" name="courseExportSelect" value="${course.id}"><strong>${course.name}</strong></input></div>`;
                     });
-                    container.innerHTML += '<button onclick="ajaxExportCsv(\'course\')">Export</button>';
+                    container.innerHTML += '<button class="add-btn cool-press" onclick="ajaxExportCsv(\'course\')">Export</button>';
                 } else {
                     container.innerHTML += `<p>No courses found.</p>`;
                 }
@@ -795,7 +980,7 @@ function loadActualPreview(whatToLoad) {
                     data.tests.forEach(test => {
                         container.innerHTML += `<div><input type="checkbox" name="testExportSelect" value="${test.id}"><strong>${test.name}</strong></input></div>`;
                     });
-                    container.innerHTML += '<button onclick="ajaxExportCsv(\'test\')">Export</button>';
+                    container.innerHTML += '<button class="add-btn cool-press" onclick="ajaxExportCsv(\'test\')">Export</button>';
                 } else {
                     container.innerHTML += `<p>No tests found.</p>`;
                 }
@@ -846,7 +1031,7 @@ function loadActualPreview(whatToLoad) {
                          */
 
                     });
-                    container.innerHTML += '<button onclick="ajaxExportCsv(\'question\')">Export</button>';
+                    container.innerHTML += '<button class="add-btn cool-press" onclick="ajaxExportCsv(\'question\')">Export</button>';
                 } else {
                     container.innerHTML += `<p>No questions found.</p>`;
                 }
@@ -999,13 +1184,13 @@ function downloadCsvTemplate()
 <div id="previewMenu" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; width:80%; max-height:80%; overflow-y:auto;">
         <h2>Export Preview Menu</h2>
-        <button onclick="closePreviewMenu()" style="float:right;">Close</button>
+        <button class="add-btn cool-press" onclick="closePreviewMenu()" style="float:right;">Close</button>
         <div>
-            <button onclick="loadActualPreview('courses')">Courses</button>
-            <button onclick="loadActualPreview('tests')">Tests</button>
-            <button onclick="loadActualPreview('questions')">Questions</button>
-            <button onclick="ajaxExportCsv('all courses')">All Courses</button>
-            <button onclick="ajaxExportCsv('everything')">Entire Database</button>
+            <button class="add-btn cool-press" onclick="loadActualPreview('courses')">Courses</button>
+            <button class="add-btn cool-press" onclick="loadActualPreview('tests')">Tests</button>
+            <button class="add-btn cool-press" onclick="loadActualPreview('questions')">Questions</button>
+            <button class="add-btn cool-press" onclick="ajaxExportCsv('all courses')">All Courses</button>
+            <button class="add-btn cool-press" onclick="ajaxExportCsv('everything')">Entire Database</button>
         </div>
         <!-- since this div container style's display will be set to "flex", flex-direction: column makes it so
                          the items will be populated/grow vertically. by default, flex-container items grow horizontally -->
@@ -1017,9 +1202,9 @@ function downloadCsvTemplate()
 
 <!-- since this div container style's display will be set to "flex", "flex-direction: column" makes it so
     the items will be populated/grow vertically. by default, flex-container items grow horizontally -->
-<div id="importMenu" style="display:none; flex-direction: column; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
-    <div style="background:white; padding:20px; border-radius:10px; width:60%; max-height:80%; overflow-y:auto;">
-        <h2>Import Menu<button onclick="closeImportMenu()" style="float:right;">Close</button></h2>
+    <div id="importMenu" style="display:none; flex-direction: column; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;">
+        <div class="textbook-container" style="background:white; padding:30px; border-radius:10px; width:80%; max-width:1000px; max-height:80%; overflow-y:auto; box-shadow:0 8px 16px rgba(0,0,0,0.3);">
+            <h2>Import Menu <button class="add-btn cool-press" onclick="closeImportMenu()" style="float:right;">Close</button></h2>
         <h3>Please select a table to import.</h3>
         <p>Please use commas as delimiters. If a field has a space, comma, line break, or carriage return, enclose the field in double quotes (").
             If an enclosed field has double quotes inside the field, replace each single double quotes (") with
@@ -1053,9 +1238,9 @@ function downloadCsvTemplate()
                 <label><input type="radio" name="importSelection" value="Feedback">Feedback</label><br>
                 <label><input type="radio" name="importSelection" value="FeedbackResponse">FeedbackResponse</label><br><br>
             </form>
-            <button onclick="importTableToDatabase()">Import</button>
+            <button class="add-btn cool-press" onclick="importTableToDatabase()">Import</button>
             <input type="file" id="importedCsv" accept=".csv" />
-            <button onclick = "downloadCsvTemplate()" style="float: right;" >Download Template</button>
+            <button class="add-btn cool-press" onclick="downloadCsvTemplate()">Download Template</button>
         </div>
 
     </div>
