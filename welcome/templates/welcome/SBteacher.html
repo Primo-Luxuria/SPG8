@@ -13,10 +13,10 @@
     select,
     textarea {
 	margin-bottom: 8px;
-        height: 40px !important; /* Increased height */
+        height: 40px !important;
         padding: 10px 12px !important;
         font-size: 16px !important;
-        border: 1px solid #ccc !important; /* Softer border color */
+        border: 1px solid #ccc !important;
         border-radius: 8px !important;
         transition: all 0.3s ease;
         min-width: 200px !important;
@@ -88,6 +88,7 @@
         body {
             font-family: Arial, sans-serif;
             color: #333;
+            background: #f5f7fa;
         }
 
         /* Header Styles */
@@ -124,7 +125,7 @@
             background: white;
             border-radius: 10px;
             padding: 2rem;
-            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
         }
 
         .course-form h2 {
@@ -160,6 +161,12 @@
             border-radius: 8px !important;
             margin: 12px 0 !important;
             border: 1px solid #dee2e6 !important;
+            transition: all 0.3s ease; /* Add transition */
+        }
+
+        .course-container details:hover {
+            transform: translateY(-3px); /* Slight lift */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); /* Stronger shadow */
         }
         
         /* Summary element styling */
@@ -199,8 +206,30 @@
         }
         .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
         .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow:hidden; align-items:center; justify-content:center;}
-        .modal-content { background: white; padding: 20px; width: 50%; max-height:80vh; overflow-y:auto; margin: 5% auto; border-radius: 10px;}
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; 
+            left: 0;
+            width: 100%; 
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000; /* ⬅️ Add this! */
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            width: 50%;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin: 5% auto;
+            border-radius: 10px;
+            z-index: 1001; /* ⬅️ Optional: slightly higher than modal background */
+        }
         .close-btn { background: red; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer;}
         .form-container {display: flex;flex-direction: column;align-items:left;padding: 20px;width: 300px;}
         .form-group {display: flex;align-items: left;margin-bottom: 10px;width: 100%;}
@@ -237,9 +266,9 @@
     }
 
     .section-item:hover {
-        background: #e2f0ff; /* Light blue hover */
+        background: #e2f0ff;
         transform: scale(1.02);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
 
 
@@ -259,7 +288,7 @@
     /* Subcard (Questions, Cover Pages, Templates) summaries */
     .course-container details > details > summary {
         position: sticky;
-        top: 40px; /* ⚡ slightly lower so it sticks under the course title */
+        top: 40px;
         background: #f8f9fa;
         z-index: 8;
         padding: 14px;
@@ -273,11 +302,10 @@
     .course-container details:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        background: #f8f9fa; /* Same background color so it stays clean */
+        background: #f8f9fa;
     }
 
     
-
 
     </style>
 </head>
@@ -287,12 +315,10 @@
         <p>Manage Your Quizzes with Eases</p>
     </div>
 
-    <!-- Welcome Bar -->
     <div class="welcome-bar">
         Welcome!
     </div>
 
-    <!-- Course Input Form -->
     <main class="container">
         <div class="course-form">
             <h2>Manage Your Courses</h2>
@@ -350,8 +376,7 @@
         <h3>Add Textbook(s) to Course</h3>
         <label for="existingTextbook">Select Textbooks:</label><br>
         <select id="existingTextbook" multiple size="6" style="min-width:300px; font-size:14px;">
-            <!-- options will be populated dynamically -->
-        </select><br>
+            </select><br>
     
         <label for="courseTargets">Assign to Course:</label><br>
         <select id="courseTargets">
@@ -367,7 +392,6 @@
 
     <div id="courseList"></div>
 
-    <!-- Context Menu for Questions -->
     <div id="contextMenu" class="context-menu">
         <ul>
             <li onclick="editItem()">Edit</li>
@@ -377,7 +401,6 @@
         </ul>
     </div>
     
-    <!-- Primary Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal()">Back</button>
