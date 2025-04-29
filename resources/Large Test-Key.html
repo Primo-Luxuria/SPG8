@@ -1,0 +1,99 @@
+
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Large Test – Answer Key</title>
+    <style>
+      /* don't flatten our image and reference divs */
+      .question > div:not(.answer-space):not(.question-img):not(.answer-img) {
+        display: contents; margin: 0; padding: 0;
+      }
+      .q-num { font-weight: bold; margin-right: 0.5em; }
+      body { font-family: Times New Roman, sans-serif; font-size: 12px; margin:20px; }
+      .test-title { font-family: "Times New Roman", sans-serif; font-size: 36px; text-align:center; }
+      .cover-page { border:1px solid #ccc; padding:15px; margin-bottom:20px; }
+      .part { margin-bottom:30px; }
+      .part-title { font-size:20px; margin-top:20px; }
+      .section-title { font-size:18px; margin-top:15px; }
+      .question { margin-bottom:15px; }
+      .correct-answer { color: red; font-weight:bold; }
+      .grading-instructions { color: blue; font-style:italic; }
+      .page-break { page-break-before: always; }
+      .answer-header { color: red; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+  
+      /* image styling */
+      .question-img img,
+      .answer-img img,
+      .attachment-image img {
+        display: block;
+        border: 1px solid #ccc;
+        padding: 4px;
+        max-width: 100%;
+        margin: 1em 0;
+      }
+  
+      /* reference text styling */
+      .question-ref-text { font-style: italic; margin-bottom: 0.5em; }
+      .question-req-refs { font-weight: bold; margin-bottom: 0.5em; }
+  
+      /* test-wide references */
+      .test-reference-materials { margin-top: 2em; }
+      .test-reference-materials h2 { font-size: 1.5em; margin-bottom: 0.5em; }
+      .ref-text, .attachment-text { margin-bottom: 1em; }
+    </style>
+  </head>
+  <body>
+    <div>Large Test Header</div>
+    <h2 class="answer-header">Answer Key</h2>
+    <h1 class="test-title">Large Test – Answer Key</h1>
+  
+    <div class="cover-page">
+      <h2>Default 1st Test</h2>
+      <p>Test Number: 1</p>
+      <p>Date: 2025-04-28</p>
+      <p>Filename: defaultpage</p>
+      <p class="grading-instructions">Instructions: Grade according to the rubric, giving partial credit where indicated</p>
+    </div>
+    <div class="page-break"></div>
+  <div class="part"><h2 class="part-title">Part 1</h2><div><h3 class="section-title">True/False</h3><div class="question"><span class="q-num">1.</span>The expression 5 / 2 in C yields 2.5<p class="correct-answer">Answer: false</p><p class="grading-instructions">Grading: No partial credit.</p></div><div class="question"><span class="q-num">2.</span>A C program must define a main() function.<p class="correct-answer">Answer: true</p><p class="grading-instructions">Grading: No partial credit.</p></div><div class="question"><span class="q-num">3.</span>The sizeof operator returns the size in bytes of its operand.<p class="correct-answer">Answer: true</p><p class="grading-instructions">Grading: No partial credit.</p></div></div><div><h3 class="section-title">Multiple Choice</h3><div class="question"><span class="q-num">4.</span>Which loop can omit initialization, condition, and increment in its syntax?<p class="correct-answer">Answer:for</p><p class="grading-instructions">Grading: No partial credit</p></div><div class="question"><span class="q-num">5.</span>Which header file must you include to use the printf function?<p class="correct-answer">Answer:stdio.h</p><p class="grading-instructions">Grading: No partial credit.</p></div><div class="question"><span class="q-num">6.</span>Which of the following is the correct way to declare a pointer to an int?<p class="correct-answer">Answer:int *p;</p><p class="grading-instructions">Grading: No partial credit</p></div></div><div><h3 class="section-title">Matching</h3><div class="question"><span class="q-num">7.</span>Match items together.<p class="correct-answer">Answer: {Preprocessor directive, Begins with #, processed before compilation}<br> {Function prototype, Declaration without a body}<br> {String literal, Array of characters terminated by '\0'}<br></p><p class="grading-instructions">Grading: Partial credit (2 pts) for each correct pair.</p></div></div><div><h3 class="section-title">Multiple Selection</h3><div class="question"><span class="q-num">8.</span>Which of the following are valid C keywords?<p class="correct-answer">Answer: inline<br> volatile<br></p><p class="grading-instructions">Grading: 1 point per correct answer (up to 2).</p></div></div><div><h3 class="section-title">Fill in the Blank</h3><div class="question"><span class="q-num">9.</span>Python is considered an __________________.<p class="correct-answer">Answer: Object-Oriented Language<br></p><p class="grading-instructions">Grading: OOL is accepted.</p></div><div class="question"><span class="q-num">10.</span>The operator used to access the value pointed to by a pointer is the ____ operator.<p class="correct-answer">Answer: *<br></p><p class="grading-instructions">Grading: No partial credit.</p></div></div></div><div class="part"><h2 class="part-title">Part 2</h2><div><h3 class="section-title">Short Answer</h3><div class="question"><span class="q-num">11.</span>What is the difference between malloc and calloc?<p class="correct-answer">Answer: malloc(size) allocates a single block of uninitialized memory of size bytes; calloc(n, size) allocates an array of n elements, each of size bytes, and initializes all bits to zero.</p><p class="grading-instructions">Grading: 3 pts for stating that malloc allocates uninitialized memory and calloc zero-initializes
+
+2 pts for noting that calloc takes two parameters for number of elements and element size</p></div><div class="question"><span class="q-num">12.</span>How does the sizeof operator behave when applied to an array parameter inside a function?<p class="correct-answer">Answer: Inside a function, an array parameter “decays” to a pointer, so sizeof yields the size of the pointer type (e.g. 8 on a 64-bit system), not the total array length.</p><p class="grading-instructions">Grading: 3 pts for explaining that arrays decay to pointers in parameter lists
+
+2 pts for stating that sizeof then returns the pointer’s size</p></div><div class="question"><span class="q-num">13.</span>Explain what happens when you call free() on a NULL pointer.<p class="correct-answer">Answer: The C standard guarantees that free(NULL) does nothing; it is a safe no-op.</p><p class="grading-instructions">Grading: 3 pts for saying “no effect” or “no operation”
+
+2 pts for citing that this behavior is defined by the C standard</p></div></div><div><h3 class="section-title">Essay</h3><div class="question"><span class="q-num">14.</span>Discuss the significance of pointers in C in terms of performance and flexibility, citing examples where pointer arithmetic is beneficial and potentially dangerous.<p class="correct-answer">Answer: Performance: passing large structs by pointer avoids copying
+
+Flexibility: implementing data structures (linked lists, trees)
+
+Pointer arithmetic:
+
+Beneficial: iterating arrays efficiently
+
+Dangerous: off-by-one errors lead to undefined behavior
+
+Best practices: boundary checks, use of const</p><p class="grading-instructions">Grading: 5 pts for discussing performance gains
+
+5 pts for illustrating flexibility in data structures
+
+5 pts for balanced examples of benefits vs. dangers
+
+5 pts for overall coherence and depth</p></div><div class="question"><span class="q-num">15.</span>Describe the lifetime and scope of variables in C, including automatic, static, and dynamic storage.<p class="correct-answer">Answer: Key Points:
+Scope: block (local), file (global), function prototype
+Lifetime/Storage Duration:
+Automatic: exists only within block; allocated on stack
+Static: persists for entire program; either global or inside function with static keyword
+Dynamic: allocated/freed via malloc/free on the heap</p><p class="grading-instructions">Grading: 5 pts for clearly defining scope levels
+
+5 pts for explaining each storage duration
+
+5 pts for providing illustrative examples
+
+5 pts for clarity, organization, and completeness</p></div></div></div>
+    <div class="page-break"></div>
+    <div class="test-reference-materials">
+      <h2>Reference Materials</h2><div class="ref-text">Large Test Reference Text</div></div>
+    <div>Large Test Footer</div>
+  </body>
+  </html>
+  
