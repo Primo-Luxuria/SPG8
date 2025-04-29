@@ -163,7 +163,10 @@
   <!-- Load Vanta.js and Three.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
-  <script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function() {
   VANTA.WAVES({
     el: "#vanta-bg",
     mouseControls: true,
@@ -174,9 +177,15 @@
     scale: 1.00,
     scaleMobile: 1.00,
     color: 0xc365f,
-    waveSpeed: 0.10
+    waveSpeed: 0.10,
+    onLoad: function() {
+      document.body.style.visibility = 'visible';
+    }
   });
-  </script>
+});
+</script>
+
+    
 
 </body>
 </html>
