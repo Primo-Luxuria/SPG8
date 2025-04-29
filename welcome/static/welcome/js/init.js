@@ -1734,10 +1734,10 @@ const keyMap = {
             html += `<p>True ___ False ___</p>`;
           }
           else if (Q.qtype === 'sa' || Q.qtype === 'fb') {
-            html += `<div class="answer-space" style="height:1.5em;"></div>`;
+            html += `<div class="answer-space" style="height:8em;"></div>`;
           }
           else if (Q.qtype === 'es') {
-            html += `<div class="answer-space" style="height:6em;"></div>`;
+            html += `<div class="answer-space" style="height:16em;"></div>`;
           }
   
           // answer-level image? (if you ever use in test)
