@@ -487,6 +487,18 @@ function flattenQuestionList(questionList) {
     return Object.values(flat);
 }
 
+function flattenTestList(testList) {
+    let flat = {};
+    for (const identity in testList) {
+        for (const published in testList[identity]) {
+            for (const id in testList[identity][published]) {
+                flat[id] = testList[identity][published][id];
+            }
+        }
+    }
+    return Object.values(flat);
+}
+
 function flattenByCourse(dataObj) {
     let flatList = [];
     for (const courseID in dataObj) {
@@ -568,7 +580,7 @@ function flattenByCourse(dataObj) {
 
 
         userQuestions = flattenQuestionList(data.question_list);
-        userTests = flattenByCourse(data.test_list);
+        userTests = flattenTestList(data.test_list);
         userTemplates = flattenByCourse(data.template_list);
         userCoverPages = flattenByCourse(data.cpage_list);
         userAttachments = flattenByCourse(data.attachment_list);

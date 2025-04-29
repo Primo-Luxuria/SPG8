@@ -227,6 +227,7 @@ def parse_qti_xml(request):
         test_instance = Test.objects.create(
             course=the_course,
             name=the_test_title,
+            author=request.user,
             template=template_instance,
             is_final=True
         )
