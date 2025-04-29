@@ -351,6 +351,31 @@
             overflow: hidden;
         }
 
+        #existingTextbook {
+  scrollbar-width: thin;
+  scrollbar-color: #0077C8 #f1f1f1; /* thumb, track */
+  overflow-y: auto;
+  max-height: 200px; /* optional: limits height */
+  border-radius: 8px;
+}
+
+/* For Webkit (Chrome, Edge, Safari) */
+#existingTextbook::-webkit-scrollbar {
+  width: 8px;
+}
+
+#existingTextbook::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+#existingTextbook::-webkit-scrollbar-thumb {
+  background-color: #0077C8;
+  border-radius: 8px;
+  border: 2px solid #f1f1f1; /* Adds padding around thumb */
+}
+
+
 
 
 
@@ -493,7 +518,7 @@
 <script>
 VANTA.WAVES({
     el: "#vanta-bg",
-    mouseControls: true,
+    mouseControls: false,
     touchControls: true,
     gyroControls: false,
     scale: 1.00,
