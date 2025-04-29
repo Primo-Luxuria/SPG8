@@ -198,16 +198,34 @@
             textarea {width: 100%;min-height: 100px;resize: vertical;font-size: 16px;padding: 8px;}
             details { margin-top: 10px; padding: 10px; background: #e0e0e0; border-radius: 5px; }
             .remove-btn { background: red; color: white; padding: 8px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
-            .tab-container { margin-top: 10px; overflow: hidden;}
+            .tab-container .tab.active {
+                background-color: #0077C8; /* Blue background for active tab */
+                color: white; /* White text for active tab */
+                border: 1px solid #0077C8; /* Optional: solid blue border */
+            }
             .tabs { display: flex; cursor: pointer; overflow-x: auto;border-bottom: 2px solid #cccccc; }
             .tab { padding: 8px 12px; border: 1px solid #cccccc; border-bottom: none; background: #d9d9d9; }
             .tab.active { background: #ffffff; font-weight: bold; }
-            .tab-content {display: none; padding: 10px; min-height: 120px; height: auto; overflow-y: auto; border: 1px solid #ccc; resize: vertical; max-height: 600px; /* Optional: limit how large it can expand */
+            .tab-content {
+                display: none;
+                background: white; /* white background to match cards */
+                padding: 20px;
+                margin-top: 10px;
+                border: 1px solid #ccc;
+                border-radius: 10px; /* rounded corners */
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* soft shadow */
+                min-height: 120px;
+                max-height: 600px;
+                overflow-y: auto;
+                resize: vertical; /* allow resizing if needed */
+                transition: all 0.3s ease;
             }
+
             .tab-content.active {
                 display: block;
             }
-            .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
+
+            .add-btn { background: #0077C8; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; margin-bottom: 20px;}
             .save-btn { background: #0066b5; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;}
             .modal {
                 display: none;
@@ -307,67 +325,77 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
             background: #f8f9fa;
         }
+
+        /* Radio buttons when selected */
+        input[type="radio"]:checked + label {
+            background-color: #0077C8; /* primary blue */
+            color: white;
+            border-radius: 8px;
+            padding: 8px 12px;
+            transition: all 0.3s ease;
+        }
+
+        /* Optional: slight hover effect before clicking */
+        input[type="radio"] + label:hover {
+            background-color: #005fa3; /* darker blue on hover */
+            color: white;
+        }
+
+
+        
 </style>
 </head>
-<body style="background-color: #2e3a42;">
-    <div class="header">
+<<body>
+    <!-- Vanta Waves fixed behind everything -->
+    <div id="vanta-background" style="position: fixed; width: 100%; height: 100%; top: 0; left: 0; z-index: 0;"></div>
+  
+    <!-- Your real visible page content -->
+    <div id="content" style="position: relative; z-index: 1;">
+  
+      <div class="header">
         <h1>QuizPress</h1>
-        <p>Manage Your Quizzes with Eases</p>
-    </div>
-
-     <!-- Welcome Bar -->
-     <div class="welcome-bar">
+        <p>Manage Your Quizzes with Ease</p>
+      </div>
+  
+      <div class="welcome-bar">
         Welcome!
-    </div>
-    
-    <!-- Textbook Input Form -->
-    <main class="container">
+      </div>
+  
+      <main class="container">
         <div class="textbook-form">
-            <h2>Manage Your Textbooks</h2>
-
-<body style="background-color: #2e3a42;">
-
-    <!-- Textbook Input Form -->
-
-    <div class="textbook-container">
-        <h3>Add a New Textbook</h3>
-    <input type="text" id="title" placeholder="Enter Textbook Title" required>
-    <input type="text" id="author" placeholder="Enter Textbook Author" required>
-    <input type="text" id="version" placeholder="Enter Textbook Version" required>
-    <input type="text" id="isbn" placeholder="Enter Textbook ISBN" required>
-    <input type="text" id="link" placeholder="Enter Textbook Link" required>
-    
-    
-    <button class="add-btn cool-press" onclick="addContent()">Add Textbook</button>
-    <style>
-        /* Add this to your existing button styles */
-        button[onclick="addTextbook()"] {
-            background-color: #0077C8 !important;
-            color: white !important;
-            padding: 12px 24px !important;
-            font-size: 16px !important;
-            border: none !important;
-            border-radius: 8px !important;
-            cursor: pointer !important;
-            transition: background-color 0.3s ease !important;
-        }
-        
-        /* Hover effect */
-        button[onclick="addCourse()"]:hover {
-            background-color: #005fa3 !important;
-        }
-        
-        /* Active state */
-        button[onclick="addCourse()"]:active {
-            background-color: #004880 !important;
-        }
-        </style>
-    </div>
-
-    {% if error_message %}
-    <p style="color:aliceblue" id="errorText"></p>
-    {% endif %}
-    <div id="textbookList"></div>
+          <h2>Manage Your Textbooks</h2>
+  
+          <div class="textbook-container">
+            <h3>Add a New Textbook</h3>
+            <input type="text" id="title" placeholder="Enter Textbook Title" required>
+            <input type="text" id="author" placeholder="Enter Textbook Author" required>
+            <input type="text" id="version" placeholder="Enter Textbook Version" required>
+            <input type="text" id="isbn" placeholder="Enter Textbook ISBN" required>
+            <input type="text" id="link" placeholder="Enter Textbook Link" required>
+            <button class="add-btn cool-press" onclick="addContent()">Add Textbook</button>
+          </div>
+  
+          {% if error_message %}
+          <p id="errorText">{{ error_message }}</p>
+          {% endif %}
+  
+          <div id="textbookList"></div>
+          <!-- ✅ ADD logout button INSIDE here -->
+    <div style="text-align: center; margin-top: 30px;">
+        <form action="{% url 'home' %}" method="get">
+            <button type="submit" style="
+                background-color: red;
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            ">
+                Logout
+            </button>
+        </div>
 
     <!-- Context Menu for Questions -->
     <div id="contextMenu" class="context-menu">
@@ -418,21 +446,30 @@
     <script src="{% static 'welcome/js/dom.js' %}"></script>
 
 
-    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
-        <form action="{% url 'home' %}" method="get">
-            <button type="submit" style="
-                background-color: red;
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-            ">
-                Logout
-            </button>
         </form>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
+<script>
+VANTA.WAVES({
+  el: "#vanta-background",
+  mouseControls: true,
+  touchControls: true,
+  gyroControls: false,
+  minHeight: 200.00,
+  minWidth: 200.00,
+  scale: 1.00,
+  scaleMobile: 1.00,
+  color: 0x0c365f,
+  waveSpeed: 0.20,
+  shininess: 50,
+  waveHeight: 20,
+  waveSpeed: 0.5,
+  zoom: 1.0,
+  resize: true   //this ensures dynamic updating on window resize
+})
+</script>
+        
 
 </body>
 </html
