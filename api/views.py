@@ -227,10 +227,12 @@ def update_user(request):
     
     return Response({"status": "success", "message": "User updated successfully"})
 
+import time
 
 @api_view(['POST'])
 @require_POST
 def fetch_user_data(request):
+    start_time = time.perf_counter()
     data = request.data
     request_type = data.get('type', '')
     value = data.get('value', '')
@@ -474,7 +476,9 @@ def fetch_user_data(request):
     except Exception as e:
         print("Atomic block failed:", str(e))
         return Response({"status": f"An error occurred: {str(e)}"}, status=500)
-
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print(f"Execution time: {execution_time:.4f} seconds")
     return Response(response_data)
 
 @api_view(['POST'])

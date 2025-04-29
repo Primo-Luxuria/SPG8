@@ -1520,7 +1520,7 @@ function updateTestTabs(identity) {
 function ShuffleOptions(optionList) {
     for (let i = optionList.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));  // Generate a random index from 0 to i
-        [optionList[i].text, optionList[j].text] = [optionList[j].text, optionList[i].text];  // Swap elements
+        [optionList[i], optionList[j]] = [optionList[j], optionList[i]];  // Swap elements
     }
 }
 
@@ -1656,6 +1656,12 @@ async function exportTestToHTML(identity, testID) {
     sa: "Short Answer",
     fb: "Fill in the Blank"
 };
+const keyMap = {
+    1: "A",
+    2: "B",
+    3: "C",
+    4: "D",
+};
     // 6) render questions with references/images
     let questionNumber = 1;
     for (let p = 0; p < test.parts.length; p++) {
@@ -1695,10 +1701,12 @@ async function exportTestToHTML(identity, testID) {
           // answer-space or options
           if (Q.qtype === 'mc') {
             html += '<ul>';
+            let letter=0;
             let optionArray = Object.entries(Q.options);
             ShuffleOptions(optionArray);
             optionArray.forEach(([key,opt]) => {
-              html += `<li>${key}: ${opt.text}</li>`;
+                letter++;
+              html += `<li>${keyMap[letter]}: ${opt.text}</li>`;
             });
             html += '</ul>';
           }
