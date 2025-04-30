@@ -116,6 +116,8 @@ document.addEventListener('contextmenu', function (event) {
  * Precondition: NA
  * Postcondition: Warning message displayed
 */
-window.onbeforeunload = function(event){
-    event.returnValue = "Warning! Data entered may not be saved! Are you sure you want to exit?";
+window.onbeforeunload = function (e) {
+  e.preventDefault(); 
+  e.returnValue = ''; 
+  return ''; 
 };
