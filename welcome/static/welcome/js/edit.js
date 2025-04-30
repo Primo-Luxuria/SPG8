@@ -32,15 +32,16 @@ function editItem() {
 
 function editQuestion(identity, questionType, questionID) {
     console.log(masterQuestionList[identity][questionType][questionID]);
+    if(masterQuestionList[identity][questionType][questionID].author != window.username){
+        alert("You are not the author of this question!");
+        return;
+    }
     if(masterQuestionList[identity][questionType][questionID].published === true){
         if(!confirm("This question is published. Are you sure you want to edit it?")){
            return;
         }
     }
-    if(masterQuestionList[identity][questionType][questionID].author != window.username){
-        alert("You are not the author of this question!");
-        return;
-    }
+    
     const question = masterQuestionList[identity][questionType][questionID];
 
     // Open the edit modal and populate it with the question data
@@ -299,8 +300,11 @@ function submitEditQuestion(identity, questionType, questionID) {
                 published: 0
             };
 
-            masterQuestionList[identity][questionType].push(clone);
-            updateQuestionTabs(questionType, identity);
+            if(window.userRole =="teacher"){
+                saveData("question", clone, identity);
+            }else{
+                saveData("question", clone, null, identity);
+            }
             closeModal();
             return;
         } else if (!confirm("Are you sure you want to edit this published question directly?")) {
@@ -429,7 +433,6 @@ function editTemplate(identity, templateID) {
     const modalTitle = document.getElementById('modalTitle');
     const modalBody = document.getElementById('modalBody');
 
-    alert(JSON.stringify(template));
     modalTitle.innerText = 'Edit Template';
     if(template.published === true){
         alert("This template is published. You cannot edit it.");

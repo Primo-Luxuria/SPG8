@@ -816,6 +816,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
@@ -837,6 +838,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
                 
@@ -858,6 +860,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
@@ -879,6 +882,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
@@ -899,6 +903,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
 
@@ -920,6 +925,7 @@ def parse_qti_xml(request):
 
                 # update test section
                 item.get('question').section = number_of_sections
+                item.get('question').published = True
                 item.get('question').tests.add(test_instance)
                 item.get('question').save()
 

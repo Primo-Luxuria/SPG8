@@ -948,7 +948,6 @@ feedback: []
 const selectedAttachments = Array.from(document.getElementById("testGraphicField").selectedOptions).map(opt => opt.value);
 testData.attachments = selectedAttachments;
 
-alert(JSON.stringify(testData));
 // Loop through all parts and sections rendered in the UI
 const testParts = document.getElementById("testParts");
 const partContainers = testParts.querySelectorAll('[id^="part-"][id$="-container"]:not([id*="-section-"])');
